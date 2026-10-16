@@ -104,6 +104,8 @@ export interface FloorDef {
   requires?: number;
   /** Replaces mob health (M7 squeezes every mob and boss into a fixed band). */
   hpRule?: (baseHp: number, boss: boolean) => number;
+  /** Master Mode: the Catacombs level where you stop being underpowered here. */
+  masteryLevel?: number;
 }
 
 const tiers = (wood: number, gold: number, diamond: number, emerald: number, obsidian: number, bedrock: number) =>
@@ -213,31 +215,30 @@ export const FLOORS: FloorDef[] = [
 export const MASTER_OFFSET = 100;
 
 /**
- * M7 health band. A Catacombs 50 player with a maxed Hyperion hits for about 270k at most, so
- * every M7 mob starts above that; a maxed Dark Claymore crits for about 1.8M, above every boss.
+ * M7 health. A Catacombs 50 player with a maxed Hyperion hits for about 270k at most, so every M7
+ * mob starts above that. The Wither Lords sit just under a maxed Dark Claymore crit at Catacombs 50
+ * (about 1.653M): one level short, or one piece of gear short of level 50, and it takes two swings.
+ * tests/balance.test.ts checks all of this.
  */
 export const M7_MOB_HP: [number, number] = [320_000, 750_000];
-export const M7_BOSS_HP: [number, number] = [1_000_000, 1_600_000];
+export const M7_BOSS_HP = 1_650_000;
 /** Each Wither Dragon has to lose all of this during one pass over its statue. */
-export const M7_DRAGON_HP = 400_000;
+export const M7_DRAGON_HP = 340_000;
 function m7Hp(baseHp: number, boss: boolean): number {
-  if (boss) {
-    const k = Math.min(1, Math.max(0, (baseHp - 5000) / 4000));
-    return Math.round(M7_BOSS_HP[0] + k * (M7_BOSS_HP[1] - M7_BOSS_HP[0]));
-  }
+  if (boss) return M7_BOSS_HP;
   const k = Math.min(1, Math.max(0, (baseHp - 90) / 610));
   return Math.round(M7_MOB_HP[0] + k * (M7_MOB_HP[1] - M7_MOB_HP[0]));
 }
 
 const MASTER_TUNING = [
   // hp mult, damage mult, Catacombs level, xp
-  { hp: 22, dmg: 30, level: 24, xp: 12000 },
-  { hp: 28, dmg: 36, level: 26, xp: 16000 },
-  { hp: 36, dmg: 42, level: 28, xp: 21000 },
-  { hp: 46, dmg: 48, level: 30, xp: 27000 },
-  { hp: 60, dmg: 54, level: 32, xp: 34000 },
-  { hp: 78, dmg: 60, level: 34, xp: 42000 },
-  { hp: 1, dmg: 50, level: 36, xp: 60000 },
+  { hp: 22, dmg: 30, level: 24, mastery: 30, xp: 12000 },
+  { hp: 28, dmg: 36, level: 26, mastery: 33, xp: 16000 },
+  { hp: 36, dmg: 42, level: 28, mastery: 36, xp: 21000 },
+  { hp: 46, dmg: 48, level: 30, mastery: 39, xp: 27000 },
+  { hp: 60, dmg: 54, level: 32, mastery: 42, xp: 34000 },
+  { hp: 78, dmg: 60, level: 34, mastery: 46, xp: 42000 },
+  { hp: 1, dmg: 50, level: 36, mastery: 50, xp: 60000 },
 ];
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
@@ -257,6 +258,7 @@ export const MASTER_FLOORS: FloorDef[] = FLOORS.map((f, i) => {
     base: f.id,
     requires: f.id === 1 ? 7 : MASTER_OFFSET + f.id - 1,
     reqLevel: t.level,
+    masteryLevel: t.mastery,
     mobHpMult: t.hp,
     mobDmgMult: t.dmg,
     xp: t.xp,

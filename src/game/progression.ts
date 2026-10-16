@@ -1,3 +1,4 @@
+import type { FloorDef } from '../data/floors';
 import { ITEMS, hyperionAbility, type AbilityDef, type ItemDef, type ItemStats, type Slot } from '../data/items';
 import type { ItemInstance, Profile } from './save';
 
@@ -129,4 +130,25 @@ export function baseHit(stats: PlayerStats): number {
 
 export function damageTaken(raw: number, defense: number): number {
   return raw * (100 / (100 + defense));
+}
+
+/** Each Catacombs level under a floor's requirement (only reachable with Unlock all floors). */
+const UNDER_DEALT = 0.6;
+const UNDER_TAKEN = 1.5;
+/** Each Catacombs level under a Master floor's mastery level. */
+const GAP_DEALT = 0.98;
+const GAP_TAKEN = 1.02;
+
+/**
+ * How much damage you deal and take on a floor at your Catacombs level. Being under the
+ * floor's requirement is brutal; on Master floors every level short of mastery still costs a bit,
+ * so only a Catacombs 50 player gets M7 at full strength.
+ */
+export function levelPower(floor: FloorDef, level: number): { dealt: number; taken: number } {
+  const under = Math.max(0, floor.reqLevel - level);
+  const gap = Math.max(0, (floor.masteryLevel ?? 0) - Math.max(level, floor.reqLevel));
+  return {
+    dealt: UNDER_DEALT ** under * GAP_DEALT ** gap,
+    taken: UNDER_TAKEN ** under * GAP_TAKEN ** gap,
+  };
 }

@@ -1,7 +1,7 @@
 import { ALL_FLOORS, FLOORS, MASTER_FLOORS, floorById } from '../data/floors';
 import { HYPERION_RECIPE, ITEMS, RARITY_COLOR, SCROLLS, SLOTS, isGear, type ItemStats } from '../data/items';
 import {
-  MAX_ITEM_LEVEL, baseHit, cataLevel, computeStats, findItem, itemAbility, itemStats, salvageValue, upgradeCost, xpForLevel,
+  MAX_CATA, MAX_ITEM_LEVEL, baseHit, cataLevel, levelPower, computeStats, findItem, itemAbility, itemStats, salvageValue, upgradeCost, xpForLevel,
 } from '../game/progression';
 import { exportProfile, freshProfile, importProfile, newItem, saveProfile, type ItemInstance, type Profile } from '../game/save';
 import { openCalibration } from './calibrate';
@@ -97,6 +97,14 @@ export class Hub {
           h('div', {},
             h('h3', {}, `${f.name}: ${f.boss}`),
             h('div', { class: 'muted' }, `Requires Catacombs ${f.reqLevel}${needFloor ? ` and a ${needFloor.name} clear` : ''}  ·  ${f.cols}x${f.rows} map  ·  ${f.xp.toLocaleString()} base XP`),
+            (() => {
+              const pw = levelPower(f, level);
+              if (pw.dealt >= 0.999) return f.masteryLevel ? h('div', { class: 'muted' }, `Mastered: full strength at Catacombs ${f.masteryLevel}`) : null;
+              const under = level < f.reqLevel;
+              return h('div', { style: { color: under ? '#ff5555' : '#ffaa00', fontSize: '0.85em' } },
+                `At Catacombs ${level}: you deal ${Math.round(pw.dealt * 1000) / 10}% damage and take ${Math.round(pw.taken * 100)}%` +
+                (f.masteryLevel ? `. Full strength at Catacombs ${f.masteryLevel}.` : '.'));
+            })(),
             best ? h('div', { class: 'muted' }, 'Best: ', h('span', { class: 'grade' }, `${best.grade} (${best.score})`), ` in ${fmtTime(best.time)}  ·  ${p.completions[String(f.id)] ?? 0} clears`) : null,
           ),
           !f.implemented
@@ -301,9 +309,18 @@ export class Hub {
           h('button', { class: 'small', onclick: () => { p.essence.undead += 1000; this.commit(); } }, '+1000 Undead Essence'),
           h('button', { class: 'small', onclick: () => { p.essence.wither += 1000; this.commit(); } }, '+1000 Wither Essence'),
           h('button', { class: 'small', onclick: () => { p.cataXp += 500; this.commit(); } }, '+500 Catacombs XP'),
-          h('button', { class: 'small', onclick: () => { p.cataXp = xpForLevel(24); this.commit(); } }, 'Set Catacombs 24'),
           h('button', { class: 'small', onclick: () => { p.cataXp = 0; this.commit(); } }, 'Reset Catacombs XP'),
         )),
+      (() => {
+        const cur = cataLevel(p.cataXp).level;
+        const label = h('b', {}, `Catacombs ${cur}`);
+        const slider = h('input', { type: 'range', min: 0, max: MAX_CATA, step: 1, value: cur, class: 'cata-slider' }) as HTMLInputElement;
+        slider.oninput = () => { label.textContent = `Catacombs ${slider.value}`; };
+        slider.onchange = () => { p.cataXp = xpForLevel(Number(slider.value)); this.commit(); };
+        return h('div', { class: 'card' },
+          h('div', { class: 'row spread' }, label, h('span', { class: 'muted' }, 'Drag to set your level')),
+          slider);
+      })(),
       h('div', { class: 'card' }, h('h3', {}, 'Cheats'),
         h('div', { class: 'row' },
           h('button', { class: 'small' + (p.admin.godMode ? ' primary' : ''), onclick: () => { p.admin.godMode = !p.admin.godMode; this.commit(); } }, `God mode: ${p.admin.godMode ? 'ON' : 'off'}`),

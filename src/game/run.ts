@@ -5,7 +5,7 @@ import { generateDungeon, doorTiles, type DoorPlan, type DungeonPlan, type Pt, t
 import { Field, makeMob, setHpRule, type Mob } from './field';
 import { DragonController } from './dragons';
 import { Rng } from './rng';
-import { baseHit, cataLevel, computeStats, damageTaken, type PlayerStats } from './progression';
+import { baseHit, cataLevel, computeStats, damageTaken, levelPower, type PlayerStats } from './progression';
 import { newItem, saveProfile, type Profile } from './save';
 import { applyRngMeter, computeScore, rollLoot, runXp, type Loot, type RngResult, type ScoreResult } from './score';
 import { makeBlaze, makeWeirdos, type Mark, type WeirdosPuzzle } from './puzzles';
@@ -106,6 +106,8 @@ export class Run {
   private conjureTick = 0;
   private conjureDamage = 0;
   private lastSwipeHit = new Map<number, number>();
+  /** Damage dealt and taken multipliers from your Catacombs level on this floor. */
+  power = { dealt: 1, taken: 1 };
 
   constructor(readonly profile: Profile, floorId: number, readonly events: RunEvents, seed = Date.now() % 1e9) {
     this.floor = floorById(floorId);
@@ -113,6 +115,7 @@ export class Run {
     this.rng = new Rng(seed ^ 0x5bd1e995);
     this.plan = generateDungeon(this.floor, seed);
     this.stats = computeStats(profile);
+    this.power = levelPower(this.floor, this.stats.cataLevel);
     this.hp = this.stats.maxHp;
     this.mana = this.stats.maxMana;
     for (const d of this.plan.doors) if (d.type === 'normal') this.openDoors.add(d.id);
@@ -505,7 +508,7 @@ export class Run {
 
   damagePlayer(raw: number) {
     if (this.ended || this.profile.admin.godMode) return;
-    let dmg = damageTaken(raw, this.stats.defense);
+    let dmg = damageTaken(raw, this.stats.defense) * this.power.taken;
     if (this.shield > 0) {
       const absorbed = Math.min(this.shield, dmg);
       this.shield -= absorbed;
@@ -532,7 +535,7 @@ export class Run {
       f.text(m.x, m.y - 0.8, 'IMMUNE', '#aaaaaa');
       return;
     }
-    const dmg = Math.max(1, Math.round(amount * (1 - m.armor)));
+    const dmg = Math.max(1, Math.round(amount * (amount >= 1e9 ? 1 : this.power.dealt) * (1 - m.armor)));
     m.hp -= dmg;
     m.flash = 0.12;
     f.text(m.x, m.y - 0.8, crit ? `✧${dmg.toLocaleString()}✧` : dmg.toLocaleString(), color ?? (crit ? '#ffcc33' : '#ffffff'));

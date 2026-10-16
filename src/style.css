@@ -195,3 +195,5 @@ table.score td:last-child { text-align: right; }
 .mode-toggle button.active { background: #2f6b2f; border-color: #55ff55; }
 .mode-toggle button.master.active { background: #6b1a1a; border-color: #ff5555; }
 .master-intro { border-color: #ff5555; color: #ffaaaa; }
+
+.cata-slider { width: 100%; margin-top: 8px; accent-color: #ffaa00; height: 28px; }
