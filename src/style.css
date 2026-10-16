@@ -181,7 +181,7 @@ table.score td:last-child { text-align: right; }
 .calib-mark.probe { width: 22px; height: 22px; margin: -11px 0 0 -11px; border: 3px solid #44ff66; box-shadow: 0 0 10px #44ff66; }
 /* ---------- S / S+ score banner ---------- */
 .score-banner { position: fixed; left: 0; right: 0; top: 30%; z-index: 40; pointer-events: none; text-align: center; animation: sb-life 3.2s forwards; }
-.score-banner-text { font-size: clamp(28px, 9vw, 52px); font-weight: bold; letter-spacing: 2px; -webkit-text-stroke: 2px #000; paint-order: stroke fill; text-shadow: 0 4px 0 #000, 0 0 24px currentColor; }
+.score-banner-text { white-space: nowrap; font-size: clamp(22px, 7.4vw, 52px); font-weight: bold; letter-spacing: 2px; -webkit-text-stroke: 2px #000; paint-order: stroke fill; text-shadow: 0 4px 0 #000, 0 0 24px currentColor; }
 .score-banner-text span { display: inline-block; animation: sb-pop 0.45s cubic-bezier(.2,1.6,.4,1) backwards; }
 .score-banner.s .score-banner-text { color: #ffaa00; }
 .score-banner.splus .score-banner-text span { animation: sb-pop 0.45s cubic-bezier(.2,1.6,.4,1) backwards, rng-rainbow 1.2s linear infinite; }
