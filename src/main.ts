@@ -133,10 +133,16 @@ function draw(time: number) {
 
 // ---------- Input ----------
 
+/** Where a touch landed, corrected by the tap calibration from Settings. */
+function tapPoint(e: PointerEvent) {
+  const o = profile.settings.tapOffset ?? { x: 0, y: 0 };
+  return { x: e.clientX + o.x, y: e.clientY + o.y };
+}
+
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   if (!run || paused || run.ended) return;
-  const x = e.clientX, y = e.clientY;
+  const { x, y } = tapPoint(e);
   if (run.view === 'map' && mapXf) {
     const room = roomAt(run, mapXf, x, y);
     if (room && run.isVisible(room)) run.tapRoom(room);
@@ -157,13 +163,15 @@ canvas.addEventListener('pointerdown', (e) => {
 let swipeFrom: { id: number; x: number; y: number } | null = null;
 canvas.addEventListener('pointermove', (e) => {
   if (!swipeFrom || swipeFrom.id !== e.pointerId || !run || paused || !fieldXf) return;
-  const p = screenToField(fieldXf, e.clientX, e.clientY);
+  const t = tapPoint(e);
+  const p = screenToField(fieldXf, t.x, t.y);
   if (!run.drag(p.x, p.y)) run.swipe(swipeFrom.x, swipeFrom.y, p.x, p.y);
   swipeFrom = { id: e.pointerId, x: p.x, y: p.y };
 });
 const endSwipe = (e: PointerEvent) => {
   if (swipeFrom && swipeFrom.id === e.pointerId && run && fieldXf) {
-    const p = screenToField(fieldXf, e.clientX, e.clientY);
+    const t = tapPoint(e);
+    const p = screenToField(fieldXf, t.x, t.y);
     run.release(p.x, p.y);
   }
   swipeFrom = null;

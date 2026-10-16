@@ -592,10 +592,11 @@ export class Run {
     if (!f || this.ended) return;
     if (this.aiming) return this.cast(x, y);
     if (this.controller?.onTap?.(x, y)) return;
+    const tapSize = this.profile.settings.tapSize ?? 1;
     const near = (px: number, py: number, r: number) => Math.hypot(px - x, py - y) <= r;
 
     for (const pr of f.projectiles) {
-      if (pr.tappable && near(pr.x, pr.y, 1.0)) {
+      if (pr.tappable && near(pr.x, pr.y, 1.0 * tapSize)) {
         pr.life = 0;
         f.fx.push({ kind: 'puff', x: pr.x, y: pr.y, t: 0, life: 0.3, color: '#ff8888' });
         return;
@@ -611,7 +612,7 @@ export class Run {
     };
     if (room?.key?.spawned && !room.key.taken) {
       const key = room.key;
-      consider(key.x, key.y, PICKUP_RADIUS, () => {
+      consider(key.x, key.y, PICKUP_RADIUS * tapSize, () => {
         key.taken = true;
         if (room.plan.key === 'blood') {
           this.bloodKey = true;
@@ -625,7 +626,7 @@ export class Run {
     }
     for (const m of f.aliveMobs()) {
       if (m.puzzle) continue;
-      const r = HIT_RADIUS + (m.scale - 1) * 0.6;
+      const r = HIT_RADIUS * tapSize + (m.scale - 1) * 0.6;
       consider(m.x, m.y - 0.2 * m.scale, r, () => {
         if (this.attackCd > 0) this.queuedHit = { mob: m, t: 0.4 };
         else this.attackMob(f, m);
@@ -636,7 +637,7 @@ export class Run {
         for (const s of room.secrets) {
           if (s.found) continue;
           const sp = secretPos(s);
-          consider(sp.x, sp.y, PICKUP_RADIUS, () => {
+          consider(sp.x, sp.y, PICKUP_RADIUS * tapSize, () => {
             s.found = true;
             this.secretsFound++;
             const ess = this.rng.int(1, 3);
@@ -649,7 +650,7 @@ export class Run {
       }
       for (const c of room.crypts) {
         if (c.opened) continue;
-        consider(c.x, c.y, PICKUP_RADIUS, () => {
+        consider(c.x, c.y, PICKUP_RADIUS * tapSize, () => {
           c.opened = true;
           f.mobs.push(makeMob(MOBS.lurker, c.x, c.y + 0.6, this.floor.mobHpMult, this.floor.mobDmgMult, { crypt: true }));
           this.events.toast('A Crypt Lurker rises from the crypt!', '#aa55ff');

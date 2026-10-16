@@ -4,6 +4,7 @@ import {
   MAX_ITEM_LEVEL, baseHit, cataLevel, computeStats, findItem, itemAbility, itemStats, salvageValue, upgradeCost, xpForLevel,
 } from '../game/progression';
 import { exportProfile, freshProfile, importProfile, newItem, saveProfile, type ItemInstance, type Profile } from '../game/save';
+import { openCalibration } from './calibrate';
 import { h } from './dom';
 import { rngRequired } from '../game/score';
 import { fmtTime } from './dom';
@@ -328,6 +329,14 @@ export class Hub {
         h('div', { class: 'row', style: { marginBottom: '8px' } },
           h('button', { class: 'small' + (p.settings.puzzleGlow ? ' primary' : ''), onclick: () => { p.settings.puzzleGlow = !p.settings.puzzleGlow; this.commit(); } }, `Puzzle glow: ${p.settings.puzzleGlow ? 'ON' : 'off'}`),
           h('span', { class: 'muted' }, 'Highlights the right answer in puzzles (Tic Tac Toe, Three Weirdos, Higher or Lower and more). You can also toggle it from the pause menu.'),
+        ),
+        h('div', { class: 'row', style: { marginBottom: '8px' } },
+          h('button', { class: 'small', onclick: () => openCalibration({ tapOffset: p.settings.tapOffset ?? { x: 0, y: 0 }, tapSize: p.settings.tapSize ?? 1 }, (c) => {
+            p.settings.tapOffset = c.tapOffset;
+            p.settings.tapSize = c.tapSize;
+            this.commit();
+          }) }, 'Calibrate taps'),
+          h('span', { class: 'muted' }, `Tap some dots so the game can line up mob, secret and map taps with where your finger lands. Now: shift ${p.settings.tapOffset?.x ?? 0}, ${p.settings.tapOffset?.y ?? 0}px, tap areas ${Math.round((p.settings.tapSize ?? 1) * 100)}%.`),
         ),
         h('div', { class: 'row' },
           h('button', { class: 'small', onclick: () => { p.admin.enabled = !p.admin.enabled; if (!p.admin.enabled && this.tab === 'admin') this.tab = 'dungeons'; this.commit(); } }, `Admin tab: ${p.admin.enabled ? 'ON' : 'off'}`),

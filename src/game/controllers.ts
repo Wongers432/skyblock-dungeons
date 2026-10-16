@@ -110,7 +110,7 @@ export class BlazeController implements Controller {
     if (this.failed || this.room.cleared) return false;
     const f = this.room.field;
     let m: Mob | null = null;
-    let best = 1.15;
+    let best = 1.15 * (this.run.profile.settings.tapSize ?? 1);
     for (const b of f.aliveMobs()) {
       const d = Math.hypot(b.x - x, b.y - 0.3 - y);
       if (d < best) { best = d; m = b; }

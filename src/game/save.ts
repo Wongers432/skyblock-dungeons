@@ -24,7 +24,13 @@ export interface Profile {
   completions: Record<string, number>;
   nextUid: number;
   admin: { enabled: boolean; godMode: boolean; unlockAll: boolean };
-  settings: { puzzleGlow: boolean };
+  settings: {
+    puzzleGlow: boolean;
+    /** Screen-pixel correction added to every tap, measured by tap calibration. */
+    tapOffset: { x: number; y: number };
+    /** Multiplier on tap areas, from how spread out the calibration taps were. */
+    tapSize: number;
+  };
   /** RNG meter per floor: the chosen drop and how much meter has been filled. */
   rng: Record<string, { target: string | null; xp: number }>;
 }
@@ -51,7 +57,7 @@ export function freshProfile(): Profile {
     completions: {},
     nextUid: 1,
     admin: { enabled: true, godMode: false, unlockAll: false },
-    settings: { puzzleGlow: false },
+    settings: { puzzleGlow: false, tapOffset: { x: 0, y: 0 }, tapSize: 1 },
     rng: {},
   };
   p.equipped.weapon = newItem(p, 'iron_sword').uid;
