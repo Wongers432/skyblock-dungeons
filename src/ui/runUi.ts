@@ -1,0 +1,215 @@
+import { CHEST_NAME } from '../data/floors';
+import { ITEMS, RARITY_COLOR } from '../data/items';
+import { aiMove, winner } from '../game/puzzles';
+import type { Run, RunEnd } from '../game/run';
+import { h, fmtTime } from './dom';
+
+export interface RunUiActions {
+  setPaused(p: boolean): void;
+  playAgain(): void;
+  toHub(): void;
+}
+
+export class RunUi {
+  private top: HTMLElement;
+  private bottom: HTMLElement;
+  private toasts: HTMLElement;
+  private hint: HTMLElement;
+  private puzzleBox: HTMLElement;
+  private overlay: HTMLElement | null = null;
+  private abilityBtn: HTMLButtonElement;
+  private abilityCd: HTMLElement;
+  private hpFill: HTMLElement;
+  private shieldFill: HTMLElement;
+  private hpText: HTMLElement;
+  private manaFill: HTMLElement;
+  private manaText: HTMLElement;
+  private info: HTMLElement;
+  private scoreEl: HTMLElement;
+  private mapBtn: HTMLButtonElement;
+  private last = '';
+  private puzzleKey = '';
+
+  constructor(private root: HTMLElement, private run: Run, private actions: RunUiActions) {
+    this.info = h('div', { class: 'hud-sub' });
+    this.scoreEl = h('div', { class: 'hud-main' });
+    this.top = h('div', { class: 'hud-top' },
+      h('div', {}, this.scoreEl, this.info),
+      h('button', { onclick: () => this.showPause() }, '❚❚'),
+    );
+    this.hpFill = h('div');
+    this.shieldFill = h('div', { class: 'shield' });
+    this.hpText = h('span');
+    this.manaFill = h('div');
+    this.manaText = h('span');
+    this.abilityCd = h('div', { class: 'cd' });
+    this.abilityBtn = h('button', { class: 'ability-btn', onclick: () => run.pressAbility() }) as HTMLButtonElement;
+    this.mapBtn = h('button', { onclick: () => run.goToMap() }, 'Map') as HTMLButtonElement;
+    this.bottom = h('div', { class: 'hud-bottom' },
+      h('div', { class: 'meters' },
+        h('div', { class: 'meter hp' }, this.hpFill, this.shieldFill, this.hpText),
+        h('div', { class: 'meter mana' }, this.manaFill, this.manaText),
+      ),
+      h('div', { class: 'row', style: { flexWrap: 'nowrap', alignItems: 'flex-end' } }, this.mapBtn, this.abilityBtn),
+    );
+    this.toasts = h('div', { class: 'toasts' });
+    this.hint = h('div', { class: 'hint' });
+    this.puzzleBox = h('div');
+    root.append(this.top, this.bottom, this.toasts, this.hint, this.puzzleBox);
+    this.refresh();
+  }
+
+  destroy() {
+    for (const el of [this.top, this.bottom, this.toasts, this.hint, this.puzzleBox, this.overlay]) el?.remove();
+  }
+
+  toast(msg: string, color = '#ffffff') {
+    const t = h('div', { class: 'toast', style: { color } }, msg);
+    this.toasts.append(t);
+    while (this.toasts.children.length > 4) this.toasts.firstChild?.remove();
+    setTimeout(() => t.remove(), 3000);
+  }
+
+  /** Cheap per-frame update of the meters and counters. */
+  update() {
+    const r = this.run;
+    const s = r.stats;
+    const score = r.scoreNow();
+    const keys = [r.witherKeys ? `🗝 Wither x${r.witherKeys}` : '', r.bloodKey ? '🩸 Blood Key' : ''].filter(Boolean).join('  ');
+    const info = `Secrets ${r.secretsFound}/${r.secretsTotal} · Crypts ${Math.min(5, r.crypts)}/5${keys ? ' · ' + keys : ''}`;
+    const scoreText = `${r.floor.name} · ⏱ ${fmtTime(r.time)} · Score ${score.total} (${score.grade})`;
+    const key = info + scoreText;
+    if (key !== this.last) {
+      this.info.textContent = info;
+      this.scoreEl.textContent = scoreText;
+      this.last = key;
+    }
+    const hpPct = Math.max(0, r.hp / s.maxHp) * 100;
+    this.hpFill.style.width = `${hpPct}%`;
+    this.shieldFill.style.width = `${Math.min(100, (r.shield / s.maxHp) * 100)}%`;
+    this.hpText.textContent = `❤ ${Math.ceil(r.hp)} / ${s.maxHp}${r.shield > 0 ? `  +${Math.ceil(r.shield)}` : ''}`;
+    this.manaFill.style.width = `${(r.mana / s.maxMana) * 100}%`;
+    this.manaText.textContent = `✎ ${Math.floor(r.mana)} / ${s.maxMana}`;
+    const ab = s.ability;
+    if (ab) this.abilityCd.style.width = `${ab.cooldown ? (r.abilityCd / ab.cooldown) * 100 : 0}%`;
+  }
+
+  /** Rebuild the parts that change on events (view, puzzles, ability). */
+  refresh() {
+    const r = this.run;
+    const ab = r.stats.ability;
+    this.abilityBtn.replaceChildren(this.abilityCd, ab ? ab.name : 'No ability', h('small', {}, ab ? (r.aiming ? 'Tap a spot (or cancel)' : `${ab.mana} mana`) : 'equip a weapon with one'));
+    this.abilityBtn.disabled = !ab || r.view === 'map';
+    this.abilityBtn.classList.toggle('aiming', r.aiming);
+    this.mapBtn.style.display = r.view === 'room' ? '' : 'none';
+    this.hint.textContent = r.view === 'map'
+      ? 'Tap a room to go there.'
+      : r.aiming ? 'Tap where the ability should land.' : '';
+    this.renderPuzzle();
+  }
+
+  private renderPuzzle() {
+    const r = this.run;
+    const room = r.view === 'room' ? r.current : null;
+    const pz = room?.puzzle;
+    const key = room && pz && !pz.done && pz.kind !== 'blaze' ? `${room.plan.id}:${pz.kind}:${pz.kind === 'tictactoe' ? pz.board.join(',') : ''}` : '';
+    if (key === this.puzzleKey) return;
+    this.puzzleKey = key;
+    this.puzzleBox.replaceChildren();
+    if (!room || !pz || pz.done || pz.kind === 'blaze') return;
+    if (pz.kind === 'tictactoe') {
+      const play = (i: number) => {
+        if (pz.board[i] || pz.done) return;
+        pz.board[i] = 'X';
+        let w = winner(pz.board);
+        if (!w) {
+          pz.board[aiMove(pz.board, r.rng)] = 'O';
+          w = winner(pz.board);
+        }
+        if (w === 'O') r.solvePuzzle(room, false);
+        else if (w) r.solvePuzzle(room, true);
+        this.refresh();
+      };
+      this.puzzleBox.append(h('div', { class: 'panel puzzle' },
+        h('h2', {}, 'Tic Tac Toe'),
+        h('div', { class: 'muted' }, "You are X. Win or tie against the AI. If it beats you, the puzzle fails."),
+        h('div', { class: 'ttt' }, pz.board.map((m, i) => h('button', { onclick: () => play(i), style: { color: m === 'X' ? '#55ffff' : '#ff5555' } }, m ?? ''))),
+      ));
+    } else {
+      const d = pz.data;
+      this.puzzleBox.append(h('div', { class: 'panel puzzle' },
+        h('h2', {}, 'Three Weirdos'),
+        h('div', { class: 'muted' }, 'Exactly one of them is lying. Open the chest that has the reward.'),
+        d.names.map((name, i) => h('div', { class: 'weirdo' },
+          h('b', { class: 'who' }, name),
+          h('p', {}, `"${d.lines[i]}"`),
+          h('button', { class: 'small', onclick: () => { pz.chosen = i; r.solvePuzzle(room, i === d.answer); this.refresh(); } }, 'Open'),
+        )),
+      ));
+    }
+  }
+
+  showPause() {
+    if (this.overlay || this.run.ended) return;
+    this.actions.setPaused(true);
+    const r = this.run;
+    const close = () => { this.overlay?.remove(); this.overlay = null; this.actions.setPaused(false); };
+    const admin = r.profile.admin.enabled;
+    this.overlay = h('div', { class: 'overlay' }, h('div', { class: 'panel' },
+      h('h2', {}, 'Paused'),
+      h('div', { class: 'muted' }, `${r.floor.name}  ·  ${fmtTime(r.time)}  ·  ${r.rooms.filter((x) => x.cleared).length}/${r.rooms.length} rooms cleared`),
+      h('div', { class: 'btns' },
+        h('button', { class: 'primary', onclick: close }, 'Resume'),
+        admin ? h('button', { onclick: () => { r.adminClearRoom(); close(); } }, 'Admin: kill everything here') : null,
+        admin ? h('button', { onclick: () => { r.adminKeys(); close(); } }, 'Admin: give keys') : null,
+        admin ? h('button', { onclick: () => { r.adminRevealMap(); close(); } }, 'Admin: reveal map') : null,
+        admin && r.view !== 'boss' ? h('button', { onclick: () => { close(); r.startBoss(); } }, 'Admin: skip to boss') : null,
+        h('button', { class: 'danger', onclick: () => { if (confirm('Abandon this run? You get no loot.')) { close(); r.finish(false); } } }, 'Abandon run'),
+      ),
+    ));
+    this.root.append(this.overlay);
+  }
+
+  showResults(end: RunEnd) {
+    this.overlay?.remove();
+    this.puzzleBox.replaceChildren();
+    const s = end.score;
+    const lootBox = h('div');
+    const panel = h('div', { class: 'panel' },
+      h('h2', { style: { color: end.victory ? '#55ff55' : '#ff5555' } }, end.victory ? `${this.run.floor.name} complete!` : 'Run failed'),
+      h('div', { class: 'muted' }, end.reason),
+      h('table', { class: 'score' },
+        h('tr', {}, h('td', {}, 'Skill'), h('td', {}, s.skill)),
+        h('tr', {}, h('td', {}, 'Exploration'), h('td', {}, s.exploration)),
+        h('tr', {}, h('td', {}, `Speed (${fmtTime(end.seconds)})`), h('td', {}, s.speed)),
+        h('tr', {}, h('td', {}, 'Bonus (crypts)'), h('td', {}, s.bonus)),
+        h('tr', {}, h('td', {}, h('b', {}, 'Total')), h('td', {}, h('b', {}, s.total))),
+      ),
+      h('div', { style: { fontSize: '40px', textAlign: 'center', margin: '8px 0' }, class: 'grade' }, s.grade),
+      end.newBest ? h('div', { style: { textAlign: 'center', color: '#55ffff' } }, 'New personal best!') : null,
+      lootBox,
+      h('div', { class: 'btns' },
+        h('button', { class: 'primary', onclick: () => this.actions.playAgain() }, 'Run it again'),
+        h('button', { onclick: () => this.actions.toHub() }, 'Back to hub'),
+      ),
+    );
+    if (end.victory && end.loot) {
+      const loot = end.loot;
+      const chestBtn = h('button', { class: 'chest-btn', onclick: () => {
+        lootBox.replaceChildren(h('div', {},
+          h('h3', {}, CHEST_NAME[loot.chest]),
+          h('div', { class: 'loot' }, `+${loot.essence} ${this.run.floor.essence.type} essence`),
+          end.secretEssence ? h('div', { class: 'loot' }, `+${end.secretEssence} essence from secrets and puzzles`) : null,
+          loot.items.map((id) => h('div', { class: 'loot rare', style: { color: RARITY_COLOR[ITEMS[id].rarity] } }, `RARE DROP! ${ITEMS[id].name}`)),
+          h('div', { class: 'loot', style: { color: '#55ffff' } }, `+${end.xp} Catacombs XP`),
+          end.levelAfter > end.levelBefore ? h('div', { class: 'loot rare' }, `CATACOMBS LEVEL UP! ${end.levelBefore} → ${end.levelAfter}`) : null,
+        ));
+      } }, `Open the ${CHEST_NAME[loot.chest]}`);
+      lootBox.append(chestBtn);
+    } else {
+      lootBox.append(h('div', { class: 'muted', style: { textAlign: 'center' } }, 'No chest this time.'));
+    }
+    this.overlay = h('div', { class: 'overlay' }, panel);
+    this.root.append(this.overlay);
+  }
+}
