@@ -72,6 +72,17 @@ export class RunUi {
     setTimeout(() => t.remove(), 3000);
   }
 
+  /** Big centre-screen announcement that pops in and fades. */
+  banner(msg: string, kind: 's' | 'splus') {
+    const el = h('div', { class: `score-banner ${kind}` },
+      h('div', { class: 'score-banner-text' }, ...[...msg].map((ch, i) => h('span', { style: { animationDelay: `${i * 0.05}s` } }, ch === ' ' ? '\u00a0' : ch))),
+      h('div', { class: 'score-banner-sub' }, kind === 'splus' ? 'Perfect run so far. Keep it up!' : 'Find more secrets for S+'),
+    );
+    document.body.append(el);
+    if (navigator.vibrate) navigator.vibrate(kind === 'splus' ? [40, 40, 80] : 40);
+    setTimeout(() => el.remove(), 3200);
+  }
+
   /** Cheap per-frame update of the meters and counters. */
   update() {
     const r = this.run;

@@ -35,6 +35,7 @@ function startRun(floorId: number) {
   paused = false;
   run = new Run(profile, floorId, {
     toast: (m, c) => runUi?.toast(m, c),
+    banner: (m, k) => runUi?.banner(m, k),
     changed: () => runUi?.refresh(),
     ended: (end) => runUi?.showResults(end),
   });

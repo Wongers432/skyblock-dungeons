@@ -1,4 +1,4 @@
-import { FLOORS } from '../data/floors';
+import { ALL_FLOORS, FLOORS, MASTER_FLOORS, floorById } from '../data/floors';
 import { HYPERION_RECIPE, ITEMS, RARITY_COLOR, SCROLLS, SLOTS, isGear, type ItemStats } from '../data/items';
 import {
   MAX_ITEM_LEVEL, baseHit, cataLevel, computeStats, findItem, itemAbility, itemStats, salvageValue, upgradeCost, xpForLevel,
@@ -23,6 +23,7 @@ const STAT_LABEL: Record<keyof ItemStats, string> = {
 
 export class Hub {
   private tab: Tab = 'dungeons';
+  private master = false;
   private openItem: string | null = null;
   private el: HTMLElement | null = null;
   private scrollTop = 0;
@@ -78,14 +79,24 @@ export class Hub {
   }
 
   private dungeons(p: Profile, level: number) {
-    return h('div', {}, FLOORS.map((f) => {
+    const list = this.master ? MASTER_FLOORS : FLOORS;
+    const toggle = h('div', { class: 'row mode-toggle' },
+      h('button', { class: this.master ? '' : 'active', onclick: () => { this.master = false; this.render(); } }, 'The Catacombs'),
+      h('button', { class: this.master ? 'active master' : 'master', onclick: () => { this.master = true; this.render(); } }, 'Master Mode'),
+    );
+    const intro = this.master
+      ? h('div', { class: 'card master-intro' }, h('div', {}, 'Master Mode: the same floors with far tougher mobs and bosses. M7 ends with the Wither Dragons and drops the Dark Claymore.'))
+      : null;
+    return h('div', {}, toggle, intro, list.map((f) => {
       const best = p.best[String(f.id)];
-      const unlocked = p.admin.unlockAll || level >= f.reqLevel;
+      const needFloor = f.requires ? floorById(f.requires) : null;
+      const cleared = !needFloor || (p.completions[String(needFloor.id)] ?? 0) > 0;
+      const unlocked = p.admin.unlockAll || (level >= f.reqLevel && cleared);
       return h('div', { class: 'card' },
         h('div', { class: 'row spread' },
           h('div', {},
             h('h3', {}, `${f.name}: ${f.boss}`),
-            h('div', { class: 'muted' }, `Requires Catacombs ${f.reqLevel}  ·  ${f.cols}x${f.rows} map  ·  ${f.xp} base XP`),
+            h('div', { class: 'muted' }, `Requires Catacombs ${f.reqLevel}${needFloor ? ` and a ${needFloor.name} clear` : ''}  ·  ${f.cols}x${f.rows} map  ·  ${f.xp.toLocaleString()} base XP`),
             best ? h('div', { class: 'muted' }, 'Best: ', h('span', { class: 'grade' }, `${best.grade} (${best.score})`), ` in ${fmtTime(best.time)}  ·  ${p.completions[String(f.id)] ?? 0} clears`) : null,
           ),
           !f.implemented
@@ -103,7 +114,7 @@ export class Hub {
         h('h3', {}, 'RNG Meter'),
         h('div', { class: 'muted' }, 'Pick one drop per floor. Every win adds its score to that floor\'s meter, and the fuller it is the better your odds (up to 3x). When it fills, the drop is guaranteed. If the item drops on its own, the meter resets.'),
       ),
-      FLOORS.filter((f) => f.drops.length).map((f) => {
+      ALL_FLOORS.filter((f) => f.drops.length).map((f) => {
         const meter = p.rng[String(f.id)] ?? { target: null, xp: 0 };
         const target = f.drops.find((d) => d.item === meter.target);
         const owned = (id: string) => p.items.filter((i) => i.id === id).length;

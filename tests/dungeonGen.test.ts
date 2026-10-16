@@ -28,6 +28,21 @@ describe('dungeon generator', () => {
         expect(d.rooms.filter((r) => r.key === 'wither').length).toBe(wither);
         expect(d.rooms.filter((r) => r.key === 'blood').length).toBe(1);
         expect(d.rooms.filter((r) => r.type === 'puzzle').length).toBe(floor.puzzles);
+        // The blood rush is a chain of wither doors from entrance to blood through the fairy room.
+        const parent = new Map<number, number>();
+        const bq = [d.entrance];
+        const bs = new Set(bq);
+        while (bq.length) { const c = bq.shift()!; for (const n of adj.get(c) ?? []) if (!bs.has(n)) { bs.add(n); parent.set(n, c); bq.push(n); } }
+        const chain = [d.blood];
+        while (chain[0] !== d.entrance) chain.unshift(parent.get(chain[0])!);
+        const fi = chain.findIndex((id) => d.rooms[id].type === 'fairy');
+        expect(fi).toBeGreaterThan(1);
+        expect(Math.abs(fi - (chain.length - 1 - fi))).toBeLessThanOrEqual(2);
+        const doorBetween = (a: number, b: number) => d.doors.find((x) => (x.a === a && x.b === b) || (x.a === b && x.b === a))!;
+        for (let j = 1; j < chain.length - 2; j++) {
+          expect(doorBetween(chain[j], chain[j + 1]).type).toBe(j === fi ? 'normal' : 'wither');
+        }
+        expect(d.doors.filter((x) => x.type === 'wither').length).toBe(chain.length - 4);
         // Blood rush: every locked door has its key in one of the two rooms it joins.
         for (const door of d.doors.filter((x) => x.type !== 'normal')) {
           expect([d.rooms[door.a].key, d.rooms[door.b].key]).toContain(door.type);

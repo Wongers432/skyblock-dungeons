@@ -1,8 +1,9 @@
 import { SadanController, WitherLordsController, type Terminal } from './bosses67';
 import { ITEMS } from '../data/items';
-import { MOBS, floorById, type FloorDef } from '../data/floors';
+import { MOBS, baseFloor, floorById, type FloorDef } from '../data/floors';
 import { generateDungeon, doorTiles, type DoorPlan, type DungeonPlan, type Pt, type RoomPlan } from './dungeonGen';
-import { Field, makeMob, type Mob } from './field';
+import { Field, makeMob, setHpRule, type Mob } from './field';
+import { DragonController } from './dragons';
 import { Rng } from './rng';
 import { baseHit, cataLevel, computeStats, damageTaken, type PlayerStats } from './progression';
 import { newItem, saveProfile, type Profile } from './save';
@@ -51,6 +52,8 @@ export interface RunEnd {
 
 export interface RunEvents {
   toast: (msg: string, color?: string) => void;
+  /** A big centre-screen announcement (S score reached!). */
+  banner?: (msg: string, kind: 's' | 'splus') => void;
   changed: () => void;
   ended: (end: RunEnd) => void;
 }
@@ -86,6 +89,8 @@ export class Run {
   flash = 0;
   hurt = 0;
   shake = 0;
+  private gradeCheck = 0;
+  private gradesShown = new Set<string>();
   /** Seconds of blindness (from hitting a fake Livid). */
   blind = 0;
   witherKeys = 0;
@@ -104,6 +109,7 @@ export class Run {
 
   constructor(readonly profile: Profile, floorId: number, readonly events: RunEvents, seed = Date.now() % 1e9) {
     this.floor = floorById(floorId);
+    setHpRule(this.floor.hpRule ?? null);
     this.rng = new Rng(seed ^ 0x5bd1e995);
     this.plan = generateDungeon(this.floor, seed);
     this.stats = computeStats(profile);
@@ -311,6 +317,16 @@ export class Run {
       if (this.endTimer < 0) this.finish(true);
     }
     this.time += dt;
+    this.gradeCheck -= dt;
+    if (this.gradeCheck <= 0) {
+      this.gradeCheck = 0.5;
+      const g = this.scoreNow().grade;
+      if ((g === 'S' || g === 'S+') && !this.gradesShown.has(g)) {
+        if (g === 'S+') this.gradesShown.add('S');
+        this.gradesShown.add(g);
+        this.events.banner?.(g === 'S+' ? 'S+ SCORE REACHED!' : 'S SCORE REACHED!', g === 'S+' ? 'splus' : 's');
+      }
+    }
     const s = this.stats;
     this.hp = Math.min(s.maxHp, this.hp + s.maxHp * 0.02 * dt);
     this.mana = Math.min(s.maxMana, this.mana + s.maxMana * 0.03 * dt);
@@ -732,6 +748,19 @@ export class Run {
     this.attackCd = this.stats.attackCooldown;
     this.swing = 0.18;
     this.faceLeft = target.x < f.player.x;
+    const wd = this.stats.weaponDef;
+    if (wd?.cleave) {
+      // A huge cleaving swing: one cut across the whole screen, hitting everything near the target.
+      const { dmg, crit } = this.rollHit();
+      const ang = Math.atan2(target.y - f.player.y, target.x - f.player.x) + Math.PI / 2 + (Math.random() - 0.5) * 0.6;
+      f.fx.push({ kind: 'cleave', x: target.x, y: target.y - 0.3 * target.scale, t: 0, life: 0.45, color: '#b04cff', angle: ang });
+      this.shake = Math.max(this.shake, 0.18);
+      for (const m of f.aliveMobs()) {
+        if (m.puzzle) continue;
+        if (m === target || Math.hypot(m.x - target.x, m.y - target.y) <= wd.cleave) this.hitMob(f, m, dmg, crit, crit ? '#e0a0ff' : undefined);
+      }
+      return;
+    }
     if (this.stats.weaponDef?.attack !== 'firework') {
       f.fx.push({ kind: 'slash', x: target.x, y: target.y - 0.3 * target.scale, t: 0, life: 0.18, color: '#ffffff', r: 0.6 * Math.max(1, target.scale), angle: Math.random() * Math.PI });
     }
@@ -742,8 +771,9 @@ export class Run {
 
   /** Damage of one weapon hit, including crits and the Adaptive Blade passive. */
   private rollHit(): { dmg: number; crit: boolean } {
-    const crit = this.rng.chance(this.stats.critChance / 100);
-    let dmg = baseHit(this.stats) * (crit ? 1 + this.stats.critDamage / 100 : 1);
+    const wd = this.stats.weaponDef;
+    const crit = !!wd?.alwaysCrit || this.rng.chance(this.stats.critChance / 100);
+    let dmg = baseHit(this.stats) * (crit ? 1 + this.stats.critDamage / 100 : 1) * (wd?.hitPower ?? 1);
     if (this.stats.weapon?.id === 'adaptive_blade') dmg *= 1 + 0.5 * (1 - this.hp / this.stats.maxHp);
     return { dmg, crit };
   }
@@ -790,7 +820,7 @@ export class Run {
   startBoss() {
     this.bossField = new Field(ARENA, 'arena');
     this.bossField.setPlayer({ x: ARENA[0].length / 2, y: ARENA.length - 1.2 });
-    const Ctl = { 1: BonzoController, 2: ScarfController, 3: ProfessorController, 4: ThornController, 5: LividController, 6: SadanController, 7: WitherLordsController }[this.floor.id] ?? BonzoController;
+    const Ctl = { 1: BonzoController, 2: ScarfController, 3: ProfessorController, 4: ThornController, 5: LividController, 6: SadanController, 7: WitherLordsController }[baseFloor(this.floor)] ?? BonzoController;
     this.terminal = null;
     // Walking through the portal restores you for the fight.
     this.hp = this.stats.maxHp;
@@ -798,6 +828,17 @@ export class Run {
     this.view = 'boss';
     this.aiming = false;
     this.bossController = new Ctl(this, this.bossField);
+    this.events.changed();
+  }
+
+  /** M7: after Necron falls, the Wither King sends his dragons. */
+  startDragons() {
+    if (!this.bossField) return;
+    this.bossField.projectiles = [];
+    this.bossField.mobs = [];
+    this.terminal = null;
+    this.hp = this.stats.maxHp;
+    this.bossController = new DragonController(this, this.bossField);
     this.events.changed();
   }
 

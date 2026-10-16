@@ -96,6 +96,14 @@ export interface FloorDef {
   xp: number;
   essence: { type: EssenceType; base: number };
   drops: FloorDrop[];
+  /** Master Mode: same floor and boss as `base`, much stronger mobs. */
+  master?: boolean;
+  /** The normal floor whose boss, arena and look this floor uses (defaults to `id`). */
+  base?: number;
+  /** A floor that must be cleared before this one unlocks. */
+  requires?: number;
+  /** Replaces mob health (M7 squeezes every mob and boss into a fixed band). */
+  hpRule?: (baseHp: number, boss: boolean) => number;
 }
 
 const tiers = (wood: number, gold: number, diamond: number, emerald: number, obsidian: number, bedrock: number) =>
@@ -197,8 +205,73 @@ export const FLOORS: FloorDef[] = [
   },
 ];
 
+/** Master Mode floor ids are 100 + the normal floor. */
+export const MASTER_OFFSET = 100;
+
+/**
+ * M7 health band. A Catacombs 50 player with a maxed Hyperion hits for about 270k at most, so
+ * every M7 mob starts above that; a maxed Dark Claymore crits for about 1.8M, above every boss.
+ */
+export const M7_MOB_HP: [number, number] = [320_000, 750_000];
+export const M7_BOSS_HP: [number, number] = [1_000_000, 1_600_000];
+/** Each Wither Dragon has to lose all of this during one pass over its statue. */
+export const M7_DRAGON_HP = 400_000;
+function m7Hp(baseHp: number, boss: boolean): number {
+  if (boss) {
+    const k = Math.min(1, Math.max(0, (baseHp - 5000) / 4000));
+    return Math.round(M7_BOSS_HP[0] + k * (M7_BOSS_HP[1] - M7_BOSS_HP[0]));
+  }
+  const k = Math.min(1, Math.max(0, (baseHp - 90) / 610));
+  return Math.round(M7_MOB_HP[0] + k * (M7_MOB_HP[1] - M7_MOB_HP[0]));
+}
+
+const MASTER_TUNING = [
+  // hp mult, damage mult, Catacombs level, xp
+  { hp: 22, dmg: 30, level: 24, xp: 12000 },
+  { hp: 28, dmg: 36, level: 26, xp: 16000 },
+  { hp: 36, dmg: 42, level: 28, xp: 21000 },
+  { hp: 46, dmg: 48, level: 30, xp: 27000 },
+  { hp: 60, dmg: 54, level: 32, xp: 34000 },
+  { hp: 78, dmg: 60, level: 34, xp: 42000 },
+  { hp: 1, dmg: 50, level: 36, xp: 60000 },
+];
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
+
+export const MASTER_FLOORS: FloorDef[] = FLOORS.map((f, i) => {
+  const t = MASTER_TUNING[i];
+  const drops = f.drops.map((d) => ({
+    item: d.item,
+    chance: Object.fromEntries(Object.entries(d.chance).map(([k, v]) => [k, Math.min(0.5, v * 1.6)])) as FloorDrop['chance'],
+  }));
+  if (f.id === 7) drops.unshift({ item: 'dark_claymore', chance: tiers(0.0004, 0.0008, 0.0015, 0.003, 0.006, 0.012) });
+  return {
+    ...f,
+    id: MASTER_OFFSET + f.id,
+    name: `Master Floor ${ROMAN[i]}`,
+    boss: f.id === 7 ? 'The Wither Lords + Dragons' : f.boss,
+    master: true,
+    base: f.id,
+    requires: f.id === 1 ? 7 : MASTER_OFFSET + f.id - 1,
+    reqLevel: t.level,
+    mobHpMult: t.hp,
+    mobDmgMult: t.dmg,
+    xp: t.xp,
+    essence: { type: f.essence.type, base: f.essence.base * 2 },
+    bloodMobs: f.bloodMobs + 2,
+    hpRule: f.id === 7 ? m7Hp : undefined,
+    drops,
+  };
+});
+
+export const ALL_FLOORS: FloorDef[] = [...FLOORS, ...MASTER_FLOORS];
+
+/** The normal floor whose boss and look a floor uses. */
+export function baseFloor(f: FloorDef): number {
+  return f.base ?? f.id;
+}
+
 export function floorById(id: number): FloorDef {
-  const f = FLOORS.find((x) => x.id === id);
+  const f = ALL_FLOORS.find((x) => x.id === id);
   if (!f) throw new Error('Unknown floor ' + id);
   return f;
 }

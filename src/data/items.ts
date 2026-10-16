@@ -47,6 +47,12 @@ export interface ItemDef {
   attack?: 'melee' | 'firework';
   /** Swiping across mobs also slashes them. */
   swipe?: boolean;
+  /** Multiplier on every tap hit (the Dark Claymore's sheer weight). */
+  hitPower?: number;
+  /** Every tap hit is a critical hit. */
+  alwaysCrit?: boolean;
+  /** Tap hits also land on every mob this many tiles around the target. */
+  cleave?: number;
   ability?: AbilityDef;
   /** Short passive text shown on the item card. */
   passive?: string;
@@ -217,6 +223,12 @@ export const ITEMS: Record<string, ItemDef> = {
     id: 'hyperion', name: 'Hyperion', kind: 'weapon', rarity: 'LEGENDARY', floor: 7,
     stats: { damage: 140, strength: 150, intelligence: 350 }, attackCooldown: 0.3, essence: 'wither', sprite: 'sword_hyperion',
     passive: 'Apply Implosion, Shadow Warp and Wither Shield scrolls to unlock Wither Impact.',
+  },
+  dark_claymore: {
+    id: 'dark_claymore', name: 'Dark Claymore', kind: 'weapon', rarity: 'LEGENDARY', floor: 7,
+    stats: { damage: 400, strength: 150, critDamage: 80 }, attackCooldown: 0.9, essence: 'wither', sprite: 'sword_claymore',
+    hitPower: 12, alwaysCrit: true, cleave: 2.4,
+    passive: 'A massive blade. Every swing is a critical hit that cleaves through every mob near your target. Slow to swing. Drops from Master Floor VII.',
   },
   scroll_implosion: {
     id: 'scroll_implosion', name: 'Implosion', kind: 'scroll', rarity: 'LEGENDARY', floor: 7,

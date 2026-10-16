@@ -32,7 +32,7 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
   const X = (x: number) => ox + x * ts;
   const Y = (y: number) => oy + y * ts;
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(tileCache(f, run.floor.id), ox - ts, oy - ts, (f.w + 2) * ts, (f.h + 2) * ts);
+  ctx.drawImage(tileCache(f, run.floor.base ?? run.floor.id), ox - ts, oy - ts, (f.w + 2) * ts, (f.h + 2) * ts);
   // Things that glow punch holes in the darkness overlay.
   const lights: { x: number; y: number; r: number }[] = [];
 
@@ -382,6 +382,50 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
       if (k < 0.12) {
         ctx.globalAlpha = 0.5 * (1 - k / 0.12);
         ctx.fillStyle = '#ffffff';
+        ctx.fillRect(area.x, area.y, area.w, area.h);
+      }
+    } else if (fx.kind === 'cleave') {
+      // Dark Claymore: one huge cut straight across the screen through the target.
+      const a = fx.angle ?? 0;
+      const L = Math.hypot(area.w, area.h);
+      const cx = X(fx.x), cy = Y(fx.y);
+      const dx = Math.cos(a), dy = Math.sin(a);
+      const grow = Math.min(1, k / 0.25);
+      const x0 = cx - dx * L, y0 = cy - dy * L;
+      const x1 = cx - dx * L + dx * 2 * L * grow, y1 = cy - dy * L + dy * 2 * L * grow;
+      const fade = k < 0.25 ? 1 : 1 - (k - 0.25) / 0.75;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(area.x, area.y, area.w, area.h);
+      ctx.clip();
+      ctx.lineCap = 'round';
+      ctx.globalCompositeOperation = 'lighter';
+      for (const [w, col] of [[ts * 1.2, 'rgba(120,40,200,0.35)'], [ts * 0.55, 'rgba(190,90,255,0.7)'], [ts * 0.18, 'rgba(255,255,255,1)']] as [number, string][]) {
+        ctx.globalAlpha = fade;
+        ctx.strokeStyle = col;
+        ctx.lineWidth = Math.max(2, w * (k < 0.25 ? 1 : fade));
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x1, y1);
+        ctx.stroke();
+      }
+      // Shards thrown off the blade's edge.
+      ctx.fillStyle = '#e8c8ff';
+      for (let i = 0; i < 26; i++) {
+        const along = ((i * 0.618) % 1) * 2 - 1;
+        if ((along + 1) / 2 > grow) continue;
+        const side = i % 2 ? 1 : -1;
+        const off = (0.2 + k * 2.2) * ts * (0.5 + ((i * 37) % 10) / 10) * side;
+        const px = cx + dx * along * L * 0.6 - dy * off, py = cy + dy * along * L * 0.6 + dx * off;
+        const sz = Math.max(2, ts * 0.12 * fade);
+        ctx.globalAlpha = fade;
+        ctx.fillRect(px - sz / 2, py - sz / 2, sz, sz);
+      }
+      ctx.restore();
+      ctx.globalCompositeOperation = 'source-over';
+      if (k < 0.08) {
+        ctx.globalAlpha = 0.35 * (1 - k / 0.08);
+        ctx.fillStyle = '#d8b0ff';
         ctx.fillRect(area.x, area.y, area.w, area.h);
       }
     } else if (fx.kind === 'firework') {

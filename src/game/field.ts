@@ -65,7 +65,7 @@ export interface Shot {
 }
 
 export interface Fx {
-  kind: 'text' | 'ring' | 'puff' | 'corpse' | 'slash' | 'burst' | 'boom' | 'firework';
+  kind: 'text' | 'ring' | 'puff' | 'corpse' | 'slash' | 'burst' | 'boom' | 'firework' | 'cleave';
   x: number;
   y: number;
   t: number;
@@ -80,12 +80,20 @@ export interface Fx {
 
 let nextMobId = 1;
 
+let hpRule: ((baseHp: number, boss: boolean) => number) | null = null;
+
+/** The floor being played can replace mob health with its own rule (M7). */
+export function setHpRule(rule: ((baseHp: number, boss: boolean) => number) | null) {
+  hpRule = rule;
+}
+
 /** Health multiplier for bosses. */
 export const BOSS_HP = 0.75;
 
 export function makeMob(def: MobDef, x: number, y: number, hpMult: number, dmgMult: number, extra: Partial<Mob> = {}): Mob {
   // Bosses have less health than their table value so fights keep moving.
-  const hp = Math.round(def.hp * hpMult * (extra.boss ? BOSS_HP : 1));
+  let hp = Math.round(def.hp * hpMult * (extra.boss ? BOSS_HP : 1));
+  if (hpRule && !extra.puzzle && def.hp > 4) hp = hpRule(def.hp, !!extra.boss);
   return {
     id: nextMobId++, def, name: def.name, x, y, hp, maxHp: hp, damage: def.damage * dmgMult,
     atk: def.attackCooldown * (0.5 + Math.random() * 0.5), stun: 0, flash: 0, dead: false,

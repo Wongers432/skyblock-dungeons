@@ -557,7 +557,9 @@ export class WitherLordsController implements Controller {
     this.run.terminal = null;
     if (this.phase === 'necron') {
       this.run.events.toast('Necron: All this, for nothing...', '#ff3333');
-      this.run.winSoon();
+      // Master Mode VII carries on into the Wither King's dragons.
+      if (this.run.floor.master) this.run.startDragons();
+      else this.run.winSoon();
       return;
     }
     const last: Record<Lord, string> = {

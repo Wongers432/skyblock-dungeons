@@ -137,9 +137,13 @@ function tryGenerate(floor: FloorDef, rng: Rng, seed: number): DungeonPlan | nul
     const r = addRoom('puzzle', '1x1', c.x, c.y);
     r.puzzle = puzzleKinds[i % puzzleKinds.length];
   }
+  // The fairy room sits halfway along the blood rush, so put it roughly between entrance and blood.
   for (let i = 0; i < floor.fairyRooms; i++) {
-    const options = freeCells().filter((c) => !nearSpecial(c));
-    const c = options.length ? rng.pick(options) : rng.pick(freeCells());
+    const md = (a: Cell, b: Cell) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    const options = freeCells().filter((c) => !nearSpecial(c) && md(c, ent) >= 2 && md(c, bl) >= 2);
+    if (!options.length) return null;
+    const best = Math.min(...options.map((c) => Math.abs(md(c, ent) - md(c, bl))));
+    const c = rng.pick(options.filter((c) => Math.abs(md(c, ent) - md(c, bl)) <= best + 1));
     addRoom('fairy', '1x1', c.x, c.y);
   }
 
@@ -180,11 +184,48 @@ function tryGenerate(floor: FloorDef, rng: Rng, seed: number): DungeonPlan | nul
   const neighbors = (id: number) =>
     rooms.filter((r) => r.id !== id && touching.has(pairKey(id, r.id))).map((r) => r.id);
 
-  // Spanning tree over hub rooms; blood and puzzle rooms hang off it as dead ends.
+  // The blood rush is one chain: entrance -> ... -> fairy -> ... -> blood. Every door on it after
+  // the first is a Wither Door (the one leaving the fairy room is plain), and the last is the
+  // Blood Door. Everything else branches off the chain.
   const isLeaf = (r: RoomPlan) => r.type === 'blood' || r.type === 'puzzle';
-  const hubs = rooms.filter((r) => !isLeaf(r));
-  const inTree = new Set<number>([entrance.id]);
+  const fairy = rooms.find((r) => r.type === 'fairy');
+  if (!fairy) return null;
+  const chainUsable = (id: number) => rooms[id].type === 'normal';
+  /** Shortest route from `from` to any room in `goals`, through normal rooms not in `used`. */
+  const route = (from: number, goals: Set<number>, used: Set<number>): number[] | null => {
+    const prevOf = new Map<number, number>();
+    const q = [from];
+    const seenR = new Set([from]);
+    while (q.length) {
+      const cur = q.shift()!;
+      if (goals.has(cur) && cur !== from) {
+        const out = [cur];
+        for (let c = cur; prevOf.has(c); ) { c = prevOf.get(c)!; out.unshift(c); }
+        return out;
+      }
+      for (const n of rng.shuffle(neighbors(cur))) {
+        if (seenR.has(n) || used.has(n)) continue;
+        if (!goals.has(n) && !chainUsable(n)) continue;
+        seenR.add(n);
+        prevOf.set(n, cur);
+        q.push(n);
+      }
+    }
+    return null;
+  };
+  const firstHalf = route(entrance.id, new Set([fairy.id]), new Set([blood.id]));
+  if (!firstHalf || firstHalf.length < 3) return null;
+  const nearBlood = new Set(neighbors(blood.id).filter((n) => chainUsable(n)));
+  const secondHalf = route(fairy.id, nearBlood, new Set([...firstHalf, blood.id].filter((x) => x !== fairy.id)));
+  if (!secondHalf || secondHalf.length < 2) return null;
+  // Keep the fairy roughly in the middle.
+  if (Math.abs(firstHalf.length - 1 - secondHalf.length) > 2) return null;
+  const chain = [...firstHalf, ...secondHalf.slice(1), blood.id];
+
+  const inTree = new Set<number>(chain.filter((id) => id !== blood.id));
   const treeEdges: [number, number][] = [];
+  for (let i = 0; i < chain.length - 2; i++) treeEdges.push([chain[i], chain[i + 1]]);
+  const hubs = rooms.filter((r) => !isLeaf(r));
   while (inTree.size < hubs.length) {
     const frontier: [number, number][] = [];
     for (const id of inTree) for (const n of neighbors(id)) {
@@ -195,7 +236,8 @@ function tryGenerate(floor: FloorDef, rng: Rng, seed: number): DungeonPlan | nul
     treeEdges.push(e);
     inTree.add(e[1]);
   }
-  for (const leaf of rooms.filter(isLeaf)) {
+  treeEdges.push([chain[chain.length - 2], blood.id]);
+  for (const leaf of rooms.filter((r) => r.type === 'puzzle')) {
     const options = neighbors(leaf.id).filter((n) => !isLeaf(rooms[n]) && rooms[n].type !== 'entrance');
     if (!options.length) return null;
     treeEdges.push([rng.pick(options), leaf.id]);
@@ -212,47 +254,16 @@ function tryGenerate(floor: FloorDef, rng: Rng, seed: number): DungeonPlan | nul
     };
   });
 
-  // Path from entrance to blood through the tree.
-  const adj = new Map<number, { to: number; door: DoorPlan }[]>();
-  for (const d of doors) {
-    adj.set(d.a, [...(adj.get(d.a) ?? []), { to: d.b, door: d }]);
-    adj.set(d.b, [...(adj.get(d.b) ?? []), { to: d.a, door: d }]);
-  }
-  const prev = new Map<number, { from: number; door: DoorPlan }>();
-  const queue = [entrance.id];
-  const seen = new Set(queue);
-  while (queue.length) {
-    const cur = queue.shift()!;
-    for (const { to, door } of adj.get(cur) ?? []) {
-      if (seen.has(to)) continue;
-      seen.add(to);
-      prev.set(to, { from: cur, door });
-      queue.push(to);
-    }
-  }
-  const pathDoors: DoorPlan[] = [];
-  for (let cur = blood.id; cur !== entrance.id; ) {
-    const p = prev.get(cur);
-    if (!p) return null;
-    pathDoors.unshift(p.door);
-    cur = p.from;
-  }
-  const candidates = pathDoors.slice(1, -1);
-  const witherCount = Math.min(floor.witherDoors, candidates.length);
-  if (witherCount < 1) return null;
-  const chosen = rng.shuffle(candidates.slice()).slice(0, witherCount);
-  for (const d of chosen) d.type = 'wither';
-
-  // Blood rush: each lock's key sits in the room right in front of that lock, so the player
-  // goes from Wither room to Wither room (the room behind one Wither Door holds the next key).
-  const pathRooms = [entrance.id];
-  for (const d of pathDoors) pathRooms.push(d.a === pathRooms[pathRooms.length - 1] ? d.b : d.a);
-  for (let j = 0; j < pathDoors.length; j++) {
-    const lock = pathDoors[j];
-    if (lock.type === 'normal') continue;
-    const keyRoom = rooms[pathRooms[j]];
-    if (keyRoom.type !== 'normal' || keyRoom.key) return null;
-    keyRoom.key = lock.type === 'blood' ? 'blood' : 'wither';
+  // Lock the chain. Each lock's key drops in the room right in front of it, so the player goes
+  // from Wither room to Wither room.
+  for (let j = 1; j < chain.length - 1; j++) {
+    const from = rooms[chain[j]];
+    const toBlood = j === chain.length - 2;
+    const d = toBlood ? doors.find((x) => x.type === 'blood')! : doors[j];
+    if (from.type === 'fairy') continue;
+    if (!toBlood) d.type = 'wither';
+    if (from.type !== 'normal' || from.key) return null;
+    from.key = d.type === 'blood' ? 'blood' : 'wither';
   }
 
   for (const r of rooms) buildRoomTiles(r, doors, floor, rng);

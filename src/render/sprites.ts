@@ -122,6 +122,7 @@ const SPRITES: Record<string, string[]> = {
   giant: ['..ssssss..', '..ssssss..', '..sKssKs..', '..ssssss..', '..ssrrss..', 'XXXXXXXXXX', 'sXXXXXXXXs', 'sXXXXXXXXs', 'sXXXXXXXXs', '..XXXXXX..', '..BBBBBB..', '..BB..BB..', '..BB..BB..', '..PP..PP..'],
   wither: ['kkk.kkkk.kkk', 'kXk.kXXk.kXk', 'kkk.kkkk.kkk', '.k..kkkk..k.', '.kXXkkkkXXk.', '....kaak....', '...kXkkXk...', '....kaak....', '...kakkak...', '....kaak....', '.....kk.....', '......k.....'],
   spiritbow: ['......Q.', '.....Qq.', '....Q.q.', '...Q..q.', '..Q...q.', '.Q...q..', 'Q...q...', 'qqqq....'],
+  none: ['.'],
   grave: ['..TTTT..', '.TTttTT.', '.TtTTtT.', '.TTttTT.', '.TTTTTT.', '.TTTTTT.', 'tttttttt', 'gggggggg'],
   // Room decorations.
   skull: ['........', '........', '..IIII..', '.IIIIII.', '.IKIIKI.', '.IIIIII.', '..IiIi..', '........'],
@@ -138,7 +139,7 @@ const SPRITES: Record<string, string[]> = {
 const cache = new Map<string, HTMLCanvasElement>();
 
 /** Sprites that never animate their legs. */
-const STATIC = new Set(['blaze', 'fairy', 'chest', 'essence', 'bat', 'witherkey', 'bloodkey', 'grave', 'wither', 'guardian', 'guardian_r', 'guardian_c', 'guardian_l', 'guardian_big', 'spiritbow']);
+const STATIC = new Set(['none', 'blaze', 'fairy', 'chest', 'essence', 'bat', 'witherkey', 'bloodkey', 'grave', 'wither', 'guardian', 'guardian_r', 'guardian_c', 'guardian_l', 'guardian_big', 'spiritbow']);
 
 function hexRgb(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16);

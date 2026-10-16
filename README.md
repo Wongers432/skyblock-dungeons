@@ -6,7 +6,8 @@ A private, solo, offline 2D take on Hypixel SkyBlock's Catacombs, built as an in
 - Randomly generated dungeon each run: 1x1, 1x2, 2x1, 2x2 and L rooms built from hand-made layouts.
 - Map screen first; tap a room to zoom in, tap the corner minimap (or **Map**) to go back.
 - Tap mobs to hit them; weapon abilities do area damage.
-- Wither Door + Blood Key: each key drops in the room right before its door, so you rush wither room to wither room. Clear the room and tap the key to pick it up.
+- Blood rush: a chain of Wither Doors runs from the entrance to the Blood Room, with the Fairy Room halfway. Each key drops in the room right before its door, so you rush wither room to wither room.
+- Big S and S+ banners when your live score reaches those grades.
 - Secrets (appear once a room is cleared), crypts (+bonus score), Fairy room (full heal).
 - Puzzles: Tic Tac Toe, Higher or Lower (blazes), Three Weirdos.
 - Blood room with the Watcher, then the floor boss (walking through the portal heals you):
@@ -17,6 +18,7 @@ A private, solo, offline 2D take on Hypixel SkyBlock's Catacombs, built as an in
   - **F5 Livid**: 8 coloured Livids, only one is real. Its colour matches the block above the arena; hitting a fake blinds and hurts you. They shuffle around, and he enrages at half health with Shadow Assassins.
   - **F6 Sadan**: kill 12 Terracottas, then his 4 Giants (Bigfoot stomps, L.A.S.R. lasers, the Diamond Giant swings, the Jolly Pink Giant throws boulders you can tap). Hit a Giant while it charges to interrupt it. Then Sadan himself, with Golems.
   - **F7 The Wither Lords**: Maxor (slide both Energy Crystals into the power cells to fire the wall lasers and stun him), Storm (tap a crusher when he stands under it), Goldor (solve 4 terminals before he reaches you) and Necron (shields himself with Wither Guards at 66% and 33%).
+- **Master Mode** (switch at the top of the Dungeons tab): M1 to M7 are the same floors with far more mob health and damage. M1 needs a Floor VII clear; each later one needs the one before. M7 ends with the five Wither Dragons, which can only be hurt right above their own statue; one that gets past alive goes back in line at full health. M7 drops the **Dark Claymore**: every swing crits, cleaves every mob near the target and cuts across the whole screen. At Catacombs 50 with level 50 gear, nothing else one-shots an M7 mob (a maxed Hyperion tops out around 270k against a 320k minimum), while a maxed Claymore crits for about 1.65M, enough for any M7 mob or boss (tests/balance.test.ts checks this).
 - **RNG Meter** tab: every drop for every floor with its odds, pick a target per floor, each win fills the meter and boosts your odds; a full meter guarantees the drop. A floor's meter unlocks after your first clear of it.
 - Phase banners in boss fights (DAMAGE MAXOR!, 1/2 CRYSTALS ACTIVATED, TERMINALS 2/4...), death and explosion effects, and a full-screen RNGESUS DROP celebration for rare drops.
 - **Puzzle glow** setting (Settings tab or pause menu) highlights the right answer in every puzzle and terminal.
