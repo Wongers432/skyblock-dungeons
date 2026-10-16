@@ -28,6 +28,8 @@ export interface Mob {
   armor: number;
   /** Idle mobs wait in place until the player is close or they get hit. */
   aggro: boolean;
+  /** Shadow Assassin teleport timer. */
+  tp?: number;
   /** Seconds this mob has been dead (used for revives). */
   deadFor?: number;
 }
@@ -92,6 +94,8 @@ export class Field {
   private flow: Int16Array | null = null;
   /** Cached pre-rendered tile map, owned by the renderer. */
   renderCache?: HTMLCanvasElement;
+  /** Wall torch positions (tile coordinates), chosen by the renderer with the cache. */
+  torches?: Pt[];
 
   constructor(tiles: string[], readonly theme: 'floor' | 'blood' | 'fairy' | 'arena' = 'floor') {
     this.tiles = tiles;

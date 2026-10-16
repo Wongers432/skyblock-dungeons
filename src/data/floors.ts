@@ -45,6 +45,13 @@ export const MOBS: Record<string, MobDef> = {
   g_reinforced: { id: 'g_reinforced', name: 'Reinforced Guardian', hp: 550, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', armor: 0.5, sprite: 'guardian_r', size: 1.3 },
   g_chaos: { id: 'g_chaos', name: 'Chaos Guardian', hp: 550, damage: 22, speed: 0, attackCooldown: 2.6, range: 99, projectile: 'skull', sprite: 'guardian_c', size: 1.3 },
   g_laser: { id: 'g_laser', name: 'Laser Guardian', hp: 550, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', sprite: 'guardian_l', size: 1.3 },
+  superarcher: { id: 'superarcher', name: 'Super Archer', hp: 160, damage: 14, speed: 1.4, attackCooldown: 1.2, range: 6.5, sprite: 'superarcher', size: 0.95 },
+  assassin: { id: 'assassin', name: 'Shadow Assassin', hp: 240, damage: 26, speed: 2.2, attackCooldown: 1.1, sprite: 'assassin', size: 1 },
+  // Thorn's spirit animals (Floor IV).
+  spirit_wolf: { id: 'spirit_wolf', name: 'Spirit Wolf', hp: 260, damage: 16, speed: 2.6, attackCooldown: 0.9, sprite: 'spirit_wolf', size: 0.9 },
+  spirit_bear: { id: 'spirit_bear', name: 'Spirit Bear', hp: 700, damage: 22, speed: 1.2, attackCooldown: 1.4, armor: 0.1, sprite: 'spirit_bear', size: 1.3 },
+  // Livid and his clones (Floor V).
+  livid: { id: 'livid', name: 'Livid', hp: 6000, damage: 18, speed: 0, attackCooldown: 2.2, range: 99, projectile: 'arrow', sprite: 'livid', size: 1.3 },
   blaze: { id: 'blaze', name: 'Blaze', hp: 1, damage: 0, speed: 0.6, attackCooldown: 99, sprite: 'blaze', size: 0.9 },
 };
 
@@ -125,8 +132,32 @@ export const FLOORS: FloorDef[] = [
       { item: 'adaptive_boots', chance: tiers(0.006, 0.01, 0.015, 0.025, 0.04, 0.06) },
     ],
   },
-  { id: 4, name: 'Floor IV', boss: 'Thorn', implemented: false, reqLevel: 9, cols: 6, rows: 5, puzzles: 3, fairyRooms: 1, witherDoors: 2, timeLimit: 720, mobHpMult: 6, mobDmgMult: 3.5, mobsPerCell: [2, 4], secretChance: 0.55, cryptChance: 0.35, bloodMobs: 12, mobPool: ['zombie', 'skeleton'], xp: 600, essence: { type: 'undead', base: 90 }, drops: [] },
-  { id: 5, name: 'Floor V', boss: 'Livid', implemented: false, reqLevel: 14, cols: 6, rows: 6, puzzles: 3, fairyRooms: 1, witherDoors: 2, timeLimit: 720, mobHpMult: 10, mobDmgMult: 5, mobsPerCell: [3, 4], secretChance: 0.55, cryptChance: 0.35, bloodMobs: 14, mobPool: ['zombie', 'skeleton'], xp: 1500, essence: { type: 'wither', base: 40 }, drops: [] },
+  {
+    id: 4, name: 'Floor IV', boss: 'Thorn', implemented: true, reqLevel: 9,
+    cols: 6, rows: 5, puzzles: 3, fairyRooms: 1, witherDoors: 2, timeLimit: 780,
+    mobHpMult: 3, mobDmgMult: 4, mobsPerCell: [2, 3], secretChance: 0.55, cryptChance: 0.4,
+    bloodMobs: 8, mobPool: ['zombie', 'skeleton', 'knight', 'skelmaster', 'superarcher'], xp: 600,
+    essence: { type: 'undead', base: 90 },
+    drops: [
+      { item: 'spirit_sceptre', chance: tiers(0.002, 0.004, 0.006, 0.012, 0.025, 0.04) },
+      { item: 'spirit_boots', chance: tiers(0.005, 0.008, 0.012, 0.02, 0.035, 0.05) },
+    ],
+  },
+  {
+    id: 5, name: 'Floor V', boss: 'Livid', implemented: true, reqLevel: 14,
+    cols: 6, rows: 6, puzzles: 3, fairyRooms: 1, witherDoors: 3, timeLimit: 840,
+    mobHpMult: 4.5, mobDmgMult: 5, mobsPerCell: [2, 3], secretChance: 0.6, cryptChance: 0.4,
+    bloodMobs: 9, mobPool: ['zombie', 'skeleton', 'knight', 'skelmaster', 'superarcher', 'assassin'], xp: 1500,
+    essence: { type: 'wither', base: 40 },
+    drops: [
+      { item: 'livid_dagger', chance: tiers(0.002, 0.004, 0.006, 0.012, 0.025, 0.04) },
+      { item: 'shadow_fury', chance: tiers(0.001, 0.002, 0.004, 0.008, 0.016, 0.03) },
+      { item: 'shadow_helmet', chance: tiers(0.004, 0.006, 0.01, 0.015, 0.025, 0.04) },
+      { item: 'shadow_chestplate', chance: tiers(0.002, 0.004, 0.006, 0.01, 0.018, 0.03) },
+      { item: 'shadow_leggings', chance: tiers(0.003, 0.005, 0.008, 0.012, 0.02, 0.035) },
+      { item: 'shadow_boots', chance: tiers(0.004, 0.006, 0.01, 0.015, 0.025, 0.04) },
+    ],
+  },
   { id: 6, name: 'Floor VI', boss: 'Sadan', implemented: false, reqLevel: 19, cols: 6, rows: 6, puzzles: 3, fairyRooms: 1, witherDoors: 3, timeLimit: 840, mobHpMult: 16, mobDmgMult: 7, mobsPerCell: [3, 4], secretChance: 0.6, cryptChance: 0.35, bloodMobs: 16, mobPool: ['zombie', 'skeleton'], xp: 3500, essence: { type: 'wither', base: 60 }, drops: [] },
   { id: 7, name: 'Floor VII', boss: 'The Wither Lords', implemented: false, reqLevel: 24, cols: 6, rows: 6, puzzles: 4, fairyRooms: 1, witherDoors: 3, timeLimit: 960, mobHpMult: 26, mobDmgMult: 10, mobsPerCell: [3, 5], secretChance: 0.6, cryptChance: 0.35, bloodMobs: 18, mobPool: ['zombie', 'skeleton'], xp: 9000, essence: { type: 'wither', base: 100 }, drops: [] },
 ];

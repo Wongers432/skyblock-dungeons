@@ -516,3 +516,277 @@ export class ProfessorController implements Controller {
     drawLaser(ctx, this.field, this.laser, X, Y, ts);
   }
 }
+
+/** Floor IV: Thorn can only be hurt by the Spirit Bow, dropped by Spirit Bears. */
+export class ThornController implements Controller {
+  thorn: Mob;
+  hitsLeft = 4;
+  private bear: Mob | null = null;
+  private bearTimer = 4;
+  private wolfTimer = 3;
+  private shotTimer = 2.5;
+  private wander = { x: 7, y: 3 };
+  /** Bow lying on the floor, or held by the player (with seconds left). */
+  bowDrop: { x: number; y: number } | null = null;
+  bowHeld = 0;
+  private arrow: { x: number; y: number } | null = null;
+
+  constructor(private run: Run, private field: Field) {
+    this.thorn = makeMob(
+      { id: 'thorn', name: 'Thorn', hp: 4, damage: 0, speed: 1.6, attackCooldown: 99, sprite: 'thorn', size: 1.6 },
+      7, 2.8, 1, run.floor.mobDmgMult, { boss: true, invuln: Infinity },
+    );
+    this.thorn.hp = 4;
+    this.thorn.maxHp = 4;
+    field.mobs.push(this.thorn);
+    run.events.toast('Thorn: Welcome Adventurers! I am Thorn, the Spirit! And host of the Vegan Trials.', '#55ff55');
+    run.events.toast('Kill a Spirit Bear, grab its Spirit Bow and tap Thorn to shoot him. Only the bow can hurt him!', '#ffaa00');
+  }
+
+  update(dt: number) {
+    const f = this.field;
+    const t = this.thorn;
+    if (t.dead) return;
+    const rng = this.run.rng;
+    if (Math.hypot(this.wander.x - t.x, this.wander.y - t.y) < 0.3) {
+      this.wander = { x: 2 + rng.next() * (f.w - 4), y: 1.5 + rng.next() * (f.h * 0.4) };
+    }
+    if (!(t.stun > 0)) {
+      const dx = this.wander.x - t.x, dy = this.wander.y - t.y;
+      const d = Math.hypot(dx, dy) || 1;
+      t.x += (dx / d) * t.def.speed * dt;
+      t.y += (dy / d) * t.def.speed * dt;
+    }
+    const dm = this.run.floor.mobDmgMult;
+    const hpm = this.run.floor.mobHpMult;
+    const angry = this.hitsLeft <= 2;
+    this.shotTimer -= dt;
+    if (this.shotTimer <= 0 && !(t.stun > 0)) {
+      this.shotTimer = angry ? 1.8 : 2.5;
+      this.run.shoot(f, t.x, t.y, 'arrow', 16 * dm);
+    }
+    this.wolfTimer -= dt;
+    const wolves = f.aliveMobs().filter((m) => m.def.id === 'spirit_wolf').length;
+    if (this.wolfTimer <= 0) {
+      this.wolfTimer = angry ? 5 : 7;
+      if (wolves < 4) {
+        const p = f.randomFloor(() => rng.next(), f.player, 4);
+        f.mobs.push(makeMob(MOBS.spirit_wolf, p.x, p.y, hpm, dm));
+        f.fx.push({ kind: 'puff', x: p.x, y: p.y, t: 0, life: 0.5, color: '#9fffd0' });
+      }
+    }
+    if (!this.bear || this.bear.dead) {
+      if (!this.bowDrop && this.bowHeld <= 0) {
+        this.bearTimer -= dt;
+        if (this.bearTimer <= 0) {
+          this.bearTimer = 6;
+          const p = f.randomFloor(() => rng.next(), f.player, 4);
+          this.bear = makeMob(MOBS.spirit_bear, p.x, p.y, hpm, dm);
+          f.mobs.push(this.bear);
+          this.run.events.toast('A Spirit Bear appeared! Kill it for the Spirit Bow.', '#9fffd0');
+        }
+      }
+    }
+    if (this.bowHeld > 0) {
+      this.bowHeld -= dt;
+      if (this.bowHeld <= 0) this.run.events.toast('The Spirit Bow crumbled away...', '#aaaaaa');
+    }
+    if (this.arrow) {
+      const dx = t.x - this.arrow.x, dy = t.y - 0.4 - this.arrow.y;
+      const d = Math.hypot(dx, dy);
+      if (d < 0.6) {
+        this.arrow = null;
+        this.hitsLeft--;
+        t.hp = this.hitsLeft;
+        t.stun = 2;
+        t.flash = 0.3;
+        f.ring(t.x, t.y, 2, '#9fffd0');
+        f.text(t.x, t.y - 1.4, 'SPIRIT HIT!', '#9fffd0');
+        if (this.hitsLeft <= 0) {
+          t.dead = true;
+          for (const other of f.aliveMobs()) other.dead = true;
+          f.projectiles = [];
+          this.run.events.toast('Thorn: Ahh, but the spirits will always remain...', '#55ff55');
+          this.run.winSoon();
+        } else {
+          this.run.events.toast(`Thorn: Ouch! (${this.hitsLeft} hits left)`, '#55ff55');
+        }
+      } else {
+        this.arrow.x += (dx / d) * 14 * dt;
+        this.arrow.y += (dy / d) * 14 * dt;
+      }
+    }
+  }
+
+  onMobDeath(m: Mob) {
+    if (m === this.bear) {
+      this.bowDrop = { x: m.x, y: m.y };
+      this.run.events.toast('The Spirit Bear dropped a Spirit Bow! Tap it to pick it up.', '#9fffd0');
+    }
+  }
+
+  onTap(x: number, y: number): boolean {
+    if (this.bowDrop && Math.hypot(this.bowDrop.x - x, this.bowDrop.y - y) < 1.3) {
+      this.bowDrop = null;
+      this.bowHeld = 20;
+      this.run.events.toast('You picked up the Spirit Bow! Tap Thorn to shoot.', '#9fffd0');
+      return true;
+    }
+    const t = this.thorn;
+    if (this.bowHeld > 0 && !this.arrow && Math.hypot(t.x - x, t.y - 0.5 - y) < 1.8) {
+      this.bowHeld = 0;
+      this.arrow = { x: this.field.player.x, y: this.field.player.y };
+      return true;
+    }
+    return false;
+  }
+
+  bar(): BossBar {
+    return { name: `Thorn (${this.hitsLeft} Spirit Bow hits left)`, hp: this.hitsLeft, max: 4, color: '#2fbf71' };
+  }
+
+  draw(ctx: CanvasRenderingContext2D, X: ToScreen, Y: ToScreen, ts: number, time: number) {
+    if (this.thorn.dead) return;
+    if (this.bowHeld <= 0) shield(ctx, this.thorn, X, Y, ts, time, '#9fffd0');
+    const bow = (bx: number, by: number, s: number) => {
+      ctx.strokeStyle = '#d8fff0';
+      ctx.lineWidth = Math.max(2, s * 0.12);
+      ctx.beginPath();
+      ctx.arc(bx, by, s * 0.45, -Math.PI / 2, Math.PI / 2);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(bx, by - s * 0.45);
+      ctx.lineTo(bx, by + s * 0.45);
+      ctx.stroke();
+    };
+    if (this.bowDrop) {
+      const bob = Math.sin(time * 4) * ts * 0.1;
+      ctx.fillStyle = 'rgba(159,255,208,0.3)';
+      ctx.beginPath();
+      ctx.arc(X(this.bowDrop.x), Y(this.bowDrop.y) + bob, ts * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      bow(X(this.bowDrop.x), Y(this.bowDrop.y) + bob, ts);
+    }
+    if (this.bowHeld > 0) {
+      bow(X(this.field.player.x) + ts * 0.5, Y(this.field.player.y), ts * 0.8);
+      ctx.font = `bold ${Math.max(11, ts * 0.4)}px ui-monospace, monospace`;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#9fffd0';
+      ctx.fillText(`Spirit Bow ready (${Math.ceil(this.bowHeld)}s): tap Thorn!`, X(this.field.player.x), Y(this.field.player.y) - ts * 1.3);
+    }
+    if (this.arrow) {
+      ctx.fillStyle = '#d8fff0';
+      ctx.fillRect(X(this.arrow.x) - 3, Y(this.arrow.y) - 3, 6, 6);
+    }
+  }
+}
+
+const LIVID_COLORS: [string, string][] = [
+  ['Arcade', '#ffdd33'], ['Crossed', '#ff55ff'], ['Doctor', '#aaaaaa'], ['Frog', '#2e9e2e'],
+  ['Hockey', '#e53935'], ['Purple', '#8e44d6'], ['Scream', '#3f6fff'], ['Smile', '#7dff5a'], ['Vendetta', '#ffffff'],
+];
+
+/** Floor V: several Livids, only one is real. Its colour matches the block above the arena. */
+export class LividController implements Controller {
+  real: Mob;
+  livids: Mob[] = [];
+  realColor: string;
+  private daggerTimer = 2;
+  private shuffleTimer = 9;
+  private enraged = false;
+
+  constructor(private run: Run, private field: Field) {
+    const rng = run.rng;
+    const picks = rng.shuffle(LIVID_COLORS.slice()).slice(0, 8);
+    const spots = [
+      { x: 2.5, y: 3 }, { x: 5, y: 2.2 }, { x: 9, y: 2.2 }, { x: 11.5, y: 3 },
+      { x: 2.5, y: 6.5 }, { x: 5.2, y: 5.5 }, { x: 8.8, y: 5.5 }, { x: 11.5, y: 6.5 },
+    ];
+    const realIndex = rng.int(0, picks.length - 1);
+    picks.forEach(([name, color], i) => {
+      const real = i === realIndex;
+      const m = makeMob(MOBS.livid, spots[i].x, spots[i].y, real ? run.floor.mobHpMult : 1, run.floor.mobDmgMult, {
+        name: `${name} Livid`, sprite: 'livid:' + color, boss: real, puzzle: !real,
+      });
+      this.livids.push(m);
+    });
+    this.real = this.livids[realIndex];
+    this.realColor = picks[realIndex][1];
+    field.mobs.push(...this.livids);
+    run.events.toast("Livid: Welcome, you've arrived right on time. I am Livid, the Master of Shadows.", '#ff55ff');
+    run.events.toast('Only one Livid is real: the one whose colour matches the block at the top. Hitting a fake blinds you!', '#ffaa00');
+  }
+
+  update(dt: number) {
+    const f = this.field;
+    if (this.real.dead) return;
+    const rng = this.run.rng;
+    const dm = this.run.floor.mobDmgMult;
+    if (!this.enraged && this.real.hp < this.real.maxHp * 0.5) {
+      this.enraged = true;
+      this.run.events.toast('Livid: I respect you for making it this far, but I will be your undoing.', '#ff55ff');
+      for (let i = 0; i < 2; i++) {
+        const p = f.randomFloor(() => rng.next(), f.player, 3);
+        f.mobs.push(makeMob(MOBS.assassin, p.x, p.y, this.run.floor.mobHpMult, dm));
+      }
+    }
+    this.daggerTimer -= dt;
+    if (this.daggerTimer <= 0) {
+      this.daggerTimer = this.enraged ? 1.6 : 2.3;
+      for (const m of rng.shuffle(this.livids.slice()).slice(0, 2)) {
+        if (!(m.stun > 0)) this.run.shoot(f, m.x, m.y, 'arrow', 16 * dm);
+      }
+    }
+    this.shuffleTimer -= dt;
+    if (this.shuffleTimer <= 0) {
+      this.shuffleTimer = this.enraged ? 7 : 9;
+      const spots = rng.shuffle(this.livids.map((m) => ({ x: m.x, y: m.y })));
+      this.livids.forEach((m, i) => {
+        f.fx.push({ kind: 'puff', x: m.x, y: m.y, t: 0, life: 0.4, color: '#552266' });
+        m.x = spots[i].x;
+        m.y = spots[i].y;
+      });
+      this.run.events.toast('The Livids teleport around!', '#ff55ff');
+    }
+  }
+
+  onTap(x: number, y: number): boolean {
+    let best: Mob | null = null;
+    let bd = 1.25;
+    for (const m of this.livids) {
+      const d = Math.hypot(m.x - x, m.y - 0.4 - y);
+      if (d < bd) { bd = d; best = m; }
+    }
+    if (!best || best === this.real) return false;
+    this.run.blind = 2;
+    this.run.damagePlayer(this.run.stats.maxHp * 0.15 * (100 + this.run.stats.defense) / 100);
+    this.field.text(best.x, best.y - 1.2, 'WRONG LIVID!', '#ff5555');
+    this.run.events.toast(`${best.name}: Hehe, wrong one! You've been blinded.`, '#ff55ff');
+    return true;
+  }
+
+  onMobDeath(m: Mob) {
+    if (m !== this.real) return;
+    for (const other of this.field.aliveMobs()) other.dead = true;
+    this.field.projectiles = [];
+    this.run.events.toast('Livid: Impossible! How did you figure out which one I was?!', '#ff55ff');
+    this.run.winSoon();
+  }
+
+  bar(): BossBar {
+    return { name: 'Livid', hp: this.real.hp, max: this.real.maxHp, color: '#8e44d6' };
+  }
+
+  draw(ctx: CanvasRenderingContext2D, X: ToScreen, _Y: ToScreen, ts: number, time: number) {
+    // The coloured "wool" block that tells you which Livid is real.
+    const s = ts * 1.1;
+    const cx = X(this.field.w / 2), cy = _Y(0.1) + Math.sin(time * 2) * 2;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(cx - s / 2 - 2, cy - s / 2 - 2, s + 4, s + 4);
+    ctx.fillStyle = this.realColor;
+    ctx.fillRect(cx - s / 2, cy - s / 2, s, s);
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    for (let i = 0; i < 4; i++) ctx.fillRect(cx - s / 2 + (i * s) / 4, cy - s / 2, 1, s);
+  }
+}

@@ -129,6 +129,34 @@ export const ITEMS: Record<string, ItemDef> = {
       mana: 50, cooldown: 0.6, targeting: 'point', power: 4, radius: 1.4,
     },
   },
+  spirit_boots: {
+    id: 'spirit_boots', name: 'Spirit Boots', kind: 'boots', rarity: 'LEGENDARY', floor: 4,
+    stats: { health: 90, defense: 50, intelligence: 60, critDamage: 20 }, essence: 'undead', sprite: 'boots_spirit',
+  },
+  shadow_fury: {
+    id: 'shadow_fury', name: 'Shadow Fury', kind: 'weapon', rarity: 'LEGENDARY', floor: 5,
+    stats: { damage: 150, strength: 120, critChance: 10, critDamage: 60 }, attackCooldown: 0.3, essence: 'wither', sprite: 'sword_shadow',
+    ability: {
+      id: 'shadow_fury', name: 'Shadow Fury', desc: 'Dashes through up to 5 mobs, hitting each one hard.',
+      mana: 0, cooldown: 12, targeting: 'auto', power: 3, radius: 0,
+    },
+  },
+  shadow_helmet: {
+    id: 'shadow_helmet', name: 'Shadow Assassin Helmet', kind: 'helmet', rarity: 'LEGENDARY', floor: 5,
+    stats: { health: 90, defense: 50, strength: 25, critDamage: 15 }, essence: 'wither', sprite: 'helmet_shadow',
+  },
+  shadow_chestplate: {
+    id: 'shadow_chestplate', name: 'Shadow Assassin Chestplate', kind: 'chestplate', rarity: 'LEGENDARY', floor: 5,
+    stats: { health: 170, defense: 90, strength: 25, critDamage: 15 }, essence: 'wither', sprite: 'chest_shadow',
+  },
+  shadow_leggings: {
+    id: 'shadow_leggings', name: 'Shadow Assassin Leggings', kind: 'leggings', rarity: 'LEGENDARY', floor: 5,
+    stats: { health: 140, defense: 80, strength: 25, critDamage: 15 }, essence: 'wither', sprite: 'legs_shadow',
+  },
+  shadow_boots: {
+    id: 'shadow_boots', name: 'Shadow Assassin Boots', kind: 'boots', rarity: 'LEGENDARY', floor: 5,
+    stats: { health: 80, defense: 45, strength: 25, critDamage: 15 }, essence: 'wither', sprite: 'boots_shadow',
+  },
   spirit_sceptre: {
     id: 'spirit_sceptre', name: 'Spirit Sceptre', kind: 'weapon', rarity: 'LEGENDARY', floor: 4,
     stats: { damage: 60, intelligence: 300 }, attackCooldown: 0.3, essence: 'undead', sprite: 'sceptre_spirit',
@@ -152,11 +180,11 @@ export const ITEMS: Record<string, ItemDef> = {
   },
   scroll_implosion: {
     id: 'scroll_implosion', name: 'Implosion', kind: 'scroll', rarity: 'LEGENDARY', floor: 7,
-    stats: {}, essence: 'wither', sprite: 'scroll', passive: 'Hyperion scroll: an explosion where you tap.',
+    stats: {}, essence: 'wither', sprite: 'scroll', passive: 'Hyperion scroll: heavy damage to every mob in the room.',
   },
   scroll_shadow_warp: {
     id: 'scroll_shadow_warp', name: 'Shadow Warp', kind: 'scroll', rarity: 'LEGENDARY', floor: 7,
-    stats: {}, essence: 'wither', sprite: 'scroll', passive: 'Hyperion scroll: stuns mobs around where you tap.',
+    stats: {}, essence: 'wither', sprite: 'scroll', passive: 'Hyperion scroll: stuns every mob in the room.',
   },
   scroll_wither_shield: {
     id: 'scroll_wither_shield', name: 'Wither Shield', kind: 'scroll', rarity: 'LEGENDARY', floor: 7,
@@ -174,14 +202,14 @@ export function hyperionAbility(scrolls: string[]): AbilityDef | undefined {
   return {
     id: 'wither_scrolls',
     name: all ? 'Wither Impact' : parts.join(' + '),
-    desc: 'Tap a spot: ' + [
-      scrolls.includes('scroll_implosion') ? 'explode' : '',
-      scrolls.includes('scroll_shadow_warp') ? 'stun nearby mobs' : '',
+    desc: 'Hits every mob in the room: ' + [
+      scrolls.includes('scroll_implosion') ? 'heavy damage' : 'light damage',
+      scrolls.includes('scroll_shadow_warp') ? 'stuns them' : '',
       scrolls.includes('scroll_wither_shield') ? 'gain a shield' : '',
     ].filter(Boolean).join(', ') + '.',
     mana: all ? 120 : 60 * scrolls.length,
     cooldown: 0.3,
-    targeting: 'point',
+    targeting: 'auto',
     power: scrolls.includes('scroll_implosion') ? 6 : 0.5,
     radius: 4,
   };

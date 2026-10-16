@@ -83,9 +83,15 @@ function playArea(): Rect {
 // ---------- Drawing ----------
 
 function draw(time: number) {
-  ctx.fillStyle = '#0d0d0f';
+  ctx.fillStyle = '#0b0a0e';
   ctx.fillRect(0, 0, W, H);
   if (!run) return;
+  // Faint warm glow behind the play area.
+  const bg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7);
+  bg.addColorStop(0, run.view === 'boss' ? '#1d1424' : '#17151c');
+  bg.addColorStop(1, '#070609');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
   const area = playArea();
   fieldXf = null;
   mapXf = null;
@@ -107,13 +113,20 @@ function draw(time: number) {
       fieldArea = { ...area, y: area.y + size + 6, h: area.h - size - 6 };
     }
   }
+  // Screen shake on big hits. Input mapping uses the unshaken transform.
+  const shake = run.shake > 0 ? run.shake * 30 : 0;
+  ctx.save();
+  if (shake) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
   fieldXf = drawField(ctx, run, f, fieldArea, time);
+  ctx.restore();
   if (miniRect) {
-    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillStyle = 'rgba(8,7,10,0.85)';
     ctx.fillRect(miniRect.x, miniRect.y, miniRect.w, miniRect.h);
-    ctx.strokeStyle = '#666';
+    ctx.strokeStyle = '#8a6a2a';
     ctx.lineWidth = 2;
-    ctx.strokeRect(miniRect.x, miniRect.y, miniRect.w, miniRect.h);
+    ctx.strokeRect(miniRect.x + 1, miniRect.y + 1, miniRect.w - 2, miniRect.h - 2);
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    ctx.strokeRect(miniRect.x + 3, miniRect.y + 3, miniRect.w - 6, miniRect.h - 6);
     drawMap(ctx, run, { x: miniRect.x + 4, y: miniRect.y + 4, w: miniRect.w - 8, h: miniRect.h - 8 }, time, true);
   }
 }

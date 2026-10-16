@@ -31,6 +31,10 @@ export function drawMap(ctx: CanvasRenderingContext2D, run: Run, area: Rect, tim
     const color = room.visited ? ROOM_COLOR[room.plan.type] : UNKNOWN;
     ctx.fillStyle = color;
     const cells = room.plan.cells;
+    // Drop shadow under the room.
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    for (const c of cells) ctx.fillRect(ox + c.x * cs + gap / 2 + 3, oy + c.y * cs + gap / 2 + 3, inner, inner);
+    ctx.fillStyle = color;
     for (const c of cells) {
       ctx.fillRect(ox + c.x * cs + gap / 2, oy + c.y * cs + gap / 2, inner, inner);
       // Bridge to neighbouring cells of the same room.
@@ -38,6 +42,34 @@ export function drawMap(ctx: CanvasRenderingContext2D, run: Run, area: Rect, tim
       if (cells.some((o) => o.x === c.x && o.y === c.y + 1)) ctx.fillRect(ox + c.x * cs + gap / 2, oy + c.y * cs + gap / 2 + inner, inner, gap);
       if (cells.some((o) => o.x === c.x + 1 && o.y === c.y) && cells.some((o) => o.x === c.x && o.y === c.y + 1) && cells.some((o) => o.x === c.x + 1 && o.y === c.y + 1)) {
         ctx.fillRect(ox + c.x * cs + gap / 2 + inner, oy + c.y * cs + gap / 2 + inner, gap, gap);
+      }
+    }
+  }
+
+  // Bevel and texture so rooms read as raised stone tiles.
+  for (const room of run.rooms) {
+    if (!run.isVisible(room)) continue;
+    const cells = room.plan.cells;
+    const has = (x: number, y: number) => cells.some((o) => o.x === x && o.y === y);
+    const bw = Math.max(1, Math.round(cs * 0.05));
+    for (const c of cells) {
+      const x = ox + c.x * cs + gap / 2, y = oy + c.y * cs + gap / 2;
+      const ext = (n: boolean) => (n ? gap : 0);
+      const w = inner + ext(has(c.x + 1, c.y)), h = inner + ext(has(c.x, c.y + 1));
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      if (!has(c.x, c.y - 1)) ctx.fillRect(x, y, w, bw);
+      if (!has(c.x - 1, c.y)) ctx.fillRect(x, y, bw, h);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      if (!has(c.x, c.y + 1)) ctx.fillRect(x, y + inner - bw, w, bw);
+      if (!has(c.x + 1, c.y)) ctx.fillRect(x + inner - bw, y, bw, h);
+      if (!mini) {
+        // A few speckles for a stone feel; seeded by the cell so they don't flicker.
+        for (let i = 0; i < 6; i++) {
+          const hsh = ((c.x * 73856093) ^ (c.y * 19349663) ^ (i * 83492791)) >>> 0;
+          ctx.fillStyle = i & 1 ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.07)';
+          const s = Math.max(2, Math.round(cs * 0.06));
+          ctx.fillRect(x + bw + (hsh % 997) / 997 * (inner - 2 * bw - s), y + bw + ((hsh >>> 10) % 991) / 991 * (inner - 2 * bw - s), s, s);
+        }
       }
     }
   }

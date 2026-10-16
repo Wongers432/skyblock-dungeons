@@ -7,7 +7,7 @@ import { baseHit, cataLevel, computeStats, damageTaken, type PlayerStats } from 
 import { newItem, saveProfile, type Profile } from './save';
 import { computeScore, rollLoot, runXp, type Loot, type ScoreResult } from './score';
 import { makeBlaze, makeWeirdos, type Mark, type WeirdosPuzzle } from './puzzles';
-import { BlazeController, BloodController, BonzoController, ProfessorController, ScarfController, type Controller } from './controllers';
+import { BlazeController, BloodController, BonzoController, LividController, ProfessorController, ScarfController, ThornController, type Controller } from './controllers';
 
 export type View = 'map' | 'room' | 'boss';
 
@@ -73,6 +73,12 @@ export class Run {
   abilityCd = 0;
   aiming = false;
   maskUsed = false;
+  /** Screen effects read by the renderer: purple flash, red hurt flash, shake. */
+  flash = 0;
+  hurt = 0;
+  shake = 0;
+  /** Seconds of blindness (from hitting a fake Livid). */
+  blind = 0;
   witherKeys = 0;
   bloodKey = false;
   time = 0;
@@ -273,6 +279,10 @@ export class Run {
     this.hp = Math.min(s.maxHp, this.hp + s.maxHp * 0.02 * dt);
     this.mana = Math.min(s.maxMana, this.mana + s.maxMana * 0.03 * dt);
     this.attackCd = Math.max(0, this.attackCd - dt);
+    this.flash = Math.max(0, this.flash - dt);
+    this.hurt = Math.max(0, this.hurt - dt);
+    this.shake = Math.max(0, this.shake - dt);
+    this.blind = Math.max(0, this.blind - dt);
     this.abilityCd = Math.max(0, this.abilityCd - dt);
     if (this.shieldTime > 0) {
       this.shieldTime -= dt;
@@ -319,6 +329,16 @@ export class Run {
         m.aggro = true;
       }
       const range = m.def.range ?? 0.85;
+      if (m.def.id === 'assassin') {
+        m.tp = (m.tp ?? 2) - dt;
+        if (m.tp <= 0 && dist > 1.5) {
+          m.tp = 4;
+          f.fx.push({ kind: 'puff', x: m.x, y: m.y, t: 0, life: 0.4, color: '#552266' });
+          const ang = this.rng.next() * Math.PI * 2;
+          const nx = p.x + Math.cos(ang) * 0.9, ny = p.y + Math.sin(ang) * 0.9;
+          if (f.passable(Math.floor(nx), Math.floor(ny))) { m.x = nx; m.y = ny; }
+        }
+      }
       m.atk -= dt;
       if (dist > range) {
         const dir = f.stepToward(m.x, m.y);
@@ -411,6 +431,8 @@ export class Run {
       dmg -= absorbed;
     }
     this.hp -= dmg;
+    this.hurt = 0.3;
+    if (dmg > this.stats.maxHp * 0.08) this.shake = 0.2;
     if (this.hp <= 0) {
       if (this.stats.hasBonzoMask && !this.maskUsed) {
         this.maskUsed = true;
@@ -484,6 +506,16 @@ export class Run {
       case 'throw':
         f.shots.push({ kind: 'firework', x: f.player.x, y: f.player.y, target: null, tx: x, ty: y, damage: magic, radius: ab.radius, life: 3, color: ab.id === 'throw' ? '#55ffff' : '#ff55ff' });
         break;
+      case 'shadow_fury': {
+        const targets = f.aliveMobs().filter((m) => !m.puzzle)
+          .sort((a, b) => Math.hypot(a.x - f.player.x, a.y - f.player.y) - Math.hypot(b.x - f.player.x, b.y - f.player.y)).slice(0, 5);
+        for (const m of targets) {
+          const { dmg, crit } = this.rollHit();
+          f.fx.push({ kind: 'ring', x: m.x, y: m.y, t: 0, life: 0.35, r: 1, color: '#8844ff' });
+          this.hitMob(f, m, dmg * ab.power, crit, crit ? undefined : '#bb88ff');
+        }
+        break;
+      }
       case 'conjuring':
         this.conjureTime = 4;
         this.conjureTick = 0;
@@ -492,14 +524,22 @@ export class Run {
         break;
       case 'wither_scrolls': {
         const scrolls = this.stats.weapon?.scrolls ?? [];
+        // Wither Impact reaches every mob in the room.
         if (scrolls.includes('scroll_shadow_warp')) {
-          for (const m of f.aliveMobs()) if (Math.hypot(m.x - x, m.y - y) <= ab.radius && !m.boss) m.stun = 2;
+          for (const m of f.aliveMobs()) if (!m.boss) m.stun = 2;
         }
         if (scrolls.includes('scroll_wither_shield')) {
           this.shield = this.stats.maxHp * 0.5;
           this.shieldTime = 5;
         }
-        this.explode(f, x, y, ab.radius, magic, '#cc66ff');
+        f.ring(f.player.x, f.player.y, Math.max(f.w, f.h), '#cc66ff');
+        this.flash = 0.25;
+        for (const m of f.aliveMobs()) {
+          if (m.puzzle) continue;
+          f.ring(m.x, m.y, 1.2, '#cc66ff');
+          this.hitMob(f, m, magic, false, '#cc66ff');
+        }
+        for (const pr of f.projectiles) if (pr.tappable) pr.life = 0;
         break;
       }
       default:
@@ -524,7 +564,7 @@ export class Run {
       }
     }
     const room = this.view === 'room' ? this.current : null;
-    if (room?.key?.spawned && !room.key.taken && near(room.key.x, room.key.y, 0.9)) {
+    if (room?.key?.spawned && !room.key.taken && near(room.key.x, room.key.y, PICKUP_RADIUS)) {
       room.key.taken = true;
       if (room.plan.key === 'blood') {
         this.bloodKey = true;
@@ -550,7 +590,7 @@ export class Run {
         for (const s of room.secrets) {
           if (s.found) continue;
           const sp = secretPos(s);
-          if (near(sp.x, sp.y, 0.8)) {
+          if (near(sp.x, sp.y, PICKUP_RADIUS)) {
             s.found = true;
             this.secretsFound++;
             const ess = this.rng.int(1, 3);
@@ -562,7 +602,7 @@ export class Run {
         }
       }
       for (const c of room.crypts) {
-        if (!c.opened && near(c.x, c.y, 0.8)) {
+        if (!c.opened && near(c.x, c.y, PICKUP_RADIUS)) {
           c.opened = true;
           f.mobs.push(makeMob(MOBS.lurker, c.x, c.y + 0.6, this.floor.mobHpMult, this.floor.mobDmgMult, { crypt: true }));
           this.events.toast('A Crypt Lurker rises from the crypt!', '#aa55ff');
@@ -636,7 +676,7 @@ export class Run {
   startBoss() {
     this.bossField = new Field(ARENA, 'arena');
     this.bossField.setPlayer({ x: ARENA[0].length / 2, y: ARENA.length - 1.2 });
-    const Ctl = { 1: BonzoController, 2: ScarfController, 3: ProfessorController }[this.floor.id] ?? BonzoController;
+    const Ctl = { 1: BonzoController, 2: ScarfController, 3: ProfessorController, 4: ThornController, 5: LividController }[this.floor.id] ?? BonzoController;
     // Walking through the portal restores you for the fight.
     this.hp = this.stats.maxHp;
     this.mana = this.stats.maxMana;
@@ -734,6 +774,8 @@ export function secretPos(s: Secret): Pt {
 
 /** How far from a mob (in tiles) a tap still counts as hitting it. */
 const HIT_RADIUS = 1.25;
+/** How far from a secret, key or crypt a tap still picks it up. */
+const PICKUP_RADIUS = 1.3;
 /** Room mobs start idle and wake up when the player is this close. */
 const AGGRO_RANGE = 5.5;
 
