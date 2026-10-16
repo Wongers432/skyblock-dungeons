@@ -2,7 +2,7 @@ import type { Field } from '../game/field';
 import { doorTiles } from '../game/dungeonGen';
 import type { BloodController } from '../game/controllers';
 import { secretPos, type RoomRT, type Run } from '../game/run';
-import { drawSprite, texture } from './sprites';
+import { drawSprite, spriteColors, texture } from './sprites';
 import { buildFieldCache } from './decor';
 
 export interface Rect { x: number; y: number; w: number; h: number }
@@ -293,6 +293,48 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
       ctx.rotate((fx.angle ?? 1) * Math.min(1, k * 2.2) * (Math.PI / 2));
       drawSprite(ctx, fx.sprite!, 0, 0, h, k < 0.15);
       ctx.restore();
+    } else if (fx.kind === 'burst') {
+      // Blocky chunks flying out and falling, coloured like the mob.
+      const cols = spriteColors(fx.sprite!);
+      const n = Math.round(10 + 6 * (fx.r ?? 1));
+      const seed = fx.angle ?? 0;
+      ctx.globalAlpha = 1 - k * k;
+      for (let i = 0; i < n; i++) {
+        const a = ((seed * 7919 + i * 2654435761) % 6283) / 1000;
+        const sp = 1.2 + (((seed + i * 977) % 100) / 100) * 2.2 * (fx.r ?? 1);
+        const tt = fx.t;
+        const px = fx.x + Math.cos(a) * sp * tt;
+        const py = fx.y + Math.sin(a) * sp * tt - 2.2 * tt + 5 * tt * tt;
+        const sz = Math.max(2, ts * (0.1 + 0.05 * (i % 3)) * (1 - k * 0.5));
+        ctx.fillStyle = cols[i % cols.length];
+        ctx.fillRect(X(px) - sz / 2, Y(py) - sz / 2, sz, sz);
+      }
+    } else if (fx.kind === 'boom') {
+      // Boss explosion: fireball, shockwave rings and a white flash.
+      const R = ts * (fx.r ?? 3);
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(X(fx.x), Y(fx.y), 0, X(fx.x), Y(fx.y), R * (0.4 + 0.8 * k));
+      g.addColorStop(0, `rgba(255,255,220,${1 - k})`);
+      g.addColorStop(0.4, `rgba(255,170,50,${0.8 * (1 - k)})`);
+      g.addColorStop(1, 'rgba(255,60,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(X(fx.x) - R * 1.3, Y(fx.y) - R * 1.3, R * 2.6, R * 2.6);
+      ctx.globalCompositeOperation = 'source-over';
+      for (let i = 0; i < 3; i++) {
+        const kk = Math.min(1, k * 1.6 - i * 0.18);
+        if (kk <= 0) continue;
+        ctx.globalAlpha = 1 - kk;
+        ctx.strokeStyle = ['#ffffff', '#ffcc55', '#ff6622'][i];
+        ctx.lineWidth = Math.max(2, ts * 0.2 * (1 - kk));
+        ctx.beginPath();
+        ctx.arc(X(fx.x), Y(fx.y), R * kk * 1.4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (k < 0.12) {
+        ctx.globalAlpha = 0.5 * (1 - k / 0.12);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(area.x, area.y, area.w, area.h);
+      }
     } else if (fx.kind === 'slash') {
       ctx.globalAlpha = 1 - k;
       ctx.strokeStyle = fx.color;
@@ -494,7 +536,7 @@ const PLAIN_MOBS = new Set(['zombie', 'skeleton', 'knight', 'skelmaster']);
 export function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, color: string) {
   ctx.font = `bold ${Math.round(size)}px Minecraft, ui-monospace, monospace`;
   ctx.textAlign = 'center';
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.miterLimit = 2;
   ctx.strokeStyle = 'rgba(0,0,0,0.85)';
   ctx.strokeText(text, x, y);
   ctx.fillStyle = color;

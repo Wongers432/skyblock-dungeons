@@ -287,3 +287,22 @@ export function drawSprite(ctx: CanvasRenderingContext2D, name: string, x: numbe
     ctx.drawImage(s, dx, dy, Math.round(w), Math.round(s.height * px));
   }
 }
+
+const colorCache = new Map<string, string[]>();
+
+/** A handful of the colours a sprite is made of, for death particles. */
+export function spriteColors(name: string): string[] {
+  const hit = colorCache.get(name);
+  if (hit) return hit;
+  const c = sprite(name);
+  const data = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+  const counts = new Map<string, number>();
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < 255) continue;
+    const key = `rgb(${data[i]},${data[i + 1]},${data[i + 2]})`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  const out = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => k);
+  colorCache.set(name, out.length ? out : ['#cccccc']);
+  return colorCache.get(name)!;
+}

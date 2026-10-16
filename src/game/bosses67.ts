@@ -2,6 +2,7 @@ import { MOBS, type MobDef } from '../data/floors';
 import { drawLaser, shield, updateLaser, type BossBar, type Controller, type Laser, type ToScreen } from './controllers';
 import { Field, makeMob, type Mob } from './field';
 import type { Run } from './run';
+import { label } from '../render/fieldView';
 
 /**
  * A charged special attack that the player can cancel by hurting the caster enough while it charges.
@@ -79,8 +80,8 @@ function bossDef(id: string, name: string, hp: number, sprite: string, size: num
   return { id, name, hp, damage: 0, speed: 0, attackCooldown: 99, sprite, size, ...extra };
 }
 
-function clearArena(f: Field) {
-  for (const m of f.aliveMobs()) m.dead = true;
+function clearArena(run: Run, f: Field) {
+  run.wipe(f);
   f.projectiles = [];
 }
 
@@ -213,7 +214,7 @@ export class SadanController implements Controller {
     if (this.phase === 'terracotta' && m.def.id === 'terracotta') {
       this.killed++;
       if (this.killed >= this.need) {
-        clearArena(f);
+        clearArena(this.run, f);
         this.sadan.dead = false;
         const { mobHpMult: hpm, mobDmgMult: dm } = this.run.floor;
         const giant = (id: string, name: string, sprite: string, x: number, y: number, armor = 0) =>
@@ -233,7 +234,7 @@ export class SadanController implements Controller {
       return;
     }
     if (m === this.sadan) {
-      clearArena(f);
+      clearArena(this.run, f);
       this.charges.clear();
       this.run.events.toast('Sadan: NOOOOOOOOO!!! THIS IS IMPOSSIBLE!!', '#ffaa00');
       this.run.winSoon();
@@ -261,6 +262,11 @@ export class SadanController implements Controller {
     if (!this.sadan.dead && this.sadan.invuln === Infinity) shield(ctx, this.sadan, X, Y, ts, time, '#ffaa00');
     for (const c of this.charges.values()) drawCharge(ctx, this.field, c, X, Y, ts, time);
     drawLaser(ctx, this.field, this.laser, X, Y, ts);
+    const charging = [...this.charges.keys()][0];
+    const banner: [string, string] = this.phase === 'terracotta' ? [`KILL THE TERRACOTTAS ${this.killed}/${this.need}`, '#e08a5a']
+      : this.phase === 'giants' ? (charging ? [`INTERRUPT ${charging.name.toUpperCase()}!`, '#ff5555'] : [`KILL THE GIANTS ${this.giants.filter((g) => g.dead).length}/4`, '#b89aff'])
+      : this.sadan.dead ? ['', ''] : ['DAMAGE SADAN!', '#ffaa00'];
+    if (banner[0]) arenaBanner(ctx, X, Y, this.field.w, ts, time, banner[0], banner[1]);
   }
 }
 
@@ -277,7 +283,20 @@ export interface Terminal {
 }
 
 const PADS = [{ x: 2.5, y: 4 }, { x: 11.5, y: 4 }, { x: 7, y: 8.5 }];
-const TERMINAL_SPOTS = [{ x: 1.5, y: 3 }, { x: 12.5, y: 3 }, { x: 1.5, y: 9.5 }, { x: 12.5, y: 9.5 }];
+const TERMINAL_SPOTS = [{ x: 1.6, y: 3.2 }, { x: 12.4, y: 3.2 }, { x: 1.6, y: 9.6 }, { x: 12.4, y: 9.6 }];
+
+/** Maxor's laser machines (on the side walls) and the power cells the crystals slide into. */
+const MACHINES = [{ x: 0.7, y: 6.2, dir: 1 }, { x: 13.3, y: 6.2, dir: -1 }];
+const CELLS = [{ x: 2.1, y: 7.9 }, { x: 11.9, y: 7.9 }];
+
+interface Crystal {
+  /** The platform it rests on. */
+  px: number;
+  py: number;
+  x: number;
+  y: number;
+  placed: boolean;
+}
 
 type Lord = 'maxor' | 'storm' | 'goldor' | 'necron';
 
@@ -285,9 +304,12 @@ type Lord = 'maxor' | 'storm' | 'goldor' | 'necron';
 export class WitherLordsController implements Controller {
   phase: Lord = 'maxor';
   lord: Mob;
-  // Maxor: energy crystals power a laser that stuns him.
-  crystals: { x: number; y: number; taken: boolean }[] = [];
-  private vulnerable = 0;
+  // Maxor: energy crystals sit on platforms; slide them into the laser machines' power cells.
+  crystals: Crystal[] = [];
+  readonly cells = CELLS.map((c) => ({ ...c, filled: false }));
+  private held: Crystal | null = null;
+  vulnerable = 0;
+  private laserGlow = 0;
   // Storm: crushers flatten him when he walks under one.
   pads = PADS.map((p) => ({ ...p, cd: 0 }));
   // Goldor: terminals.
@@ -305,7 +327,7 @@ export class WitherLordsController implements Controller {
   constructor(private run: Run, private field: Field) {
     this.lord = this.spawnLord('maxor');
     run.events.toast('Maxor: WELL WELL WELL LOOK WHO\'S HERE!', '#ff55ff');
-    run.events.toast('Maxor is immune. Tap both Energy Crystals to power the laser and stun him!', '#ff55ff');
+    run.events.toast('Maxor is immune. Slide each Energy Crystal from its platform into a laser power cell!', '#ff55ff');
     this.spawnCrystals();
   }
 
@@ -325,10 +347,60 @@ export class WitherLordsController implements Controller {
 
   private spawnCrystals() {
     const r = this.run.rng;
-    this.crystals = [
-      { x: 1.5 + r.next() * 3, y: 5 + r.next() * 6, taken: false },
-      { x: 9.5 + r.next() * 3, y: 5 + r.next() * 6, taken: false },
-    ];
+    const spot = (x0: number) => ({ x: x0 + r.next() * 2, y: 9.6 + r.next() * 1.6 });
+    this.crystals = [spot(3.2), spot(8.8)].map((p) => ({ px: p.x, py: p.y, x: p.x, y: p.y, placed: false }));
+    for (const c of this.cells) c.filled = false;
+    this.held = null;
+  }
+
+  get crystalsPlaced(): number {
+    return this.crystals.filter((c) => c.placed).length;
+  }
+
+  /** Dragging a crystal across the arena. */
+  onDrag(x: number, y: number): boolean {
+    if (!this.held) return false;
+    this.held.x = x;
+    this.held.y = y;
+    return true;
+  }
+
+  onRelease(x: number, y: number) {
+    const c = this.held;
+    if (!c) return;
+    // A plain tap (no slide) keeps the crystal picked up, so tapping a cell next also works.
+    if (Math.hypot(x - c.px, y - c.py) < 0.8) {
+      c.x = c.px;
+      c.y = c.py;
+      return;
+    }
+    this.held = null;
+    const cell = this.cells.find((k) => !k.filled && Math.hypot(k.x - x, k.y - y) < 1.4);
+    if (cell) this.placeCrystal(c, cell);
+    else {
+      // Slides back onto its platform.
+      c.x = c.px;
+      c.y = c.py;
+    }
+  }
+
+  private placeCrystal(c: Crystal, cell: { x: number; y: number; filled: boolean }) {
+    const f = this.field;
+    cell.filled = true;
+    c.placed = true;
+    c.x = cell.x;
+    c.y = cell.y;
+    this.held = null;
+    f.ring(cell.x, cell.y, 1.2, '#ff77ff');
+    f.text(cell.x, cell.y - 0.9, `${this.crystalsPlaced}/2 CRYSTALS ACTIVATED`, '#ff77ff');
+    if (this.crystalsPlaced < 2) return;
+    this.vulnerable = 7;
+    this.laserGlow = 0;
+    this.lord.invuln = 0;
+    this.lord.stun = 7;
+    this.run.flash = 0.2;
+    this.run.shake = 0.25;
+    this.run.events.toast('The Energy Lasers hit Maxor! DAMAGE HIM NOW!', '#ff77ff');
   }
 
   /** The terminal currently open on screen, if any. Read by the HUD. */
@@ -362,6 +434,9 @@ export class WitherLordsController implements Controller {
 
     if (this.phase === 'maxor') {
       if (this.vulnerable > 0) {
+        this.laserGlow += dt;
+        // The beams pull Maxor to the middle of the arena.
+        walkToward(f, L, 7, 6.2, 3, dt);
         this.vulnerable -= dt;
         if (this.vulnerable <= 0) {
           L.invuln = Infinity;
@@ -476,7 +551,7 @@ export class WitherLordsController implements Controller {
   onMobDeath(m: Mob) {
     if (m !== this.lord) return;
     const f = this.field;
-    clearArena(f);
+    clearArena(this.run, f);
     this.charge = null;
     this.laser = null;
     this.run.terminal = null;
@@ -502,17 +577,14 @@ export class WitherLordsController implements Controller {
     const f = this.field;
     if (this.transition > 0) return false;
     if (this.phase === 'maxor' && this.vulnerable <= 0) {
+      // Tapping an empty cell while carrying a crystal also slots it in.
+      if (this.held) {
+        const cell = this.cells.find((k) => !k.filled && near(k.x, k.y, 1.4));
+        if (cell) { this.placeCrystal(this.held, cell); return true; }
+      }
       for (const c of this.crystals) {
-        if (c.taken || !near(c.x, c.y, 1.5)) continue;
-        c.taken = true;
-        f.text(c.x, c.y - 0.6, 'ENERGY CRYSTAL!', '#ff77ff');
-        if (this.crystals.every((k) => k.taken)) {
-          this.vulnerable = 7;
-          this.lord.invuln = 0;
-          this.lord.stun = 7;
-          this.run.flash = 0.2;
-          this.run.events.toast('The Energy Laser hits Maxor! He is vulnerable, hit him now!', '#ff77ff');
-        }
+        if (c.placed || !near(c.x, c.y, 1.2)) continue;
+        this.held = c;
         return true;
       }
     }
@@ -590,7 +662,7 @@ export class WitherLordsController implements Controller {
   bar(): BossBar {
     const colors: Record<Lord, string> = { maxor: '#c070ff', storm: '#4f8fff', goldor: '#ffcc33', necron: '#e02020' };
     let name = this.lord.name;
-    if (this.phase === 'maxor') name += this.vulnerable > 0 ? ` (STUNNED ${Math.ceil(this.vulnerable)}s)` : ' (immune: tap the crystals)';
+    if (this.phase === 'maxor') name += this.vulnerable > 0 ? ` (STUNNED ${Math.ceil(this.vulnerable)}s)` : ' (immune)';
     if (this.phase === 'goldor') name += ` (terminals ${this.terminals.filter((t) => t.done).length}/4)`;
     if (this.phase === 'necron' && this.lord.invuln === Infinity) name += ' (shielded)';
     return { name, hp: this.lord.hp, max: this.lord.maxHp, color: colors[this.phase] };
@@ -598,36 +670,7 @@ export class WitherLordsController implements Controller {
 
   draw(ctx: CanvasRenderingContext2D, X: ToScreen, Y: ToScreen, ts: number, time: number) {
     const L = this.lord;
-    if (this.phase === 'maxor') {
-      for (const c of this.crystals) {
-        if (c.taken) continue;
-        const bob = Math.sin(time * 3 + c.x) * ts * 0.12;
-        const cx = X(c.x), cy = Y(c.y) + bob;
-        ctx.fillStyle = 'rgba(255,119,255,0.3)';
-        ctx.beginPath();
-        ctx.arc(cx, cy, ts * 0.7, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#ff77ff';
-        ctx.beginPath();
-        ctx.moveTo(cx, cy - ts * 0.45);
-        ctx.lineTo(cx + ts * 0.28, cy);
-        ctx.lineTo(cx, cy + ts * 0.45);
-        ctx.lineTo(cx - ts * 0.28, cy);
-        ctx.closePath();
-        ctx.fill();
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(cx - ts * 0.06, cy - ts * 0.25, ts * 0.1, ts * 0.2);
-      }
-      if (this.vulnerable > 0 && !L.dead) {
-        // The energy laser pinning Maxor.
-        ctx.strokeStyle = `rgba(255,119,255,${0.6 + 0.3 * Math.sin(time * 20)})`;
-        ctx.lineWidth = Math.max(3, ts * 0.25);
-        ctx.beginPath();
-        ctx.moveTo(X(0), Y(L.y - 0.5));
-        ctx.lineTo(X(this.field.w), Y(L.y - 0.5));
-        ctx.stroke();
-      } else if (!L.dead) shield(ctx, L, X, Y, ts, time, '#c070ff');
-    }
+    if (this.phase === 'maxor') this.drawMaxor(ctx, X, Y, ts, time);
     if (this.phase === 'storm') {
       for (const p of this.pads) {
         const under = !L.dead && Math.hypot(L.x - p.x, L.y - p.y) < 1.6 && p.cd <= 0;
@@ -650,20 +693,191 @@ export class WitherLordsController implements Controller {
     }
     if (this.phase === 'goldor') {
       if (L.invuln === Infinity && !L.dead) shield(ctx, L, X, Y, ts, time, '#ffcc33');
-      for (const t of this.terminals) {
-        const s = ts * 0.9;
-        ctx.fillStyle = '#2b2b33';
-        ctx.fillRect(X(t.x) - s / 2, Y(t.y) - s / 2, s, s);
-        ctx.fillStyle = t.done ? '#55ff55' : `rgba(255,80,80,${0.6 + 0.3 * Math.sin(time * 5 + t.id)})`;
-        ctx.fillRect(X(t.x) - s * 0.35, Y(t.y) - s * 0.35, s * 0.7, s * 0.45);
-        ctx.fillStyle = '#111';
-        ctx.fillRect(X(t.x) - s * 0.35, Y(t.y) + s * 0.18, s * 0.7, s * 0.12);
-      }
+      for (const t of this.terminals) drawTerminal(ctx, X(t.x), Y(t.y), ts, time, t.id, t.done, this.run.terminal?.id === t.id);
     }
     if (this.phase === 'necron' && L.invuln === Infinity && !L.dead) shield(ctx, L, X, Y, ts, time, '#ff3333');
     drawCharge(ctx, this.field, this.charge, X, Y, ts, time);
     drawLaser(ctx, this.field, this.laser, X, Y, ts);
+    const b = this.bannerText();
+    if (b) arenaBanner(ctx, X, Y, this.field.w, ts, time, b[0], b[1]);
   }
+
+  private drawMaxor(ctx: CanvasRenderingContext2D, X: ToScreen, Y: ToScreen, ts: number, time: number) {
+    const L = this.lord;
+    const firing = this.vulnerable > 0 && !L.dead;
+    // Laser machines on the side walls, each fed by a power cell.
+    MACHINES.forEach((m, i) => {
+      const cell = this.cells[i];
+      const mx = X(m.x), my = Y(m.y);
+      // Power cable from the cell to the machine.
+      ctx.strokeStyle = cell.filled ? `rgba(255,119,255,${0.7 + 0.3 * Math.sin(time * 10)})` : '#2a2a30';
+      ctx.lineWidth = Math.max(3, ts * 0.14);
+      ctx.beginPath();
+      ctx.moveTo(X(cell.x), Y(cell.y));
+      ctx.lineTo(X(cell.x), Y(m.y + 0.6));
+      ctx.lineTo(mx, Y(m.y + 0.6));
+      ctx.stroke();
+      // Machine body.
+      const bw = ts * 1.1, bh = ts * 1.5;
+      ctx.fillStyle = '#3a3a44';
+      ctx.fillRect(mx - bw / 2, my - bh / 2, bw, bh);
+      ctx.fillStyle = '#55555f';
+      ctx.fillRect(mx - bw / 2, my - bh / 2, bw, ts * 0.18);
+      ctx.fillStyle = '#22222a';
+      ctx.fillRect(mx - bw / 2, my + bh / 2 - ts * 0.2, bw, ts * 0.2);
+      // Barrel pointing into the arena.
+      const bx = mx + m.dir * bw * 0.45;
+      ctx.fillStyle = '#6a6a78';
+      ctx.fillRect(m.dir > 0 ? bx : bx - ts * 0.9, my - ts * 0.22, ts * 0.9, ts * 0.44);
+      ctx.fillStyle = '#2a2a30';
+      ctx.fillRect(m.dir > 0 ? bx + ts * 0.75 : bx - ts * 0.9, my - ts * 0.28, ts * 0.15, ts * 0.56);
+      // Status light.
+      ctx.fillStyle = cell.filled ? '#ff77ff' : '#552255';
+      ctx.fillRect(mx - ts * 0.15, my - ts * 0.1, ts * 0.3, ts * 0.3);
+      // Power cell: a glass container on a stand.
+      const cx = X(cell.x), cy = Y(cell.y);
+      ctx.fillStyle = '#2a2a30';
+      ctx.fillRect(cx - ts * 0.55, cy + ts * 0.35, ts * 1.1, ts * 0.25);
+      ctx.fillStyle = cell.filled ? 'rgba(255,119,255,0.35)' : 'rgba(180,200,255,0.12)';
+      ctx.fillRect(cx - ts * 0.42, cy - ts * 0.6, ts * 0.84, ts * 0.95);
+      ctx.strokeStyle = cell.filled ? '#ff9aff' : '#9aa0c0';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cx - ts * 0.42, cy - ts * 0.6, ts * 0.84, ts * 0.95);
+      if (!cell.filled && this.held) {
+        ctx.strokeStyle = `rgba(255,211,74,${0.5 + 0.5 * Math.sin(time * 8)})`;
+        ctx.strokeRect(cx - ts * 0.55, cy - ts * 0.73, ts * 1.1, ts * 1.2);
+      }
+      label(ctx, cell.filled ? 'POWERED' : 'POWER CELL', cx, cy + ts * 0.95, Math.max(9, ts * 0.26), cell.filled ? '#ff9aff' : '#9aa0c0');
+      if (firing) {
+        // The beam: a hot core inside a wide flickering glow, from the barrel tip to Maxor.
+        const tipX = m.dir > 0 ? bx + ts * 0.9 : bx - ts * 0.9;
+        const tx = X(L.x), ty = Y(L.y - 0.5 * L.scale);
+        ctx.globalCompositeOperation = 'lighter';
+        for (const [w, col] of [[ts * 0.55, 'rgba(255,80,255,0.35)'], [ts * 0.28, 'rgba(255,150,255,0.8)'], [ts * 0.1, 'rgba(255,255,255,1)']] as [number, string][]) {
+          ctx.strokeStyle = col;
+          ctx.lineWidth = w * (0.85 + 0.15 * Math.sin(time * 40 + i));
+          ctx.beginPath();
+          ctx.moveTo(tipX, my);
+          ctx.lineTo(tx, ty);
+          ctx.stroke();
+        }
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    });
+    // Crystal platforms and the crystals themselves.
+    for (const c of this.crystals) {
+      const px = X(c.px), py = Y(c.py);
+      ctx.fillStyle = '#4a3a5a';
+      ctx.fillRect(px - ts * 0.6, py + ts * 0.2, ts * 1.2, ts * 0.3);
+      ctx.fillStyle = '#6a5a7a';
+      ctx.fillRect(px - ts * 0.6, py + ts * 0.2, ts * 1.2, ts * 0.08);
+      if (c.placed) continue;
+      const lifted = this.held === c;
+      const bob = lifted ? 0 : Math.sin(time * 3 + c.px) * ts * 0.1;
+      drawCrystal(ctx, X(c.x), Y(c.y) + bob, ts * (lifted ? 1.15 : 1), time);
+      if (!lifted && !this.held) label(ctx, 'SLIDE ME', X(c.x), Y(c.y) - ts * 0.75, Math.max(9, ts * 0.26), '#ff9aff');
+    }
+    for (const [i, cell] of this.cells.entries()) if (cell.filled) drawCrystal(ctx, X(cell.x), Y(cell.y) - ts * 0.12, ts * 0.8, time + i);
+    if (!firing && !L.dead) shield(ctx, L, X, Y, ts, time, '#c070ff');
+  }
+
+  /** Big instruction text at the top of the arena for each part of the fight. */
+  private bannerText(): [string, string] | null {
+    const L = this.lord;
+    if (this.transition > 0 || L.dead) return null;
+    switch (this.phase) {
+      case 'maxor':
+        return this.vulnerable > 0 ? [`DAMAGE MAXOR! ${Math.ceil(this.vulnerable)}s`, '#ff77ff'] : [`${this.crystalsPlaced}/2 CRYSTALS ACTIVATED`, '#c070ff'];
+      case 'storm': {
+        const under = this.pads.some((p) => p.cd <= 0 && Math.hypot(L.x - p.x, L.y - p.y) < 1.6);
+        return under ? ['CRUSH STORM NOW!', '#77bbff'] : ['WAIT FOR STORM TO STAND ON A CRUSHER', '#4f8fff'];
+      }
+      case 'goldor': {
+        const done = this.terminals.filter((t) => t.done).length;
+        return done < 4 ? [`TERMINALS ${done}/4`, '#ffcc33'] : ['DAMAGE GOLDOR!', '#ffcc33'];
+      }
+      default:
+        return L.invuln === Infinity ? ['KILL THE WITHER GUARDS!', '#ff5555'] : ['DAMAGE NECRON!', '#ff3333'];
+    }
+  }
+
+}
+
+/** Goldor's terminal: a big console with a glowing screen and a light beam while it's unsolved. */
+function drawTerminal(ctx: CanvasRenderingContext2D, x: number, y: number, ts: number, time: number, id: number, done: boolean, open: boolean) {
+  const w = ts * 1.5, h = ts * 1.7;
+  const col = done ? '85,255,85' : '255,80,80';
+  if (!done) {
+    // Beacon beam so you can spot unsolved terminals at a glance.
+    const grad = ctx.createLinearGradient(0, y - ts * 4, 0, y);
+    grad.addColorStop(0, `rgba(${col},0)`);
+    grad.addColorStop(1, `rgba(${col},${0.35 + 0.15 * Math.sin(time * 4 + id)})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(x - ts * 0.25, y - ts * 4, ts * 0.5, ts * 4 - h * 0.4);
+  }
+  // Glow on the floor.
+  ctx.fillStyle = `rgba(${col},0.18)`;
+  ctx.beginPath();
+  ctx.ellipse(x, y + h * 0.45, w * 0.8, ts * 0.35, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Console body.
+  ctx.fillStyle = '#1c1c22';
+  ctx.fillRect(x - w / 2 - 2, y - h / 2 - 2, w + 4, h + 4);
+  ctx.fillStyle = '#3c3c48';
+  ctx.fillRect(x - w / 2, y - h / 2, w, h);
+  ctx.fillStyle = '#50505e';
+  ctx.fillRect(x - w / 2, y - h / 2, w, ts * 0.12);
+  // Screen with scanlines.
+  const sx = x - w * 0.38, sy = y - h * 0.38, sw = w * 0.76, sh = h * 0.42;
+  ctx.fillStyle = done ? '#1f5a2a' : `rgba(150,30,30,${0.8 + 0.2 * Math.sin(time * 6 + id)})`;
+  ctx.fillRect(sx, sy, sw, sh);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)';
+  for (let i = 1; i < 5; i++) ctx.fillRect(sx, sy + (sh * i) / 5, sw, 1);
+  ctx.font = `bold ${Math.max(10, ts * 0.42)}px ui-monospace, monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = done ? '#55ff55' : '#ffdddd';
+  ctx.fillText(done ? '✔' : '!', x, sy + sh * 0.72);
+  // Keyboard.
+  ctx.fillStyle = '#26262e';
+  ctx.fillRect(x - w * 0.4, y + h * 0.12, w * 0.8, h * 0.26);
+  ctx.fillStyle = '#5a5a68';
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 4; c++) ctx.fillRect(x - w * 0.36 + c * w * 0.19, y + h * 0.15 + r * h * 0.11, w * 0.14, h * 0.07);
+  if (open) {
+    ctx.strokeStyle = '#ffd34a';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x - w / 2 - 4, y - h / 2 - 4, w + 8, h + 8);
+  }
+  label(ctx, done ? 'DONE' : 'TERMINAL', x, y + h / 2 + ts * 0.42, Math.max(9, ts * 0.3), done ? '#55ff55' : '#ff7777');
+}
+
+function drawCrystal(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, time: number) {
+  ctx.fillStyle = 'rgba(255,119,255,0.28)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, s * 0.6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#ff77ff';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - s * 0.42);
+  ctx.lineTo(cx + s * 0.26, cy);
+  ctx.lineTo(cx, cy + s * 0.42);
+  ctx.lineTo(cx - s * 0.26, cy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = '#c040c0';
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + s * 0.26, cy);
+  ctx.lineTo(cx, cy + s * 0.42);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = `rgba(255,255,255,${0.6 + 0.4 * Math.sin(time * 6)})`;
+  ctx.fillRect(cx - s * 0.06, cy - s * 0.24, s * 0.09, s * 0.18);
+}
+
+/** Large pulsing instruction text drawn at the top of a boss arena. */
+export function arenaBanner(ctx: CanvasRenderingContext2D, X: ToScreen, Y: ToScreen, w: number, ts: number, time: number, text: string, color: string) {
+  const size = Math.max(14, ts * 0.55) * (1 + 0.04 * Math.sin(time * 6));
+  label(ctx, text, X(w / 2), Y(0.75), size, color);
 }
 
 function makeTerminal(id: number, kind: TerminalKind, rand: () => number): Terminal {

@@ -28,6 +28,10 @@ describe('dungeon generator', () => {
         expect(d.rooms.filter((r) => r.key === 'wither').length).toBe(wither);
         expect(d.rooms.filter((r) => r.key === 'blood').length).toBe(1);
         expect(d.rooms.filter((r) => r.type === 'puzzle').length).toBe(floor.puzzles);
+        // Blood rush: every locked door has its key in one of the two rooms it joins.
+        for (const door of d.doors.filter((x) => x.type !== 'normal')) {
+          expect([d.rooms[door.a].key, d.rooms[door.b].key]).toContain(door.type);
+        }
         // Keys are reachable in order: simulate opening doors greedily.
         let keys = 0, bloodKey = false;
         const open = new Set<number>(d.doors.filter((x) => x.type === 'normal').map((x) => x.id));

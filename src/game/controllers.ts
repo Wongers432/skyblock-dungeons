@@ -18,6 +18,9 @@ export interface Controller {
   onMobDeath?(m: Mob): void;
   /** Return true when the tap was used. */
   onTap?(x: number, y: number): boolean;
+  /** A finger dragged to (x, y) after a tap the controller used. Return true to swallow it. */
+  onDrag?(x: number, y: number): boolean;
+  onRelease?(x: number, y: number): void;
   /** Boss health bar shown at the top of the arena. */
   bar?(): BossBar | null;
   /** Extra drawing on top of the field (lasers, heal rings). */
@@ -107,7 +110,7 @@ export class BlazeController implements Controller {
     if (this.failed || this.room.cleared) return false;
     const f = this.room.field;
     let m: Mob | null = null;
-    let best = 1.4;
+    let best = 1.15;
     for (const b of f.aliveMobs()) {
       const d = Math.hypot(b.x - x, b.y - 0.3 - y);
       if (d < best) { best = d; m = b; }
@@ -199,7 +202,7 @@ export class BonzoController implements Controller {
       this.run.events.toast("Bonzo: Oh, I'm not done yet!", '#ff5555');
       return;
     }
-    for (const other of this.field.aliveMobs()) other.dead = true;
+    this.run.wipe(this.field);
     this.field.projectiles = [];
     this.run.events.toast("Bonzo: Alright, maybe I'm just weak after all...", '#ff5555');
     this.run.winSoon();
@@ -350,7 +353,7 @@ export class ScarfController implements Controller {
       return;
     }
     if (m !== this.scarf) return;
-    for (const other of this.field.aliveMobs()) other.dead = true;
+    this.run.wipe(this.field);
     this.field.projectiles = [];
     this.run.events.toast("Scarf: Whatever... I'll be back. Probably.", '#ff5555');
     this.run.winSoon();
@@ -494,7 +497,7 @@ export class ProfessorController implements Controller {
       this.run.events.toast("The Professor: I'm not done yet! Behold my ultimate creation!", '#ff5555');
       return;
     }
-    for (const other of this.field.aliveMobs()) other.dead = true;
+    this.run.wipe(this.field);
     this.field.projectiles = [];
     this.laser = null;
     this.run.events.toast('The Professor: What?! My Guardian power is unbeatable!', '#ff5555');
@@ -609,7 +612,8 @@ export class ThornController implements Controller {
         f.text(t.x, t.y - 1.4, 'SPIRIT HIT!', '#9fffd0');
         if (this.hitsLeft <= 0) {
           t.dead = true;
-          for (const other of f.aliveMobs()) other.dead = true;
+          this.run.deathFx(f, t);
+          this.run.wipe(f);
           f.projectiles = [];
           this.run.events.toast('Thorn: Ahh, but the spirits will always remain...', '#55ff55');
           this.run.winSoon();
@@ -773,7 +777,7 @@ export class LividController implements Controller {
 
   onMobDeath(m: Mob) {
     if (m !== this.real) return;
-    for (const other of this.field.aliveMobs()) other.dead = true;
+    this.run.wipe(this.field);
     this.field.projectiles = [];
     this.run.events.toast('Livid: Impossible! How did you figure out which one I was?!', '#ff55ff');
     this.run.winSoon();

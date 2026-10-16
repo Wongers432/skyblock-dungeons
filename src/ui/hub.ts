@@ -106,12 +106,15 @@ export class Hub {
         const meter = p.rng[String(f.id)] ?? { target: null, xp: 0 };
         const target = f.drops.find((d) => d.item === meter.target);
         const owned = (id: string) => p.items.filter((i) => i.id === id).length;
-        return h('div', { class: 'card' },
+        const unlocked = (p.completions[String(f.id)] ?? 0) > 0;
+        return h('div', { class: 'card' + (unlocked ? '' : ' locked') },
           h('div', { class: 'row spread' },
             h('h3', {}, `${f.name} · ${f.boss}`),
             !f.implemented ? h('span', { class: 'pill' }, 'Coming soon') : null,
           ),
-          target
+          !unlocked
+            ? h('div', { class: 'rng-locked' }, '🔒 Complete this floor to unlock RNG meter')
+            : target
             ? h('div', { style: { margin: '6px 0 10px' } },
               h('div', { class: 'row spread' },
                 h('b', { style: { color: RARITY_COLOR[ITEMS[target.item].rarity] } }, ITEMS[target.item].name),
@@ -127,8 +130,9 @@ export class Hub {
             const selected = meter.target === d.item;
             return h('button', {
               class: 'rng-item' + (selected ? ' selected' : ''),
+              disabled: !unlocked,
               onclick: () => {
-                if (selected) return;
+                if (selected || !unlocked) return;
                 if (meter.xp > 0 && !confirm(`Switch target to ${it.name}? Your meter progress (${meter.xp}) carries over.`)) return;
                 p.rng[String(f.id)] = { target: d.item, xp: meter.xp };
                 this.commit();

@@ -60,7 +60,7 @@ export interface Shot {
 }
 
 export interface Fx {
-  kind: 'text' | 'ring' | 'puff' | 'corpse' | 'slash';
+  kind: 'text' | 'ring' | 'puff' | 'corpse' | 'slash' | 'burst' | 'boom';
   x: number;
   y: number;
   t: number;

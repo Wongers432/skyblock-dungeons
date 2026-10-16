@@ -243,26 +243,16 @@ function tryGenerate(floor: FloorDef, rng: Rng, seed: number): DungeonPlan | nul
   const chosen = rng.shuffle(candidates.slice()).slice(0, witherCount);
   for (const d of chosen) d.type = 'wither';
 
-  // Place keys: each lock's key sits in a room reachable before that lock.
-  const ordered = pathDoors.filter((d) => d.type !== 'normal');
-  const used = new Set<number>();
-  for (let i = 0; i < ordered.length; i++) {
-    const blocked = new Set(ordered.slice(i).map((d) => d.id));
-    const reach = new Set([entrance.id]);
-    const q = [entrance.id];
-    while (q.length) {
-      const cur = q.shift()!;
-      for (const { to, door } of adj.get(cur) ?? []) {
-        if (blocked.has(door.id) || reach.has(to)) continue;
-        reach.add(to);
-        q.push(to);
-      }
-    }
-    const options = [...reach].filter((id) => rooms[id].type === 'normal' && !used.has(id));
-    if (!options.length) return null;
-    const keyRoom = rng.pick(options);
-    used.add(keyRoom);
-    rooms[keyRoom].key = ordered[i].type === 'blood' ? 'blood' : 'wither';
+  // Blood rush: each lock's key sits in the room right in front of that lock, so the player
+  // goes from Wither room to Wither room (the room behind one Wither Door holds the next key).
+  const pathRooms = [entrance.id];
+  for (const d of pathDoors) pathRooms.push(d.a === pathRooms[pathRooms.length - 1] ? d.b : d.a);
+  for (let j = 0; j < pathDoors.length; j++) {
+    const lock = pathDoors[j];
+    if (lock.type === 'normal') continue;
+    const keyRoom = rooms[pathRooms[j]];
+    if (keyRoom.type !== 'normal' || keyRoom.key) return null;
+    keyRoom.key = lock.type === 'blood' ? 'blood' : 'wither';
   }
 
   for (const r of rooms) buildRoomTiles(r, doors, floor, rng);

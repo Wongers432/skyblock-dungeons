@@ -480,13 +480,31 @@ export class Run {
   private killMob(f: Field, m: Mob) {
     m.hp = 0;
     m.dead = true;
-    f.fx.push({ kind: 'puff', x: m.x, y: m.y, t: 0, life: 0.4, color: '#cccccc' });
-    f.fx.push({ kind: 'corpse', x: m.x, y: m.y, t: 0, life: 0.6, color: '', sprite: m.sprite, r: m.scale, angle: m.x < f.player.x ? -1 : 1 });
+    this.deathFx(f, m);
     if (m.crypt) {
       this.crypts++;
       if (this.crypts <= 5) this.events.toast(`Crypt cleared! (${this.crypts}/5 bonus)`, '#55ffff');
     }
     this.controller?.onMobDeath?.(m);
+  }
+
+  /** Death effects: the body tips over and bursts into blocky bits; bosses explode. */
+  deathFx(f: Field, m: Mob) {
+    f.fx.push({ kind: 'corpse', x: m.x, y: m.y, t: 0, life: 0.6, color: '', sprite: m.sprite, r: m.scale, angle: m.x < f.player.x ? -1 : 1 });
+    f.fx.push({ kind: 'burst', x: m.x, y: m.y - 0.3 * m.scale, t: 0, life: 0.8, color: '', sprite: m.sprite, r: m.scale, angle: Math.random() * 1000 });
+    if (m.boss) {
+      f.fx.push({ kind: 'boom', x: m.x, y: m.y - 0.4 * m.scale, t: 0, life: 1.2, color: '#ffaa33', r: 2.5 * m.scale });
+      this.shake = 0.6;
+      this.flash = 0.15;
+    }
+  }
+
+  /** Kills every mob left in a field (boss deaths, phase changes) with their death effects. */
+  wipe(f: Field) {
+    for (const m of f.aliveMobs()) {
+      m.dead = true;
+      this.deathFx(f, m);
+    }
   }
 
   private explode(f: Field, x: number, y: number, r: number, dmg: number, color: string, crit = false) {
@@ -607,8 +625,8 @@ export class Run {
     }
     for (const m of f.aliveMobs()) {
       if (m.puzzle) continue;
-      const r = HIT_RADIUS + (m.scale - 1) * 0.8;
-      consider(m.x, m.y - 0.3 * m.scale, r, () => {
+      const r = HIT_RADIUS + (m.scale - 1) * 0.6;
+      consider(m.x, m.y - 0.2 * m.scale, r, () => {
         if (this.attackCd > 0) this.queuedHit = { mob: m, t: 0.4 };
         else this.attackMob(f, m);
       });
@@ -684,6 +702,17 @@ export class Run {
     });
   }
 
+  /** Finger drag for controllers (sliding Maxor's crystals). Returns true when it was used. */
+  drag(x: number, y: number): boolean {
+    if (!this.field || this.ended) return false;
+    return this.controller?.onDrag?.(x, y) ?? false;
+  }
+
+  release(x: number, y: number) {
+    if (!this.field || this.ended) return;
+    this.controller?.onRelease?.(x, y);
+  }
+
   /** A finger dragged from (x0, y0) to (x1, y1). Swipe weapons slash every mob the line crosses. */
   swipe(x0: number, y0: number, x1: number, y1: number) {
     const f = this.field;
@@ -756,9 +785,11 @@ export class Run {
     p.runs++;
     if (victory) {
       const key0 = String(this.floor.id);
-      const meter = (p.rng[key0] ??= { target: null, xp: 0 });
+      // The RNG meter only unlocks once this floor has been completed before.
+      const meterOn = (p.completions[key0] ?? 0) > 0;
+      const meter = meterOn ? (p.rng[key0] ??= { target: null, xp: 0 }) : undefined;
       loot = rollLoot(this.floor, score.grade, this.rng, 1, meter);
-      rng = applyRngMeter(this.floor, meter, score.total, loot);
+      if (meter) rng = applyRngMeter(this.floor, meter, score.total, loot);
       xp = runXp(this.floor, score.total);
       p.cataXp += xp;
       p.essence[this.floor.essence.type] += loot.essence + this.secretEssence;
@@ -810,9 +841,9 @@ export function secretPos(s: Secret): Pt {
 }
 
 /** How far from a mob (in tiles) a tap still counts as hitting it. */
-const HIT_RADIUS = 1.35;
+const HIT_RADIUS = 1.0;
 /** How far from a secret, key or crypt a tap still picks it up. */
-const PICKUP_RADIUS = 1.5;
+const PICKUP_RADIUS = 1.1;
 /** Room mobs start idle and wake up when the player is this close. */
 const AGGRO_RANGE = 5.5;
 

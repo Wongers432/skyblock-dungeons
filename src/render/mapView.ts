@@ -150,5 +150,16 @@ export function roomCenter(room: RoomRT): { x: number; y: number } {
 export function roomAt(run: Run, xf: MapXform, sx: number, sy: number): RoomRT | null {
   const cx = Math.floor((sx - xf.ox) / xf.cs), cy = Math.floor((sy - xf.oy) / xf.cs);
   if (cx < 0 || cy < 0 || cx >= xf.cols || cy >= xf.rows) return null;
-  return run.rooms[run.plan.grid[cy][cx]];
+  const id = run.plan.grid[cy][cx];
+  // Taps in the gap between two different rooms (or right on their shared edge) are ambiguous:
+  // ignore them instead of opening the neighbour by accident.
+  const gap = Math.max(2, Math.round(xf.cs * 0.2));
+  const lx = sx - (xf.ox + cx * xf.cs), ly = sy - (xf.oy + cy * xf.cs);
+  const edge = gap / 2 + Math.max(2, xf.cs * 0.06);
+  const other = (dx: number, dy: number) => {
+    const g = run.plan.grid[cy + dy]?.[cx + dx];
+    return g !== undefined && g !== id;
+  };
+  if ((lx < edge && other(-1, 0)) || (lx > xf.cs - edge && other(1, 0)) || (ly < edge && other(0, -1)) || (ly > xf.cs - edge && other(0, 1))) return null;
+  return run.rooms[id];
 }

@@ -158,10 +158,16 @@ let swipeFrom: { id: number; x: number; y: number } | null = null;
 canvas.addEventListener('pointermove', (e) => {
   if (!swipeFrom || swipeFrom.id !== e.pointerId || !run || paused || !fieldXf) return;
   const p = screenToField(fieldXf, e.clientX, e.clientY);
-  run.swipe(swipeFrom.x, swipeFrom.y, p.x, p.y);
+  if (!run.drag(p.x, p.y)) run.swipe(swipeFrom.x, swipeFrom.y, p.x, p.y);
   swipeFrom = { id: e.pointerId, x: p.x, y: p.y };
 });
-const endSwipe = () => { swipeFrom = null; };
+const endSwipe = (e: PointerEvent) => {
+  if (swipeFrom && swipeFrom.id === e.pointerId && run && fieldXf) {
+    const p = screenToField(fieldXf, e.clientX, e.clientY);
+    run.release(p.x, p.y);
+  }
+  swipeFrom = null;
+};
 canvas.addEventListener('pointerup', endSwipe);
 canvas.addEventListener('pointercancel', endSwipe);
 document.addEventListener('gesturestart', (e) => e.preventDefault());

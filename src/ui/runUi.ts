@@ -181,7 +181,9 @@ export class RunUi {
       }
       return h('button', { class: cls, onclick: () => ctl.pressPane(i) }, label);
     });
-    this.puzzleBox.append(h('div', { class: 'panel puzzle' },
+    const done = ctl.terminals.filter((x) => x.done).length;
+    this.puzzleBox.append(h('div', { class: 'panel puzzle mc-gui' },
+      h('div', { class: 'mc-title' }, `TERMINAL ${done + 1}/4`),
       h('div', { class: 'row spread' },
         h('h2', {}, t.kind === 'order' ? 'Click in order!' : 'Correct all the panes!'),
         h('button', { class: 'small', onclick: () => ctl.closeTerminal() }, 'Close'),
@@ -252,10 +254,13 @@ export class RunUi {
           end.rng?.target ? h('div', { class: 'rng-mini' },
             h('div', { class: 'muted' }, `RNG Meter: ${ITEMS[end.rng.target].name}  ${end.rng.xp.toLocaleString()} / ${end.rng.required.toLocaleString()}${end.rng.gained ? `  (+${end.rng.gained})` : ''}`),
             h('div', { class: 'bar rng' }, h('div', { style: { width: `${(100 * end.rng.xp) / end.rng.required}%` } })),
-          ) : h('div', { class: 'muted' }, 'Tip: pick an RNG Meter target in the hub to work toward a guaranteed drop.'),
+          ) : h('div', { class: 'muted' }, 'Tip: the RNG Meter (in the hub) unlocks for a floor after your first clear.'),
           h('div', { class: 'loot', style: { color: '#55ffff' } }, `+${end.xp} Catacombs XP`),
           end.levelAfter > end.levelBefore ? h('div', { class: 'loot rare' }, `CATACOMBS LEVEL UP! ${end.levelBefore} → ${end.levelAfter}`) : null,
         ));
+        // Real rare drops (not the common Wither Catalysts) get the full celebration.
+        const big = loot.items.filter((id) => (this.run.floor.drops.find((d) => d.item === id)?.chance.bedrock ?? 0) < 0.1);
+        if (big.length) this.rngesus(big, end.rng?.paidOut);
       } }, `Open the ${CHEST_NAME[loot.chest]}`);
       lootBox.append(chestBtn);
     } else {
@@ -263,5 +268,35 @@ export class RunUi {
     }
     this.overlay = h('div', { class: 'overlay' }, panel);
     this.root.append(this.overlay);
+  }
+
+  /** Full-screen rainbow celebration for a rare drop. Tap to close. */
+  private rngesus(items: string[], meterItem?: string) {
+    const title = '!!!!!!RNGESUS DROP!!!!!!';
+    const letters = title.split('').map((ch, i) => h('span', { style: { animationDelay: `${-i * 0.08}s` } }, ch));
+    const confetti: HTMLElement[] = [];
+    for (let i = 0; i < 60; i++) {
+      confetti.push(h('i', { style: {
+        left: `${Math.random() * 100}%`,
+        background: `hsl(${Math.floor(Math.random() * 360)},95%,60%)`,
+        animationDelay: `${Math.random() * 1.5}s`,
+        animationDuration: `${2 + Math.random() * 2}s`,
+        transform: `rotate(${Math.random() * 360}deg)`,
+      } }));
+    }
+    const box = h('div', { class: 'rngesus' },
+      h('div', { class: 'confetti' }, confetti),
+      h('div', { class: 'rngesus-inner' },
+        h('div', { class: 'rngesus-title' }, letters),
+        items.map((id) => h('div', { class: 'rngesus-item', style: { color: RARITY_COLOR[ITEMS[id].rarity] } },
+          ITEMS[id].name, meterItem === id ? h('small', {}, ' (RNG Meter)') : null)),
+        h('div', { class: 'muted' }, 'Tap to continue'),
+      ),
+    );
+    const close = () => box.remove();
+    box.addEventListener('click', close);
+    setTimeout(close, 7000);
+    this.root.append(box);
+    try { navigator.vibrate?.([80, 40, 80, 40, 200]); } catch { /* not supported */ }
   }
 }
