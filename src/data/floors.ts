@@ -201,6 +201,10 @@ export const FLOORS: FloorDef[] = [
       { item: 'necron_chestplate', chance: tiers(0.0015, 0.003, 0.005, 0.008, 0.013, 0.02) },
       { item: 'necron_leggings', chance: tiers(0.002, 0.004, 0.006, 0.01, 0.016, 0.025) },
       { item: 'necron_boots', chance: tiers(0.003, 0.005, 0.008, 0.012, 0.02, 0.03) },
+      { item: 'storm_helmet', chance: tiers(0.003, 0.005, 0.008, 0.012, 0.02, 0.03) },
+      { item: 'storm_chestplate', chance: tiers(0.0015, 0.003, 0.005, 0.008, 0.013, 0.02) },
+      { item: 'storm_leggings', chance: tiers(0.002, 0.004, 0.006, 0.01, 0.016, 0.025) },
+      { item: 'storm_boots', chance: tiers(0.003, 0.005, 0.008, 0.012, 0.02, 0.03) },
     ],
   },
 ];

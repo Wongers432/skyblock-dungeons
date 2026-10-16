@@ -73,6 +73,8 @@ export interface PlayerStats {
   maxMana: number;
   weaponDamage: number;
   attackCooldown: number;
+  /** Multiplier on ability cooldowns (1 = normal). */
+  cooldownMult: number;
   cataLevel: number;
   cataMult: number;
   weapon?: ItemInstance;
@@ -93,6 +95,9 @@ export function computeStats(profile: Profile): PlayerStats {
   for (const inst of equipped) {
     for (const [k, v] of Object.entries(itemStats(inst)) as [keyof ItemStats, number][]) totals[k] += v;
   }
+  const storm = equipped.filter((i) => ITEMS[i.id].cooldownReduction);
+  let cdr = storm.reduce((a, i) => a + (ITEMS[i.id].cooldownReduction ?? 0), 0);
+  if (storm.length >= 4) cdr += 0.08; // full set bonus
   const level = cataLevel(profile.cataXp).level;
   const cm = cataMultiplier(level);
   const weapon = findItem(profile, profile.equipped.weapon);
@@ -107,6 +112,7 @@ export function computeStats(profile: Profile): PlayerStats {
     maxMana: 100 + totals.intelligence,
     weaponDamage: Math.max(5, totals.damage),
     attackCooldown: weaponDef?.attackCooldown ?? 0.4,
+    cooldownMult: 1 - Math.min(0.5, cdr),
     cataLevel: level,
     cataMult: cm,
     weapon,

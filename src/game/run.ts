@@ -596,7 +596,7 @@ export class Run {
     if (!ab || !f) return;
     this.aiming = false;
     this.mana -= ab.mana;
-    this.abilityCd = ab.cooldown;
+    this.abilityCd = ab.cooldown * this.stats.cooldownMult;
     const magic = baseHit(this.stats) * ab.power * (1 + this.stats.intelligence / 250);
     switch (ab.id) {
       case 'guided_bat':

@@ -54,6 +54,8 @@ export interface ItemDef {
   /** Tap hits also land on every mob this many tiles around the target. */
   cleave?: number;
   ability?: AbilityDef;
+  /** Armour: fraction knocked off every ability cooldown (Storm armour). */
+  cooldownReduction?: number;
   /** Short passive text shown on the item card. */
   passive?: string;
   essence: EssenceType;
@@ -211,6 +213,26 @@ export const ITEMS: Record<string, ItemDef> = {
     id: 'necron_boots', name: "Necron's Boots", kind: 'boots', rarity: 'LEGENDARY', floor: 7,
     stats: { health: 130, defense: 75, strength: 40, critDamage: 30 }, essence: 'wither', sprite: 'boots_necron',
   },
+  storm_helmet: {
+    id: 'storm_helmet', name: "Storm's Helmet", kind: 'helmet', rarity: 'LEGENDARY', floor: 7, cooldownReduction: 0.08,
+    stats: { health: 100, defense: 55, intelligence: 160 }, essence: 'wither', sprite: 'helmet_storm',
+    passive: 'Ability cooldowns 8% shorter. Full set: 40% shorter.',
+  },
+  storm_chestplate: {
+    id: 'storm_chestplate', name: "Storm's Chestplate", kind: 'chestplate', rarity: 'LEGENDARY', floor: 7, cooldownReduction: 0.08,
+    stats: { health: 190, defense: 100, intelligence: 220 }, essence: 'wither', sprite: 'chest_storm',
+    passive: 'Ability cooldowns 8% shorter. Full set: 40% shorter.',
+  },
+  storm_leggings: {
+    id: 'storm_leggings', name: "Storm's Leggings", kind: 'leggings', rarity: 'LEGENDARY', floor: 7, cooldownReduction: 0.08,
+    stats: { health: 160, defense: 85, intelligence: 180 }, essence: 'wither', sprite: 'legs_storm',
+    passive: 'Ability cooldowns 8% shorter. Full set: 40% shorter.',
+  },
+  storm_boots: {
+    id: 'storm_boots', name: "Storm's Boots", kind: 'boots', rarity: 'LEGENDARY', floor: 7, cooldownReduction: 0.08,
+    stats: { health: 95, defense: 50, intelligence: 140 }, essence: 'wither', sprite: 'boots_storm',
+    passive: 'Ability cooldowns 8% shorter. Full set: 40% shorter.',
+  },
   necron_handle: {
     id: 'necron_handle', name: "Necron's Handle", kind: 'material', rarity: 'LEGENDARY', floor: 7,
     stats: {}, essence: 'wither', sprite: 'handle', passive: `Crafting material. Necron's Handle + ${8} Wither Catalysts + 2,000 Wither Essence = Hyperion (craft it in Gear).`,
@@ -226,9 +248,9 @@ export const ITEMS: Record<string, ItemDef> = {
   },
   dark_claymore: {
     id: 'dark_claymore', name: 'Dark Claymore', kind: 'weapon', rarity: 'LEGENDARY', floor: 7,
-    stats: { damage: 400, strength: 150, critDamage: 80 }, attackCooldown: 0.9, essence: 'wither', sprite: 'sword_claymore',
+    stats: { damage: 400, strength: 150, critDamage: 80 }, attackCooldown: 0.5, essence: 'wither', sprite: 'sword_claymore',
     hitPower: 12, alwaysCrit: true, cleave: 2.4,
-    passive: 'A massive blade. Every swing is a critical hit that cleaves through every mob near your target. Slow to swing. Drops from Master Floor VII.',
+    passive: 'A massive blade. Every swing is a critical hit that cleaves through every mob near your target. Swings fast for a blade this size. Drops from Master Floor VII.',
   },
   scroll_implosion: {
     id: 'scroll_implosion', name: 'Implosion', kind: 'scroll', rarity: 'LEGENDARY', floor: 7,

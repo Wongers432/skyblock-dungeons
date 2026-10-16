@@ -174,6 +174,7 @@ export class Hub {
         h('div', {}, `✎ Intelligence: ${s.intelligence}`),
         h('div', {}, `⚔ Hit: ${Math.round(baseHit(s))}`),
         h('div', {}, `✦ Mana: ${s.maxMana}`),
+        s.cooldownMult < 1 ? h('div', {}, `⌛ Ability Cooldowns: -${Math.round((1 - s.cooldownMult) * 100)}%`) : null,
       ),
     );
     const slots = h('div', { class: 'card' }, h('h3', {}, 'Equipped'),
