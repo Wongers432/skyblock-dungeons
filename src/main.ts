@@ -66,6 +66,10 @@ function resize() {
   H = window.innerHeight;
   canvas.width = Math.round(W * dpr);
   canvas.height = Math.round(H * dpr);
+  // Size the canvas in CSS pixels to exactly what we draw. 100vh on iOS Safari is taller than
+  // the visible screen, which stretched the picture but not the taps (taps landed below mobs).
+  canvas.style.width = `${W}px`;
+  canvas.style.height = `${H}px`;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   const cs = getComputedStyle(probe);
   safeTop = parseFloat(cs.paddingTop) || 0;
@@ -202,4 +206,4 @@ document.addEventListener('visibilitychange', () => {
 hub.show();
 
 // Test hook used by the automated playtest script.
-(window as unknown as { __dbg: unknown }).__dbg = { run: () => run, profile: () => profile, start: startRun, setPaused: (p: boolean) => { paused = p; } };
+(window as unknown as { __dbg: unknown }).__dbg = { run: () => run, xf: () => fieldXf, profile: () => profile, start: startRun, setPaused: (p: boolean) => { paused = p; } };
