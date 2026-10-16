@@ -20,6 +20,10 @@ export interface MobDef {
   attackCooldown: number;
   /** Melee mobs walk up to you; ranged mobs stop at this distance and shoot. */
   range?: number;
+  /** What ranged mobs shoot. Defaults to arrows. */
+  projectile?: 'arrow' | 'fireball' | 'skull' | 'none';
+  /** Fraction of incoming damage ignored (0 to 1). */
+  armor?: number;
   sprite: string;
   size: number;
 }
@@ -28,7 +32,19 @@ export const MOBS: Record<string, MobDef> = {
   zombie: { id: 'zombie', name: 'Crypt Ghoul', hp: 120, damage: 12, speed: 1.5, attackCooldown: 1, sprite: 'zombie', size: 0.9 },
   skeleton: { id: 'skeleton', name: 'Skeleton Soldier', hp: 90, damage: 10, speed: 1.3, attackCooldown: 1.8, range: 5, sprite: 'skeleton', size: 0.9 },
   lurker: { id: 'lurker', name: 'Crypt Lurker', hp: 260, damage: 18, speed: 1.8, attackCooldown: 1, sprite: 'lurker', size: 1 },
-  blood: { id: 'blood', name: 'Blood Mob', hp: 200, damage: 10, speed: 1.6, attackCooldown: 1, sprite: 'bloodmob', size: 1 },
+  blood: { id: 'blood', name: 'Blood Mob', hp: 200, damage: 8, speed: 1.6, attackCooldown: 1, sprite: 'bloodmob', size: 1 },
+  knight: { id: 'knight', name: 'Zombie Knight', hp: 200, damage: 16, speed: 1.3, attackCooldown: 1.1, armor: 0.2, sprite: 'knight', size: 1 },
+  skelmaster: { id: 'skelmaster', name: 'Skeleton Master', hp: 150, damage: 15, speed: 1.2, attackCooldown: 2, range: 5.5, projectile: 'fireball', sprite: 'skelmaster', size: 0.95 },
+  // Scarf's minions (Floor II).
+  warrior: { id: 'warrior', name: 'Undead Warrior', hp: 450, damage: 22, speed: 1.9, attackCooldown: 1, armor: 0.15, sprite: 'warrior', size: 1.1 },
+  priest: { id: 'priest', name: 'Undead Priest', hp: 350, damage: 0, speed: 1, attackCooldown: 99, range: 6, projectile: 'none', sprite: 'priest', size: 1.1 },
+  mage: { id: 'mage', name: 'Undead Mage', hp: 350, damage: 18, speed: 1.2, attackCooldown: 2.2, range: 6, projectile: 'fireball', sprite: 'mage', size: 1.1 },
+  archer: { id: 'archer', name: 'Undead Archer', hp: 350, damage: 14, speed: 1.3, attackCooldown: 1.6, range: 7, projectile: 'arrow', sprite: 'archer', size: 1.1 },
+  // The Professor's guardians (Floor III).
+  g_healthy: { id: 'g_healthy', name: 'Healthy Guardian', hp: 900, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', sprite: 'guardian', size: 1.3 },
+  g_reinforced: { id: 'g_reinforced', name: 'Reinforced Guardian', hp: 550, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', armor: 0.5, sprite: 'guardian_r', size: 1.3 },
+  g_chaos: { id: 'g_chaos', name: 'Chaos Guardian', hp: 550, damage: 22, speed: 0, attackCooldown: 2.6, range: 99, projectile: 'skull', sprite: 'guardian_c', size: 1.3 },
+  g_laser: { id: 'g_laser', name: 'Laser Guardian', hp: 550, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', sprite: 'guardian_l', size: 1.3 },
   blaze: { id: 'blaze', name: 'Blaze', hp: 1, damage: 0, speed: 0.6, attackCooldown: 99, sprite: 'blaze', size: 0.9 },
 };
 
@@ -85,8 +101,30 @@ export const FLOORS: FloorDef[] = [
       { item: 'bonzo_mask', chance: tiers(0.005, 0.008, 0.01, 0.025, 0.05, 0.08) },
     ],
   },
-  { id: 2, name: 'Floor II', boss: 'Scarf', implemented: false, reqLevel: 3, cols: 5, rows: 5, puzzles: 2, fairyRooms: 1, witherDoors: 1, timeLimit: 600, mobHpMult: 2, mobDmgMult: 1.6, mobsPerCell: [2, 3], secretChance: 0.5, cryptChance: 0.35, bloodMobs: 10, mobPool: ['zombie', 'skeleton'], xp: 100, essence: { type: 'undead', base: 40 }, drops: [] },
-  { id: 3, name: 'Floor III', boss: 'The Professor', implemented: false, reqLevel: 5, cols: 5, rows: 5, puzzles: 3, fairyRooms: 1, witherDoors: 2, timeLimit: 600, mobHpMult: 3.5, mobDmgMult: 2.4, mobsPerCell: [2, 4], secretChance: 0.5, cryptChance: 0.35, bloodMobs: 12, mobPool: ['zombie', 'skeleton'], xp: 250, essence: { type: 'undead', base: 60 }, drops: [] },
+  {
+    id: 2, name: 'Floor II', boss: 'Scarf', implemented: true, reqLevel: 3,
+    cols: 5, rows: 5, puzzles: 2, fairyRooms: 1, witherDoors: 2, timeLimit: 660,
+    mobHpMult: 1.3, mobDmgMult: 1.2, mobsPerCell: [2, 3], secretChance: 0.5, cryptChance: 0.35,
+    bloodMobs: 7, mobPool: ['zombie', 'zombie', 'skeleton', 'knight'], xp: 100,
+    essence: { type: 'undead', base: 40 },
+    drops: [
+      { item: 'conjuring', chance: tiers(0.004, 0.006, 0.01, 0.02, 0.04, 0.06) },
+    ],
+  },
+  {
+    id: 3, name: 'Floor III', boss: 'The Professor', implemented: true, reqLevel: 5,
+    cols: 5, rows: 5, puzzles: 3, fairyRooms: 1, witherDoors: 2, timeLimit: 720,
+    mobHpMult: 1.6, mobDmgMult: 1.4, mobsPerCell: [2, 3], secretChance: 0.55, cryptChance: 0.4,
+    bloodMobs: 8, mobPool: ['zombie', 'skeleton', 'knight', 'skelmaster'], xp: 250,
+    essence: { type: 'undead', base: 60 },
+    drops: [
+      { item: 'adaptive_blade', chance: tiers(0.003, 0.005, 0.008, 0.015, 0.03, 0.05) },
+      { item: 'adaptive_helmet', chance: tiers(0.006, 0.01, 0.015, 0.025, 0.04, 0.06) },
+      { item: 'adaptive_chestplate', chance: tiers(0.003, 0.005, 0.008, 0.015, 0.025, 0.04) },
+      { item: 'adaptive_leggings', chance: tiers(0.004, 0.006, 0.01, 0.02, 0.03, 0.05) },
+      { item: 'adaptive_boots', chance: tiers(0.006, 0.01, 0.015, 0.025, 0.04, 0.06) },
+    ],
+  },
   { id: 4, name: 'Floor IV', boss: 'Thorn', implemented: false, reqLevel: 9, cols: 6, rows: 5, puzzles: 3, fairyRooms: 1, witherDoors: 2, timeLimit: 720, mobHpMult: 6, mobDmgMult: 3.5, mobsPerCell: [2, 4], secretChance: 0.55, cryptChance: 0.35, bloodMobs: 12, mobPool: ['zombie', 'skeleton'], xp: 600, essence: { type: 'undead', base: 90 }, drops: [] },
   { id: 5, name: 'Floor V', boss: 'Livid', implemented: false, reqLevel: 14, cols: 6, rows: 6, puzzles: 3, fairyRooms: 1, witherDoors: 2, timeLimit: 720, mobHpMult: 10, mobDmgMult: 5, mobsPerCell: [3, 4], secretChance: 0.55, cryptChance: 0.35, bloodMobs: 14, mobPool: ['zombie', 'skeleton'], xp: 1500, essence: { type: 'wither', base: 40 }, drops: [] },
   { id: 6, name: 'Floor VI', boss: 'Sadan', implemented: false, reqLevel: 19, cols: 6, rows: 6, puzzles: 3, fairyRooms: 1, witherDoors: 3, timeLimit: 840, mobHpMult: 16, mobDmgMult: 7, mobsPerCell: [3, 4], secretChance: 0.6, cryptChance: 0.35, bloodMobs: 16, mobPool: ['zombie', 'skeleton'], xp: 3500, essence: { type: 'wither', base: 60 }, drops: [] },

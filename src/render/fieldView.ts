@@ -1,6 +1,6 @@
 import type { Field } from '../game/field';
 import { doorTiles } from '../game/dungeonGen';
-import type { BloodController, BonzoController } from '../game/controllers';
+import type { BloodController } from '../game/controllers';
 import { secretPos, type RoomRT, type Run } from '../game/run';
 import { drawSprite, texture, type TileTex } from './sprites';
 
@@ -109,7 +109,7 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
       ctx.arc(X(m.x), Y(m.y), ts * 0.6 * m.scale, 0, Math.PI * 2);
       ctx.fill();
     }
-    ctx.globalAlpha = m.invuln ? 0.5 + 0.3 * Math.sin(time * 20) : 1;
+    ctx.globalAlpha = m.invuln && m.invuln !== Infinity ? 0.5 + 0.3 * Math.sin(time * 20) : 1;
     drawSprite(ctx, m.sprite, X(m.x), feet, h, m.flash > 0);
     ctx.globalAlpha = 1;
     const top = feet - h - 4;
@@ -121,7 +121,7 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
       ctx.fillRect(X(m.x) - bw / 2, top, bw, 4);
       ctx.fillStyle = m.crypt ? '#aa55ff' : '#e33';
       ctx.fillRect(X(m.x) - bw / 2, top, (bw * m.hp) / m.maxHp, 4);
-      if (m.name && (m.def.id === 'blood' || m.crypt)) label(ctx, m.name, X(m.x), top - 3, Math.max(9, ts * 0.32), m.crypt ? '#cc88ff' : '#ff6666');
+      if (m.name && !PLAIN_MOBS.has(m.def.id)) label(ctx, m.name, X(m.x), top - 3, Math.max(9, ts * 0.32), m.crypt ? '#cc88ff' : '#ff6666');
     }
   }
 
@@ -145,6 +145,22 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
       ctx.moveTo(X(p.x), Y(p.y));
       ctx.lineTo(X(p.x - (p.vx / len) * 0.5), Y(p.y - (p.vy / len) * 0.5));
       ctx.stroke();
+    } else if (p.kind === 'fireball') {
+      ctx.fillStyle = '#ff7a1a';
+      ctx.beginPath();
+      ctx.arc(X(p.x), Y(p.y), ts * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffd34a';
+      ctx.beginPath();
+      ctx.arc(X(p.x), Y(p.y), ts * 0.15, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (p.kind === 'skull') {
+      const sz = ts * 0.5;
+      ctx.fillStyle = '#2b2b2b';
+      ctx.fillRect(X(p.x) - sz / 2, Y(p.y) - sz / 2, sz, sz);
+      ctx.fillStyle = '#ff4444';
+      ctx.fillRect(X(p.x) - sz * 0.3, Y(p.y) - sz * 0.15, sz * 0.2, sz * 0.15);
+      ctx.fillRect(X(p.x) + sz * 0.1, Y(p.y) - sz * 0.15, sz * 0.2, sz * 0.15);
     } else {
       ctx.strokeStyle = '#eee';
       ctx.lineWidth = 1;
@@ -158,7 +174,28 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
       ctx.fill();
     }
   }
-  for (const s of f.shots) drawSprite(ctx, 'bat', X(s.x), Y(s.y + 0.25), ts * 0.5);
+  for (const s of f.shots) {
+    if (s.kind === 'bat') {
+      drawSprite(ctx, 'bat', X(s.x), Y(s.y + 0.25), ts * 0.5);
+      continue;
+    }
+    // Firework rocket: a short stick with a coloured head and a sparkly trail.
+    const ang = Math.atan2(s.ty! - s.y, s.tx! - s.x);
+    const hx = X(s.x), hy = Y(s.y);
+    ctx.strokeStyle = '#c8a060';
+    ctx.lineWidth = Math.max(2, ts * 0.08);
+    ctx.beginPath();
+    ctx.moveTo(hx, hy);
+    ctx.lineTo(hx - Math.cos(ang) * ts * 0.5, hy - Math.sin(ang) * ts * 0.5);
+    ctx.stroke();
+    ctx.fillStyle = s.color ?? '#ff5555';
+    ctx.fillRect(hx - ts * 0.12, hy - ts * 0.12, ts * 0.24, ts * 0.24);
+    for (let i = 1; i <= 3; i++) {
+      ctx.fillStyle = ['#ffdd33', '#ffffff', '#ff8844'][i - 1];
+      ctx.fillRect(hx - Math.cos(ang) * ts * (0.5 + i * 0.25) + (Math.random() - 0.5) * 4, hy - Math.sin(ang) * ts * (0.5 + i * 0.25) + (Math.random() - 0.5) * 4, 3, 3);
+    }
+  }
+  run.controller?.draw?.(ctx, X, Y, ts, time);
 
   // Effects.
   for (const fx of f.fx) {
@@ -216,18 +253,20 @@ function drawWatcher(ctx: CanvasRenderingContext2D, room: RoomRT, X: (n: number)
 }
 
 function drawBossBar(ctx: CanvasRenderingContext2D, run: Run, area: Rect) {
-  const ctl = run.bossController as BonzoController | null;
-  if (!ctl) return;
-  const b = ctl.bonzo;
+  const bar = run.bossController?.bar?.();
+  if (!bar) return;
   const w = Math.min(area.w - 24, 420);
   const x = area.x + (area.w - w) / 2;
   const y = area.y + 4;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
   ctx.fillRect(x, y, w, 18);
-  ctx.fillStyle = ctl.phase === 2 ? '#ff5522' : '#cc2222';
-  ctx.fillRect(x + 2, y + 2, ((w - 4) * Math.max(0, b.hp)) / b.maxHp, 14);
-  label(ctx, `${run.floor.boss}${ctl.phase === 2 ? ' (enraged)' : ''}  ${Math.max(0, Math.round(b.hp)).toLocaleString()} / ${b.maxHp.toLocaleString()}`, x + w / 2, y + 14, 12, '#fff');
+  ctx.fillStyle = bar.color;
+  ctx.fillRect(x + 2, y + 2, ((w - 4) * Math.max(0, bar.hp)) / Math.max(1, bar.max), 14);
+  label(ctx, `${bar.name}  ${Math.max(0, Math.round(bar.hp)).toLocaleString()} / ${bar.max.toLocaleString()}`, x + w / 2, y + 14, 12, '#fff');
 }
+
+/** Ordinary mobs don't get a name tag; everything else does. */
+const PLAIN_MOBS = new Set(['zombie', 'skeleton', 'knight', 'skelmaster']);
 
 export function label(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, size: number, color: string) {
   ctx.font = `bold ${Math.round(size)}px Minecraft, ui-monospace, monospace`;

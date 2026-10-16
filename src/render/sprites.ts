@@ -44,6 +44,43 @@ const SPRITES: Record<string, string[]> = {
     '..HHHH..', '..ssss..', '..KssK..', '..ssss..', 'llllllll', 'sllllllS',
     'sllllllS', '.llllll.', '.LLLLLL.', '.LL..LL.', '.LL..LL.', '.KK..KK.',
   ],
+  knight: [
+    '..TTTT..', '.TKGGKT.', '..GGGG..', '..GddG..', 'TTTTTTTT', 'GTTTTTTG',
+    'GTTttTTG', '.TTTTTT.', '.tttttt.', '.tt..tt.', '.tt..tt.', '.KK..KK.',
+  ],
+  skelmaster: [
+    '..AAAA..', '..KWWK..', '..WWWW..', '..WKKW..', '..wWWw..', 'O.wAAw.O',
+    'W..WW..W', '...WW...', '..W..W..', '..W..W..', '..W..W..', '..w..w..',
+  ],
+  warrior: [
+    '..TTTT..', '..KGGK..', '..GGGG..', '.TTTTTT.', 'TTRRRRTT', 'WTRRRRTW',
+    'W.RRRR.W', '..RRRR..', '..tttt..', '..tt.tt.', '..tt.tt.', '..KK.KK.',
+  ],
+  priest: [
+    '..EEEE..', '..KGGK..', '..GGGG..', '.EEEEEE.', 'EEEAAEEE', 'GEEAAEEG',
+    '..EEEE..', '..EEEE..', '..EEEE..', '..EEEE..', '..EEEE..', '..EE.EE.',
+  ],
+  mage: [
+    '...UU...', '..UUUU..', '..KGGK..', '..GGGG..', 'UUUUUUUU', 'GUUOOUUG',
+    '..UUUU..', '..UUUU..', '..UUUU..', '..UUUU..', '..UU.UU.', '..KK.KK.',
+  ],
+  archer: [
+    '..GGGG..', '..KGGK..', '..GGGG..', '..GddG..', 'LGGGGGGL', 'LllllllL',
+    'L.llll.L', '..llll..', '..BBBB..', '..BB.BB.', '..BB.BB.', '..KK.KK.',
+  ],
+  scarf: [
+    '..UUUU..', '.UUUUUU.', '..sKKs..', '..ssss..', 'RRRRRRRR', 'UURRRRUU',
+    'sUUUUUUs', '.UUUUUU.', '.UUUUUU.', '.UUUUUU.', '.UU..UU.', '.KK..KK.',
+  ],
+  professor: [
+    '..TTTT..', '..ssss..', '.TKssKT.', '..ssss..', 'EEEEEEEE', 'sEEllEEs',
+    'sEEllEEs', '.EEEEEE.', '.tttttt.', '.tt..tt.', '.tt..tt.', '.KK..KK.',
+  ],
+  guardian: ['O..OO..O', '.CCCCCC.', 'OCCCCCCO', '.CEEKCC.', '.CEEKCC.', 'OCCCCCCO', '.CCCCCC.', 'O..OO..O'],
+  guardian_r: ['T..TT..T', '.tttttt.', 'TttttttT', '.tEEKtt.', '.tEEKtt.', 'TttttttT', '.tttttt.', 'T..TT..T'],
+  guardian_c: ['O..OO..O', '.UUUUUU.', 'OUUUUUUO', '.UEEKUU.', '.UEEKUU.', 'OUUUUUUO', '.UUUUUU.', 'O..OO..O'],
+  guardian_l: ['O..OO..O', '.RRRRRR.', 'ORRRRRRO', '.REEKRR.', '.REEKRR.', 'ORRRRRRO', '.RRRRRR.', 'O..OO..O'],
+  guardian_big: ['Y..YY..Y', '.OOOOOO.', 'YOCCCCOY', '.OCEEKO.', '.OCEEKO.', 'YOCCCCOY', '.OOOOOO.', 'Y..YY..Y'],
   fairy: ['...EE...', '..FEEF..', '.FFEEFF.', 'FFFEEFFF', '.FFEEFF.', '..FEEF..', '...EE...', '........'],
   chest: ['........', '.LLLLLL.', 'LllllllL', 'LllAAllL', 'LLLAALLL', 'LllllllL', 'LllllllL', '.LLLLLL.'],
   essence: ['...EE...', '..EFFE..', '.EFWWFE.', 'EFWEEWFE', '.EFWWFE.', '..EFFE..', '...EE...', '........'],

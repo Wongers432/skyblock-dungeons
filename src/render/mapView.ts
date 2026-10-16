@@ -42,20 +42,32 @@ export function drawMap(ctx: CanvasRenderingContext2D, run: Run, area: Rect, tim
     }
   }
 
-  // Doors.
+  // Doors: Wither doors are black, the Blood door is red, others are brown.
   for (const d of run.plan.doors) {
     const a = run.rooms[d.a], b = run.rooms[d.b];
     if (!a.visited && !b.visited) continue;
     const open = run.openDoors.has(d.id);
-    ctx.fillStyle = open ? (a.visited && b.visited ? '#7a4a1f' : '#5a5a5a') : d.type === 'blood' ? '#ff2a2a' : '#0a0a0a';
-    const dw = Math.max(3, Math.round(cs * 0.3));
+    const special = d.type !== 'normal';
+    const fill = d.type === 'blood' ? '#e01818' : d.type === 'wither' ? '#050505' : a.visited && b.visited ? '#7a4a1f' : '#5a5a5a';
+    const dw = Math.max(4, Math.round(cs * (special ? 0.46 : 0.3)));
+    const thick = special ? Math.max(gap + 4, Math.round(cs * 0.3)) : gap;
+    let rx: number, ry: number, rw: number, rh: number;
     if (d.cellA.x !== d.cellB.x) {
-      const x = ox + Math.max(d.cellA.x, d.cellB.x) * cs - gap / 2;
-      ctx.fillRect(x, oy + d.cellA.y * cs + cs / 2 - dw / 2, gap, dw);
+      const x = ox + Math.max(d.cellA.x, d.cellB.x) * cs;
+      [rx, ry, rw, rh] = [x - thick / 2, oy + d.cellA.y * cs + cs / 2 - dw / 2, thick, dw];
     } else {
-      const y = oy + Math.max(d.cellA.y, d.cellB.y) * cs - gap / 2;
-      ctx.fillRect(ox + d.cellA.x * cs + cs / 2 - dw / 2, y, dw, gap);
+      const y = oy + Math.max(d.cellA.y, d.cellB.y) * cs;
+      [rx, ry, rw, rh] = [ox + d.cellA.x * cs + cs / 2 - dw / 2, y - thick / 2, dw, thick];
     }
+    ctx.globalAlpha = special && open ? 0.55 : 1;
+    ctx.fillStyle = fill;
+    ctx.fillRect(rx, ry, rw, rh);
+    if (special) {
+      ctx.strokeStyle = d.type === 'blood' ? '#ffb0b0' : '#9a9a9a';
+      ctx.lineWidth = mini ? 1 : 2;
+      ctx.strokeRect(rx + 0.5, ry + 0.5, rw - 1, rh - 1);
+    }
+    ctx.globalAlpha = 1;
   }
 
   // Room icons.

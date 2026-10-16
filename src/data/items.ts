@@ -43,6 +43,10 @@ export interface ItemDef {
   stats: ItemStats;
   /** Seconds between taps for weapons. */
   attackCooldown?: number;
+  /** 'firework': taps launch an exploding firework instead of a direct hit. */
+  attack?: 'melee' | 'firework';
+  /** Swiping across mobs also slashes them. */
+  swipe?: boolean;
   ability?: AbilityDef;
   /** Short passive text shown on the item card. */
   passive?: string;
@@ -75,16 +79,55 @@ export const ITEMS: Record<string, ItemDef> = {
   },
   bonzo_staff: {
     id: 'bonzo_staff', name: "Bonzo's Staff", kind: 'weapon', rarity: 'RARE', floor: 1,
-    stats: { damage: 45, strength: 15, intelligence: 100 }, attackCooldown: 0.3, essence: 'undead', sprite: 'staff_bonzo',
+    stats: { damage: 45, strength: 15, intelligence: 100 }, attackCooldown: 0.45, attack: 'firework', essence: 'undead', sprite: 'staff_bonzo',
+    passive: 'Every tap launches a firework that explodes on impact, hitting all mobs around it.',
     ability: {
-      id: 'showtime', name: 'Showtime', desc: 'Tap a spot to drop a bundle of balloons that burst and blast every mob nearby.',
-      mana: 40, cooldown: 0.8, targeting: 'point', power: 3, radius: 2.5,
+      id: 'showtime', name: 'Showtime', desc: 'Launches a huge firework at the spot you tap that bursts over a wide area.',
+      mana: 40, cooldown: 0.8, targeting: 'point', power: 3, radius: 2.8,
     },
   },
   bonzo_mask: {
     id: 'bonzo_mask', name: "Bonzo's Mask", kind: 'helmet', rarity: 'EPIC', floor: 1,
     stats: { health: 40, defense: 25, strength: 10 }, essence: 'undead', sprite: 'mask_bonzo',
     passive: "Clownin' Around: once per run, a hit that would kill you leaves you at 30% health instead.",
+  },
+  conjuring: {
+    id: 'conjuring', name: 'Conjuring', kind: 'weapon', rarity: 'EPIC', floor: 2,
+    stats: { damage: 70, strength: 30, critDamage: 20 }, attackCooldown: 0.3, essence: 'undead', sprite: 'sword_conjuring',
+    ability: {
+      id: 'conjuring', name: 'Conjuring', desc: 'Summons spinning blades around you for 4 seconds that cut every mob that gets close.',
+      mana: 60, cooldown: 6, targeting: 'auto', power: 1.2, radius: 2.4,
+    },
+  },
+  adaptive_blade: {
+    id: 'adaptive_blade', name: 'Adaptive Blade', kind: 'weapon', rarity: 'EPIC', floor: 3,
+    stats: { damage: 95, strength: 60, critDamage: 30 }, attackCooldown: 0.3, essence: 'undead', sprite: 'sword_adaptive',
+    passive: 'Deals up to 50% more damage the lower your health is.',
+  },
+  adaptive_helmet: {
+    id: 'adaptive_helmet', name: 'Adaptive Helmet', kind: 'helmet', rarity: 'EPIC', floor: 3,
+    stats: { health: 60, defense: 40, strength: 10 }, essence: 'undead', sprite: 'helmet_adaptive',
+  },
+  adaptive_chestplate: {
+    id: 'adaptive_chestplate', name: 'Adaptive Chestplate', kind: 'chestplate', rarity: 'EPIC', floor: 3,
+    stats: { health: 110, defense: 70, strength: 10 }, essence: 'undead', sprite: 'chest_adaptive',
+  },
+  adaptive_leggings: {
+    id: 'adaptive_leggings', name: 'Adaptive Leggings', kind: 'leggings', rarity: 'EPIC', floor: 3,
+    stats: { health: 90, defense: 60, strength: 10 }, essence: 'undead', sprite: 'legs_adaptive',
+  },
+  adaptive_boots: {
+    id: 'adaptive_boots', name: 'Adaptive Boots', kind: 'boots', rarity: 'EPIC', floor: 3,
+    stats: { health: 50, defense: 35, strength: 10 }, essence: 'undead', sprite: 'boots_adaptive',
+  },
+  livid_dagger: {
+    id: 'livid_dagger', name: 'Livid Dagger', kind: 'weapon', rarity: 'LEGENDARY', floor: 5,
+    stats: { damage: 105, strength: 60, critChance: 15, critDamage: 50 }, attackCooldown: 0.18, swipe: true, essence: 'wither', sprite: 'dagger_livid',
+    passive: 'Swipe your finger across mobs to slash every one you touch, as well as tapping them.',
+    ability: {
+      id: 'throw', name: 'Throw', desc: 'Throws the dagger at the spot you tap for a heavy hit.',
+      mana: 50, cooldown: 0.6, targeting: 'point', power: 4, radius: 1.4,
+    },
   },
   spirit_sceptre: {
     id: 'spirit_sceptre', name: 'Spirit Sceptre', kind: 'weapon', rarity: 'LEGENDARY', floor: 4,

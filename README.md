@@ -2,16 +2,21 @@
 
 A private, solo, offline 2D take on Hypixel SkyBlock's Catacombs, built as an installable web app (PWA) for iPhone.
 
-## What's in it (v0.1, Floor 1)
+## What's in it (v0.2, Floors 1–3)
 - Randomly generated dungeon each run: 1x1, 1x2, 2x1, 2x2 and L rooms built from hand-made layouts.
 - Map screen first; tap a room to zoom in, tap the corner minimap (or **Map**) to go back.
 - Tap mobs to hit them; weapon abilities do area damage.
 - Wither Door + Blood Key: clear the key room and tap the key to pick it up.
 - Secrets (appear once a room is cleared), crypts (+bonus score), Fairy room (full heal).
 - Puzzles: Tic Tac Toe, Higher or Lower (blazes), Three Weirdos.
-- Blood room with the Watcher, then **Bonzo** (two phases, balloons you can pop, undead adds).
+- Blood room with the Watcher, then the floor boss (walking through the portal heals you):
+  - **F1 Bonzo**: two phases, balloons you can pop, undead adds.
+  - **F2 Scarf**: kill his 4 minions first (Warrior, Priest, Mage, Archer). The Priest heals them and revives dead ones, so kill it first. Then Scarf teleports around throwing fireballs.
+  - **F3 The Professor**: kill the 4 Guardians first (Healthy, Reinforced takes half damage, Chaos throws skulls, Laser charges a beam), then the Professor, then his Guardian form.
+- Room mobs stay idle until you get close, so big rooms come at you in waves.
+- Bonzo's Staff fires an exploding firework on every tap. The Livid Dagger slashes every mob you swipe across.
 - Hypixel-style score (Skill / Exploration / Speed / Bonus), S at 270, S+ at 300.
-- Free reward chest by grade (Wood → Bedrock) with essence and rare drops: **Bonzo's Staff**, **Bonzo's Mask**.
+- Free reward chest by grade (Wood → Bedrock) with essence and rare drops: F1 **Bonzo's Staff**, **Bonzo's Mask**; F2 **Conjuring**; F3 **Adaptive Blade** and **Adaptive armor**.
 - Catacombs XP and levels (+3% health, defense and damage per level).
 - Essence upgrades for every item, level 1 to 50, cost rising each level.
 - Temporary **Admin** tab to spawn items (incl. Spirit Sceptre, Giant's Sword, Hyperion and its scrolls), essence and XP, plus god mode. Turn it off under Save.

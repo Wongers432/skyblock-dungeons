@@ -136,8 +136,21 @@ canvas.addEventListener('pointerdown', (e) => {
   if (fieldXf) {
     const p = screenToField(fieldXf, x, y);
     run.tap(p.x, p.y);
+    swipeFrom = { id: e.pointerId, x: p.x, y: p.y };
   }
 });
+
+// Dragging a finger across the field slashes mobs with swipe weapons (Livid Dagger).
+let swipeFrom: { id: number; x: number; y: number } | null = null;
+canvas.addEventListener('pointermove', (e) => {
+  if (!swipeFrom || swipeFrom.id !== e.pointerId || !run || paused || !fieldXf) return;
+  const p = screenToField(fieldXf, e.clientX, e.clientY);
+  run.swipe(swipeFrom.x, swipeFrom.y, p.x, p.y);
+  swipeFrom = { id: e.pointerId, x: p.x, y: p.y };
+});
+const endSwipe = () => { swipeFrom = null; };
+canvas.addEventListener('pointerup', endSwipe);
+canvas.addEventListener('pointercancel', endSwipe);
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 
 // ---------- Loop ----------
@@ -162,4 +175,4 @@ document.addEventListener('visibilitychange', () => {
 hub.show();
 
 // Test hook used by the automated playtest script.
-(window as unknown as { __dbg: unknown }).__dbg = { run: () => run, setPaused: (p: boolean) => { paused = p; } };
+(window as unknown as { __dbg: unknown }).__dbg = { run: () => run, profile: () => profile, start: startRun, setPaused: (p: boolean) => { paused = p; } };

@@ -24,6 +24,12 @@ export interface Mob {
   wander?: Pt;
   sprite: string;
   scale: number;
+  /** Fraction of damage ignored. */
+  armor: number;
+  /** Idle mobs wait in place until the player is close or they get hit. */
+  aggro: boolean;
+  /** Seconds this mob has been dead (used for revives). */
+  deadFor?: number;
 }
 
 export interface Projectile {
@@ -32,15 +38,20 @@ export interface Projectile {
   vx: number;
   vy: number;
   damage: number;
-  kind: 'arrow' | 'balloon';
+  kind: 'arrow' | 'balloon' | 'fireball' | 'skull';
   tappable: boolean;
   life: number;
 }
 
 export interface Shot {
+  kind: 'bat' | 'firework';
   x: number;
   y: number;
   target: Mob | null;
+  /** Fireworks fly to a fixed point instead of a mob. */
+  tx?: number;
+  ty?: number;
+  color?: string;
   damage: number;
   radius: number;
   life: number;
@@ -64,7 +75,7 @@ export function makeMob(def: MobDef, x: number, y: number, hpMult: number, dmgMu
   return {
     id: nextMobId++, def, name: def.name, x, y, hp, maxHp: hp, damage: def.damage * dmgMult,
     atk: def.attackCooldown * (0.5 + Math.random() * 0.5), stun: 0, flash: 0, dead: false,
-    sprite: def.sprite, scale: def.size, ...extra,
+    sprite: def.sprite, scale: def.size, armor: def.armor ?? 0, aggro: true, ...extra,
   };
 }
 

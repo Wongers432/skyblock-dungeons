@@ -7,7 +7,7 @@ import { baseHit, cataLevel, computeStats, damageTaken, type PlayerStats } from 
 import { newItem, saveProfile, type Profile } from './save';
 import { computeScore, rollLoot, runXp, type Loot, type ScoreResult } from './score';
 import { makeBlaze, makeWeirdos, type Mark, type WeirdosPuzzle } from './puzzles';
-import { BlazeController, BloodController, BonzoController, type Controller } from './controllers';
+import { BlazeController, BloodController, BonzoController, ProfessorController, ScarfController, type Controller } from './controllers';
 
 export type View = 'map' | 'room' | 'boss';
 
@@ -82,6 +82,10 @@ export class Run {
   puzzlesFailed = 0;
   ended: RunEnd | null = null;
   private endTimer = -1;
+  private conjureTime = 0;
+  private conjureTick = 0;
+  private conjureDamage = 0;
+  private lastSwipeHit = new Map<number, number>();
 
   constructor(readonly profile: Profile, floorId: number, readonly events: RunEvents, seed = Date.now() % 1e9) {
     this.floor = floorById(floorId);
@@ -199,7 +203,7 @@ export class Run {
       case 'normal':
         for (const p of room.plan.mobSpawns) {
           const def = MOBS[this.rng.pick(this.floor.mobPool)];
-          f.mobs.push(makeMob(def, p.x, p.y, this.floor.mobHpMult, this.floor.mobDmgMult));
+          f.mobs.push(makeMob(def, p.x, p.y, this.floor.mobHpMult, this.floor.mobDmgMult, { aggro: false }));
         }
         if (!f.mobs.length) this.clearRoom(room);
         break;
@@ -279,6 +283,14 @@ export class Run {
     }
     const f = this.field;
     if (!f) return;
+    if (this.conjureTime > 0) {
+      this.conjureTime -= dt;
+      this.conjureTick -= dt;
+      if (this.conjureTick <= 0) {
+        this.conjureTick = 0.4;
+        this.explode(f, f.player.x, f.player.y, this.stats.ability?.radius ?? 2.4, this.conjureDamage, '#9fd8ff');
+      }
+    }
     this.controller?.update(dt);
     this.updateMobs(f, dt);
     this.updateProjectiles(f, dt);
@@ -300,6 +312,12 @@ export class Run {
       if (m.stun > 0) { m.stun -= dt; continue; }
       if (m.puzzle || m.boss) continue;
       const dist = Math.hypot(p.x - m.x, p.y - m.y);
+      if (!m.aggro) {
+        if (dist > AGGRO_RANGE && m.hp >= m.maxHp) continue;
+        // Waking one mob wakes its neighbours too.
+        for (const o of f.mobs) if (!o.dead && Math.hypot(o.x - m.x, o.y - m.y) < 2.5) o.aggro = true;
+        m.aggro = true;
+      }
       const range = m.def.range ?? 0.85;
       m.atk -= dt;
       if (dist > range) {
@@ -309,8 +327,7 @@ export class Run {
       } else if (m.atk <= 0) {
         m.atk = m.def.attackCooldown;
         if (m.def.range) {
-          const len = dist || 1;
-          f.projectiles.push({ x: m.x, y: m.y, vx: ((p.x - m.x) / len) * 7, vy: ((p.y - m.y) / len) * 7, damage: m.damage, kind: 'arrow', tappable: false, life: 3 });
+          this.shoot(f, m.x, m.y, m.def.projectile ?? 'arrow', m.damage);
         } else {
           this.damagePlayer(m.damage);
         }
@@ -332,6 +349,15 @@ export class Run {
     }
   }
 
+  /** Fires a hostile projectile at the player. Fireballs and skulls can be tapped to destroy them. */
+  shoot(f: Field, x: number, y: number, kind: 'arrow' | 'fireball' | 'skull' | 'balloon' | 'none', damage: number, angleOffset = 0) {
+    if (kind === 'none') return;
+    const p = f.player;
+    const speed = { arrow: 7, fireball: 4.2, skull: 3.6, balloon: 2.8 }[kind];
+    const ang = Math.atan2(p.y - y, p.x - x) + angleOffset;
+    f.projectiles.push({ x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, damage, kind, tappable: kind !== 'arrow', life: 8 });
+  }
+
   private updateProjectiles(f: Field, dt: number) {
     const p = f.player;
     for (const pr of f.projectiles) {
@@ -341,13 +367,27 @@ export class Run {
       if (Math.hypot(pr.x - p.x, pr.y - p.y) < 0.45) {
         pr.life = 0;
         this.damagePlayer(pr.damage);
-        if (pr.kind === 'balloon') f.ring(pr.x, pr.y, 1, '#ff5555');
+        if (pr.kind !== 'arrow') f.ring(pr.x, pr.y, 1, pr.kind === 'skull' ? '#555555' : '#ff5555');
       }
     }
     f.projectiles = f.projectiles.filter((pr) => pr.life > 0);
     for (const s of f.shots) {
-      if (!s.target || s.target.dead) s.target = this.rng.pick(f.aliveMobs().filter((m) => !m.puzzle)) ?? null;
       s.life -= dt;
+      if (s.kind === 'firework') {
+        const dx = s.tx! - s.x, dy = s.ty! - s.y;
+        const d = Math.hypot(dx, dy);
+        const stepLen = 13 * dt;
+        if (d <= stepLen) {
+          this.explode(f, s.tx!, s.ty!, s.radius, s.damage, s.color ?? '#ff77aa');
+          for (let i = 0; i < 3; i++) f.fx.push({ kind: 'puff', x: s.tx! + (Math.random() - 0.5) * s.radius, y: s.ty! + (Math.random() - 0.5) * s.radius, t: 0, life: 0.5, color: ['#ff5555', '#55ff55', '#5599ff', '#ffdd33'][i % 4] });
+          s.life = 0;
+        } else {
+          s.x += (dx / d) * stepLen;
+          s.y += (dy / d) * stepLen;
+        }
+        continue;
+      }
+      if (!s.target || s.target.dead) s.target = this.rng.pick(f.aliveMobs().filter((m) => !m.puzzle)) ?? null;
       if (!s.target) { s.life = 0; continue; }
       const dx = s.target.x - s.x, dy = s.target.y - s.y;
       const d = Math.hypot(dx, dy);
@@ -389,7 +429,7 @@ export class Run {
       f.text(m.x, m.y - 0.8, 'IMMUNE', '#aaaaaa');
       return;
     }
-    const dmg = Math.max(1, Math.round(amount));
+    const dmg = Math.max(1, Math.round(amount * (1 - m.armor)));
     m.hp -= dmg;
     m.flash = 0.12;
     f.text(m.x, m.y - 0.8, crit ? `✧${dmg.toLocaleString()}✧` : dmg.toLocaleString(), color ?? (crit ? '#ffcc33' : '#ffffff'));
@@ -407,10 +447,10 @@ export class Run {
     this.controller?.onMobDeath?.(m);
   }
 
-  private explode(f: Field, x: number, y: number, r: number, dmg: number, color: string) {
+  private explode(f: Field, x: number, y: number, r: number, dmg: number, color: string, crit = false) {
     f.ring(x, y, r, color);
     for (const m of f.aliveMobs()) {
-      if (Math.hypot(m.x - x, m.y - y) <= r + m.scale * 0.4) this.hitMob(f, m, dmg, false, color);
+      if (Math.hypot(m.x - x, m.y - y) <= r + m.scale * 0.4) this.hitMob(f, m, dmg, crit, crit ? undefined : color);
     }
     for (const pr of f.projectiles) {
       if (pr.tappable && Math.hypot(pr.x - x, pr.y - y) <= r) pr.life = 0;
@@ -438,7 +478,17 @@ export class Run {
     const magic = baseHit(this.stats) * ab.power * (1 + this.stats.intelligence / 250);
     switch (ab.id) {
       case 'guided_bat':
-        for (let i = 0; i < 6; i++) f.shots.push({ x: f.player.x, y: f.player.y, target: null, damage: magic, radius: ab.radius, life: 3 });
+        for (let i = 0; i < 6; i++) f.shots.push({ kind: 'bat', x: f.player.x, y: f.player.y, target: null, damage: magic, radius: ab.radius, life: 3 });
+        break;
+      case 'showtime':
+      case 'throw':
+        f.shots.push({ kind: 'firework', x: f.player.x, y: f.player.y, target: null, tx: x, ty: y, damage: magic, radius: ab.radius, life: 3, color: ab.id === 'throw' ? '#55ffff' : '#ff55ff' });
+        break;
+      case 'conjuring':
+        this.conjureTime = 4;
+        this.conjureTick = 0;
+        this.conjureDamage = magic;
+        this.events.toast('Conjuring!', '#9fd8ff');
         break;
       case 'wither_scrolls': {
         const scrolls = this.stats.weapon?.scrolls ?? [];
@@ -467,7 +517,7 @@ export class Run {
     const near = (px: number, py: number, r: number) => Math.hypot(px - x, py - y) <= r;
 
     for (const pr of f.projectiles) {
-      if (pr.tappable && near(pr.x, pr.y, 0.75)) {
+      if (pr.tappable && near(pr.x, pr.y, 1.0)) {
         pr.life = 0;
         f.fx.push({ kind: 'puff', x: pr.x, y: pr.y, t: 0, life: 0.3, color: '#ff8888' });
         return;
@@ -486,18 +536,13 @@ export class Run {
       this.events.changed();
       return;
     }
-    let target: Mob | null = null;
-    let best = 0.85;
-    for (const m of f.aliveMobs()) {
-      if (m.puzzle) continue;
-      const d = Math.hypot(m.x - x, m.y - 0.3 * m.scale - y) - (m.boss ? 0.6 : 0);
-      if (d < best) { best = d; target = m; }
-    }
+    const target = this.mobAt(f, x, y, HIT_RADIUS);
     if (target) {
       if (this.attackCd > 0) return;
       this.attackCd = this.stats.attackCooldown;
-      const crit = this.rng.chance(this.stats.critChance / 100);
-      this.hitMob(f, target, baseHit(this.stats) * (crit ? 1 + this.stats.critDamage / 100 : 1), crit);
+      const { dmg, crit } = this.rollHit();
+      if (this.stats.weaponDef?.attack === 'firework') this.firework(f, target.x, target.y, dmg, crit);
+      else this.hitMob(f, target, dmg, crit);
       return;
     }
     if (room) {
@@ -530,17 +575,74 @@ export class Run {
         this.mana = this.stats.maxMana;
         this.events.toast('The Fairy healed you!', '#ff77cc');
         this.events.changed();
+        return;
       }
+    }
+    // Firework weapons can also be aimed at empty floor.
+    if (this.stats.weaponDef?.attack === 'firework' && this.attackCd <= 0 && f.aliveMobs().some((m) => !m.puzzle)) {
+      this.attackCd = this.stats.attackCooldown;
+      const { dmg, crit } = this.rollHit();
+      this.firework(f, x, y, dmg, crit);
+    }
+  }
+
+  private mobAt(f: Field, x: number, y: number, radius: number): Mob | null {
+    let target: Mob | null = null;
+    let best = radius;
+    for (const m of f.aliveMobs()) {
+      if (m.puzzle) continue;
+      const d = Math.hypot(m.x - x, m.y - 0.3 * m.scale - y) - (m.scale - 1) * 0.8;
+      if (d < best) { best = d; target = m; }
+    }
+    return target;
+  }
+
+  /** Damage of one weapon hit, including crits and the Adaptive Blade passive. */
+  private rollHit(): { dmg: number; crit: boolean } {
+    const crit = this.rng.chance(this.stats.critChance / 100);
+    let dmg = baseHit(this.stats) * (crit ? 1 + this.stats.critDamage / 100 : 1);
+    if (this.stats.weapon?.id === 'adaptive_blade') dmg *= 1 + 0.5 * (1 - this.hp / this.stats.maxHp);
+    return { dmg, crit };
+  }
+
+  private firework(f: Field, x: number, y: number, dmg: number, crit: boolean) {
+    f.shots.push({
+      kind: 'firework', x: f.player.x, y: f.player.y, target: null, tx: x, ty: y, damage: dmg, radius: 1.6, life: 3,
+      color: crit ? '#ffcc33' : this.rng.pick(['#ff5555', '#55ff55', '#5599ff', '#ff77ff']),
+    });
+  }
+
+  /** A finger dragged from (x0, y0) to (x1, y1). Swipe weapons slash every mob the line crosses. */
+  swipe(x0: number, y0: number, x1: number, y1: number) {
+    const f = this.field;
+    if (!f || this.ended || this.aiming || !this.stats.weaponDef?.swipe) return;
+    const vx = x1 - x0, vy = y1 - y0;
+    const len2 = vx * vx + vy * vy || 1;
+    for (const m of f.aliveMobs()) {
+      if (m.puzzle) continue;
+      const my = m.y - 0.3 * m.scale;
+      const t = Math.max(0, Math.min(1, ((m.x - x0) * vx + (my - y0) * vy) / len2));
+      const d = Math.hypot(x0 + vx * t - m.x, y0 + vy * t - my);
+      if (d > 0.75 * Math.max(1, m.scale)) continue;
+      const last = this.lastSwipeHit.get(m.id) ?? -1;
+      if (this.time - last < 0.3) continue;
+      this.lastSwipeHit.set(m.id, this.time);
+      const { dmg, crit } = this.rollHit();
+      this.hitMob(f, m, dmg * 0.8, crit, crit ? undefined : '#55ffff');
+      f.fx.push({ kind: 'puff', x: m.x, y: my, t: 0, life: 0.25, color: '#aaffff' });
     }
   }
 
   startBoss() {
     this.bossField = new Field(ARENA, 'arena');
     this.bossField.setPlayer({ x: ARENA[0].length / 2, y: ARENA.length - 1.2 });
-    this.bossController = new BonzoController(this, this.bossField);
+    const Ctl = { 1: BonzoController, 2: ScarfController, 3: ProfessorController }[this.floor.id] ?? BonzoController;
+    // Walking through the portal restores you for the fight.
+    this.hp = this.stats.maxHp;
+    this.mana = this.stats.maxMana;
     this.view = 'boss';
     this.aiming = false;
-    this.events.toast('Bonzo: Gratz for making it this far, but I\'m basically unbeatable.', '#ff5555');
+    this.bossController = new Ctl(this, this.bossField);
     this.events.changed();
   }
 
@@ -629,6 +731,11 @@ export function secretPos(s: Secret): Pt {
   if (s.kind !== 'bat') return { x: s.x, y: s.y };
   return { x: s.x + Math.cos(s.phase * 1.7) * 0.6, y: s.y + Math.sin(s.phase * 2.3) * 0.4 };
 }
+
+/** How far from a mob (in tiles) a tap still counts as hitting it. */
+const HIT_RADIUS = 1.25;
+/** Room mobs start idle and wake up when the player is this close. */
+const AGGRO_RANGE = 5.5;
 
 const ARENA = [
   '##..........##',
