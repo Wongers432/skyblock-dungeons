@@ -24,6 +24,9 @@ export interface Profile {
   completions: Record<string, number>;
   nextUid: number;
   admin: { enabled: boolean; godMode: boolean; unlockAll: boolean };
+  settings: { puzzleGlow: boolean };
+  /** RNG meter per floor: the chosen drop and how much meter has been filled. */
+  rng: Record<string, { target: string | null; xp: number }>;
 }
 
 const KEY = 'skyblock-dungeons-save-v1';
@@ -48,6 +51,8 @@ export function freshProfile(): Profile {
     completions: {},
     nextUid: 1,
     admin: { enabled: true, godMode: false, unlockAll: false },
+    settings: { puzzleGlow: false },
+    rng: {},
   };
   p.equipped.weapon = newItem(p, 'iron_sword').uid;
   p.equipped.helmet = newItem(p, 'iron_helmet').uid;
@@ -59,7 +64,7 @@ export function freshProfile(): Profile {
 
 function sanitize(p: Profile): Profile {
   const base = freshProfile();
-  const out = { ...base, ...p, essence: { ...base.essence, ...p.essence }, admin: { ...base.admin, ...p.admin } };
+  const out = { ...base, ...p, essence: { ...base.essence, ...p.essence }, admin: { ...base.admin, ...p.admin }, settings: { ...base.settings, ...p.settings }, rng: { ...p.rng } };
   out.items = (p.items ?? []).filter((i) => ITEMS[i.id]);
   for (const slot of Object.keys(out.equipped) as Slot[]) {
     if (!out.items.some((i) => i.uid === out.equipped[slot])) out.equipped[slot] = null;

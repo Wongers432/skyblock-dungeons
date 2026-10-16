@@ -9,7 +9,8 @@ const PALETTE: Record<string, string> = {
   W: '#d8d8d8', w: '#a8a8a8', Y: '#f5d142', O: '#e07b1c', H: '#4a2f1b', s: '#c99472', R: '#c62828',
   r: '#ff5b5b', U: '#5b2a7a', V: '#7a1f1f', A: '#d4af37', F: '#ff9ad5', E: '#ffffff', L: '#6b3f1d',
   l: '#8a5a2b', T: '#7a7a7a', t: '#5a5a5a', N: '#1c1c22', n: '#2e2e38', M: '#6e4ccf', m: '#a98bff',
-  Q: '#bfe9ff', q: '#7fc4e8', Z: '#8c6a3d', z: '#5e4426', I: '#e8e2cf', i: '#b8b09a', J: '#ffe37a', j: '#ff8a1c',
+  Q: '#bfe9ff', q: '#7fc4e8', c: '#c46a3a', e: '#8a4423', D: '#5ef2e6', p: '#ff8fc8', S: '#4f8fff', y: '#c99a1e',
+  k: '#2a2a2e', a: '#3a3a40', Z: '#8c6a3d', z: '#5e4426', I: '#e8e2cf', i: '#b8b09a', J: '#ffe37a', j: '#ff8a1c',
 };
 
 const SPRITES: Record<string, string[]> = {
@@ -112,6 +113,14 @@ const SPRITES: Record<string, string[]> = {
     '..XXXX..', '..KssK..', '..ssss..', '..sKKs..', 'XXXXXXXX', 'sXXNNXXs',
     'sXXNNXXs', '.XXXXXX.', '.NNNNNN.', '.NN..NN.', '.NN..NN.', '.KK..KK.',
   ],
+  terracotta: ['..cccc..', '..KccK..', '..cccc..', '..ceec..', 'cccccccc', 'ecccccce', 'ecccccce', '.cccccc.', '.eeeeee.', '.ee..ee.', '.ee..ee.', '.ee..ee.'],
+  golem: ['...wwwwww...', '...wKwwKw...', '...wwwwww...', '...wwrrww...', '.wwwwwwwwww.', 'wwwwwGwwwwww', 'wwwwwwwGwwww', 'ww.wwwwww.ww', 'ww.wwwwww.ww', '...www.www..', '...www.www..', '...ttt.ttt..'],
+  adventurer: ['..AAAA..', '..KssK..', '..ssss..', '..sHHs..', 'AAAAAAAA', 'sAyyyyAs', 'sAAAAAAs', '.AAAAAA.', '.BBBBBB.', '.BB..BB.', '.BB..BB.', '.KK..KK.'],
+  wither_guard: ['..kkkk..', '..KrrK..', '..kkkk..', '..kKKk..', '.TkkkkT.', 'T.kkkk.T', 'k..kk..k', '...kk...', '..k..k..', '..k..k..', '..k..k..', '..K..K..'],
+  wither_miner: ['..kkkk..', '..KrrK..', '..kkkk..', '..kKKk..', 'LTkkkk..', 'L.kkkk.k', 'L..kk..k', '...kk...', '..k..k..', '..k..k..', '..k..k..', '..K..K..'],
+  sadan: ['...A.AA.A...', '...AAAAAA...', '...ssssss...', '...sKssKs...', '...ssssss...', '...sHHHHs...', '.UUUUUUUUUU.', 'sUUUAUUAUUUs', 'sUUUUAAUUUUs', 'sUUUUUUUUUUs', '..UUUUUUUU..', '..UUUUUUUU..', '..UUU..UUU..', '..KKK..KKK..'],
+  giant: ['..ssssss..', '..ssssss..', '..sKssKs..', '..ssssss..', '..ssrrss..', 'XXXXXXXXXX', 'sXXXXXXXXs', 'sXXXXXXXXs', 'sXXXXXXXXs', '..XXXXXX..', '..BBBBBB..', '..BB..BB..', '..BB..BB..', '..PP..PP..'],
+  wither: ['kkk.kkkk.kkk', 'kXk.kXXk.kXk', 'kkk.kkkk.kkk', '.k..kkkk..k.', '.kXXkkkkXXk.', '....kaak....', '...kXkkXk...', '....kaak....', '...kakkak...', '....kaak....', '.....kk.....', '......k.....'],
   spiritbow: ['......Q.', '.....Qq.', '....Q.q.', '...Q..q.', '..Q...q.', '.Q...q..', 'Q...q...', 'qqqq....'],
   grave: ['..TTTT..', '.TTttTT.', '.TtTTtT.', '.TTttTT.', '.TTTTTT.', '.TTTTTT.', 'tttttttt', 'gggggggg'],
   // Room decorations.
@@ -128,24 +137,66 @@ const SPRITES: Record<string, string[]> = {
 
 const cache = new Map<string, HTMLCanvasElement>();
 
-export function sprite(name: string): HTMLCanvasElement {
-  const hit = cache.get(name);
+/** Sprites that never animate their legs. */
+const STATIC = new Set(['blaze', 'fairy', 'chest', 'essence', 'bat', 'witherkey', 'bloodkey', 'grave', 'wither', 'guardian', 'guardian_r', 'guardian_c', 'guardian_l', 'guardian_big', 'spiritbow']);
+
+function hexRgb(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/**
+ * Builds a sprite from its pixel rows, with a 1px dark outline and simple top-lit shading so the
+ * blocky art reads well on any floor. Frames 1 and 2 lift one leg for a walk cycle.
+ */
+export function sprite(name: string, frame = 0): HTMLCanvasElement {
+  const key = frame ? `${name}#${frame}` : name;
+  const hit = cache.get(key);
   if (hit) return hit;
-  // 'livid:#rrggbb' recolours the Livid template.
-  const tint = name.startsWith('livid:') ? name.slice(6) : null;
-  const rows = SPRITES[tint ? 'livid' : name] ?? SPRITES.zombie;
-  const c = document.createElement('canvas');
-  c.width = rows[0].length;
-  c.height = rows.length;
-  const g = c.getContext('2d')!;
-  rows.forEach((row, y) => {
-    row.split('').forEach((ch, x) => {
-      if (ch === '.') return;
-      g.fillStyle = ch === 'X' ? (tint ?? '#d8d8d8') : PALETTE[ch] ?? PALETTE[ch.toUpperCase()] ?? '#ff00ff';
-      g.fillRect(x, y, 1, 1);
+  // 'template:#rrggbb' recolours the X pixels of a template (Livids, Giants, Wither Lords).
+  const [base, tint] = name.includes(':') ? name.split(':') : [name, null];
+  let rows = SPRITES[base] ?? SPRITES.zombie;
+  const w = rows[0].length, hgt = rows.length;
+  if (frame && !STATIC.has(base)) {
+    // Lift the left (frame 1) or right (frame 2) leg by one pixel.
+    const legs = Math.max(2, Math.floor(hgt / 3));
+    rows = rows.map((row, y) => {
+      if (y < hgt - legs) return row;
+      const below = rows[y + 1] ?? '.'.repeat(w);
+      return row.split('').map((ch, x) => ((frame === 1 ? x < w / 2 : x >= w / 2) ? below[x] : ch)).join('');
     });
-  });
-  cache.set(name, c);
+  }
+  const grid: ([number, number, number] | null)[][] = rows.map((row) => row.split('').map((ch) => {
+    if (ch === '.') return null;
+    return hexRgb(ch === 'X' ? (tint ?? '#d8d8d8') : PALETTE[ch] ?? PALETTE[ch.toUpperCase()] ?? '#ff00ff');
+  }));
+  const at = (x: number, y: number) => (y >= 0 && y < hgt && x >= 0 && x < w ? grid[y][x] : null);
+  const c = document.createElement('canvas');
+  c.width = w + 2;
+  c.height = hgt + 2;
+  const g = c.getContext('2d')!;
+  const img = g.createImageData(c.width, c.height);
+  for (let y = -1; y <= hgt; y++) for (let x = -1; x <= w; x++) {
+    const i = ((y + 1) * c.width + (x + 1)) * 4;
+    const px = at(x, y);
+    if (!px) {
+      if (at(x - 1, y) || at(x + 1, y) || at(x, y - 1) || at(x, y + 1)) {
+        img.data[i + 3] = 150; // outline
+      }
+      continue;
+    }
+    let k = 1;
+    if (!at(x, y - 1)) k += 0.22;
+    if (!at(x - 1, y)) k += 0.08;
+    if (!at(x, y + 1)) k -= 0.25;
+    if (!at(x + 1, y)) k -= 0.1;
+    img.data[i] = Math.min(255, px[0] * k);
+    img.data[i + 1] = Math.min(255, px[1] * k);
+    img.data[i + 2] = Math.min(255, px[2] * k);
+    img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  cache.set(key, c);
   return c;
 }
 
@@ -200,11 +251,11 @@ export function texture(kind: TileTex, variant = 0): HTMLCanvasElement {
   return c;
 }
 
-function tinted(name: string): HTMLCanvasElement {
-  const key = 'tint:' + name;
+function tinted(name: string, frame: number): HTMLCanvasElement {
+  const key = `tint:${name}#${frame}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  const base = sprite(name);
+  const base = sprite(name, frame);
   const c = document.createElement('canvas');
   c.width = base.width;
   c.height = base.height;
@@ -217,9 +268,22 @@ function tinted(name: string): HTMLCanvasElement {
   return c;
 }
 
-/** Draws a sprite with its feet at (x, y), `h` pixels tall. `flash` tints it red for a hit. */
-export function drawSprite(ctx: CanvasRenderingContext2D, name: string, x: number, y: number, h: number, flash = false) {
-  const s = flash ? tinted(name) : sprite(name);
-  const w = (h * s.width) / s.height;
-  ctx.drawImage(s, Math.round(x - w / 2), Math.round(y - h), Math.round(w), Math.round(h));
+/**
+ * Draws a sprite with its feet at (x, y), `h` pixels tall (not counting the outline).
+ * `flash` tints it red for a hit, `flip` mirrors it, `frame` picks the walk frame.
+ */
+export function drawSprite(ctx: CanvasRenderingContext2D, name: string, x: number, y: number, h: number, flash = false, flip = false, frame = 0) {
+  const s = flash ? tinted(name, frame) : sprite(name, frame);
+  const px = h / (s.height - 2);
+  const w = s.width * px;
+  const dx = Math.round(x - w / 2), dy = Math.round(y - h - px);
+  if (flip) {
+    ctx.save();
+    ctx.translate(dx + Math.round(w), dy);
+    ctx.scale(-1, 1);
+    ctx.drawImage(s, 0, 0, Math.round(w), Math.round(s.height * px));
+    ctx.restore();
+  } else {
+    ctx.drawImage(s, dx, dy, Math.round(w), Math.round(s.height * px));
+  }
 }

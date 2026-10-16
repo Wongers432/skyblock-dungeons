@@ -1,13 +1,14 @@
 import { FLOORS } from '../data/floors';
-import { ITEMS, RARITY_COLOR, SCROLLS, SLOTS, type ItemStats } from '../data/items';
+import { HYPERION_RECIPE, ITEMS, RARITY_COLOR, SCROLLS, SLOTS, isGear, type ItemStats } from '../data/items';
 import {
   MAX_ITEM_LEVEL, baseHit, cataLevel, computeStats, findItem, itemAbility, itemStats, salvageValue, upgradeCost, xpForLevel,
 } from '../game/progression';
 import { exportProfile, freshProfile, importProfile, newItem, saveProfile, type ItemInstance, type Profile } from '../game/save';
 import { h } from './dom';
+import { rngRequired } from '../game/score';
 import { fmtTime } from './dom';
 
-type Tab = 'dungeons' | 'gear' | 'admin' | 'save';
+type Tab = 'dungeons' | 'rng' | 'gear' | 'admin' | 'save';
 
 export interface HubActions {
   play(floorId: number): void;
@@ -46,7 +47,7 @@ export class Hub {
     this.el?.remove();
     const p = this.profile();
     const cata = cataLevel(p.cataXp);
-    const tabs: [Tab, string][] = [['dungeons', 'Dungeons'], ['gear', 'Gear'], ['save', 'Save']];
+    const tabs: [Tab, string][] = [['dungeons', 'Dungeons'], ['rng', 'RNG Meter'], ['gear', 'Gear'], ['save', 'Settings']];
     if (p.admin.enabled) tabs.push(['admin', 'Admin']);
     this.el = h('div', { class: 'hub' },
       h('h1', {}, 'SkyBlock Dungeons'),
@@ -66,6 +67,7 @@ export class Hub {
       h('div', { class: 'tabs' }, tabs.map(([id, name]) =>
         h('button', { class: this.tab === id ? 'active' : '', onclick: () => { this.tab = id; this.scrollTop = 0; this.render(); } }, name))),
       this.tab === 'dungeons' ? this.dungeons(p, cata.level)
+        : this.tab === 'rng' ? this.rngMeter(p)
         : this.tab === 'gear' ? this.gear(p)
         : this.tab === 'admin' ? this.admin(p)
         : this.save(p),
@@ -93,6 +95,55 @@ export class Hub {
     }));
   }
 
+  private rngMeter(p: Profile) {
+    const pct = (x: number) => (x >= 0.01 ? `${+(x * 100).toFixed(1)}%` : `${+(x * 100).toFixed(2)}%`);
+    return h('div', {},
+      h('div', { class: 'card' },
+        h('h3', {}, 'RNG Meter'),
+        h('div', { class: 'muted' }, 'Pick one drop per floor. Every win adds its score to that floor\'s meter, and the fuller it is the better your odds (up to 3x). When it fills, the drop is guaranteed. If the item drops on its own, the meter resets.'),
+      ),
+      FLOORS.filter((f) => f.drops.length).map((f) => {
+        const meter = p.rng[String(f.id)] ?? { target: null, xp: 0 };
+        const target = f.drops.find((d) => d.item === meter.target);
+        const owned = (id: string) => p.items.filter((i) => i.id === id).length;
+        return h('div', { class: 'card' },
+          h('div', { class: 'row spread' },
+            h('h3', {}, `${f.name} · ${f.boss}`),
+            !f.implemented ? h('span', { class: 'pill' }, 'Coming soon') : null,
+          ),
+          target
+            ? h('div', { style: { margin: '6px 0 10px' } },
+              h('div', { class: 'row spread' },
+                h('b', { style: { color: RARITY_COLOR[ITEMS[target.item].rarity] } }, ITEMS[target.item].name),
+                h('span', { class: 'muted' }, `${meter.xp.toLocaleString()} / ${rngRequired(target).toLocaleString()}`),
+              ),
+              h('div', { class: 'bar rng', style: { marginTop: '4px' } }, h('div', { style: { width: `${Math.min(100, (100 * meter.xp) / rngRequired(target))}%` } })),
+              h('div', { class: 'muted', style: { marginTop: '4px' } },
+                `Guaranteed in about ${Math.max(1, Math.ceil((rngRequired(target) - meter.xp) / 300))} more S+ runs. Drop chance now ${pct(Math.min(1, target.chance.bedrock * (1 + 2 * meter.xp / rngRequired(target))))} at S+.`),
+            )
+            : h('div', { class: 'muted', style: { margin: '6px 0 10px' } }, 'No target selected. Tap a drop below.'),
+          h('div', { class: 'rng-list' }, f.drops.map((d) => {
+            const it = ITEMS[d.item];
+            const selected = meter.target === d.item;
+            return h('button', {
+              class: 'rng-item' + (selected ? ' selected' : ''),
+              onclick: () => {
+                if (selected) return;
+                if (meter.xp > 0 && !confirm(`Switch target to ${it.name}? Your meter progress (${meter.xp}) carries over.`)) return;
+                p.rng[String(f.id)] = { target: d.item, xp: meter.xp };
+                this.commit();
+              },
+            },
+              h('span', { style: { color: RARITY_COLOR[it.rarity], fontWeight: 'bold' } }, it.name),
+              h('span', { class: 'muted' }, `S+ ${pct(d.chance.bedrock)} · S ${pct(d.chance.obsidian)} · A ${pct(d.chance.emerald)}`),
+              h('span', { class: 'muted' }, `Meter: ${rngRequired(d).toLocaleString()} score${owned(d.item) ? ` · owned ×${owned(d.item)}` : ''}`),
+            );
+          })),
+        );
+      }),
+    );
+  }
+
   private gear(p: Profile) {
     const s = computeStats(p);
     const equippedIds = new Set(Object.values(p.equipped));
@@ -116,14 +167,52 @@ export class Hub {
           h('span', { class: 'muted' }, slot[0].toUpperCase() + slot.slice(1)),
           inst ? this.itemLabel(inst) : h('span', { class: 'muted' }, 'empty'));
       }));
-    const sorted = p.items.slice().sort((a, b) => Number(equippedIds.has(b.uid)) - Number(equippedIds.has(a.uid)) || ITEMS[a.id].kind.localeCompare(ITEMS[b.id].kind));
+    // Scrolls and materials stack into one card per kind.
+    const seen = new Set<string>();
+    const shown = p.items.filter((i) => {
+      if (isGear(ITEMS[i.id])) return true;
+      if (seen.has(i.id)) return false;
+      seen.add(i.id);
+      return true;
+    });
+    const sorted = shown.sort((a, b) => Number(equippedIds.has(b.uid)) - Number(equippedIds.has(a.uid)) || ITEMS[a.id].kind.localeCompare(ITEMS[b.id].kind));
     const inv = h('div', {}, h('h3', { style: { margin: '12px 0 6px' } }, `Items (${p.items.length})`), sorted.map((inst) => this.itemCard(p, inst, equippedIds.has(inst.uid))));
-    return h('div', {}, statsCard, slots, inv);
+    return h('div', {}, statsCard, slots, this.crafting(p), inv);
+  }
+
+  private crafting(p: Profile) {
+    const r = HYPERION_RECIPE;
+    const count = (id: string) => p.items.filter((i) => i.id === id).length;
+    const handle = count(r.handle), cats = count(r.catalyst);
+    const ok = handle >= 1 && cats >= r.catalysts && p.essence.wither >= r.essence;
+    const line = (have: number, need: number, name: string) =>
+      h('div', { style: { color: have >= need ? '#55ff55' : '#ff7777' } }, `${have >= need ? '✔' : '✖'} ${name} ${Math.min(have, need).toLocaleString()}/${need.toLocaleString()}`);
+    return h('div', { class: 'card' },
+      h('h3', {}, 'Crafting'),
+      h('div', { class: 'row spread' }, h('b', { style: { color: RARITY_COLOR.LEGENDARY } }, 'Hyperion'), h('span', { class: 'muted' }, 'Floor VII')),
+      line(handle, 1, "Necron's Handle"),
+      line(cats, r.catalysts, 'Wither Catalysts'),
+      line(p.essence.wither, r.essence, 'Wither Essence'),
+      h('div', { class: 'muted', style: { marginTop: '4px' } }, 'Then apply the Implosion, Shadow Warp and Wither Shield scrolls to unlock Wither Impact.'),
+      h('button', { class: 'small primary', style: { marginTop: '6px' }, disabled: !ok, onclick: () => {
+        let catLeft = r.catalysts;
+        let handleLeft = 1;
+        p.items = p.items.filter((i) => {
+          if (i.id === r.handle && handleLeft > 0) { handleLeft--; return false; }
+          if (i.id === r.catalyst && catLeft > 0) { catLeft--; return false; }
+          return true;
+        });
+        p.essence.wither -= r.essence;
+        newItem(p, 'hyperion');
+        alert('You crafted the Hyperion!');
+        this.commit();
+      } }, 'Craft Hyperion'),
+    );
   }
 
   private itemLabel(inst: ItemInstance) {
     const def = ITEMS[inst.id];
-    return h('span', { class: 'item-name', style: { color: RARITY_COLOR[def.rarity] } }, `${def.name}${def.kind !== 'scroll' ? ` [Lv${inst.level}]` : ''}`);
+    return h('span', { class: 'item-name', style: { color: RARITY_COLOR[def.rarity] } }, `${def.name}${isGear(def) ? ` [Lv${inst.level}]` : ''}`);
   }
 
   private itemCard(p: Profile, inst: ItemInstance, equipped: boolean) {
@@ -155,7 +244,7 @@ export class Hub {
         }
       }
       const buttons = h('div', { class: 'row', style: { marginTop: '8px' } });
-      if (def.kind !== 'scroll') {
+      if (isGear(def)) {
         buttons.append(h('button', { class: 'small', disabled: equipped, onclick: () => { p.equipped[def.kind as keyof Profile['equipped']] = inst.uid; this.commit(); } }, equipped ? 'Equipped' : 'Equip'));
         buttons.append(h('button', {
           class: 'small primary',
@@ -176,7 +265,7 @@ export class Hub {
       body.push(buttons);
     }
     return h('div', { class: 'card', onclick: () => { this.openItem = open ? null : inst.uid; this.render(); } },
-      h('div', { class: 'row spread' }, this.itemLabel(inst), h('span', { class: 'muted' }, equipped ? 'equipped' : def.kind)),
+      h('div', { class: 'row spread' }, this.itemLabel(inst), h('span', { class: 'muted' }, equipped ? 'equipped' : isGear(def) ? def.kind : `${def.kind} ×${p.items.filter((i) => i.id === inst.id).length}`)),
       ...body);
   }
 
@@ -232,6 +321,10 @@ export class Hub {
       ),
       h('div', { class: 'card' },
         h('h3', {}, 'Settings'),
+        h('div', { class: 'row', style: { marginBottom: '8px' } },
+          h('button', { class: 'small' + (p.settings.puzzleGlow ? ' primary' : ''), onclick: () => { p.settings.puzzleGlow = !p.settings.puzzleGlow; this.commit(); } }, `Puzzle glow: ${p.settings.puzzleGlow ? 'ON' : 'off'}`),
+          h('span', { class: 'muted' }, 'Highlights the right answer in puzzles (Tic Tac Toe, Three Weirdos, Higher or Lower and more). You can also toggle it from the pause menu.'),
+        ),
         h('div', { class: 'row' },
           h('button', { class: 'small', onclick: () => { p.admin.enabled = !p.admin.enabled; if (!p.admin.enabled && this.tab === 'admin') this.tab = 'dungeons'; this.commit(); } }, `Admin tab: ${p.admin.enabled ? 'ON' : 'off'}`),
           h('button', { class: 'small danger', onclick: () => {

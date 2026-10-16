@@ -1,4 +1,4 @@
-import { CHEST_ESSENCE, type ChestTier, type FloorDef } from '../data/floors';
+import { CHEST_ESSENCE, type ChestTier, type FloorDef, type FloorDrop } from '../data/floors';
 import { Rng } from './rng';
 
 export interface ScoreInput {
@@ -56,11 +56,55 @@ export interface Loot {
   items: string[];
 }
 
-export function rollLoot(floor: FloorDef, grade: string, rng: Rng, luck = 1): Loot {
+export function rollLoot(floor: FloorDef, grade: string, rng: Rng, luck = 1, meter?: { target: string | null; xp: number }): Loot {
   const chest = chestForGrade(grade);
   const essence = Math.round(floor.essence.base * CHEST_ESSENCE[chest] * (0.85 + rng.next() * 0.3));
-  const items = floor.drops.filter((d) => rng.chance(d.chance[chest] * luck)).map((d) => d.item);
+  const items = floor.drops.filter((d) => {
+    // The RNG meter's target gets better odds as the meter fills (up to 3x when full).
+    const boost = meter?.target === d.item ? 1 + 2 * Math.min(1, meter.xp / rngRequired(d)) : 1;
+    return rng.chance(Math.min(1, d.chance[chest] * luck * boost));
+  }).map((d) => d.item);
   return { chest, essence, items };
+}
+
+// ---------- RNG meter ----------
+
+/** Meter score needed to guarantee a drop: rarer drops need more. About 60% of the S+ runs you'd expect to need. */
+export function rngRequired(d: FloorDrop): number {
+  const runs = 1 / d.chance.bedrock;
+  return Math.round((runs * 0.6 * 300) / 100) * 100;
+}
+
+export interface RngResult {
+  target: string | null;
+  gained: number;
+  xp: number;
+  required: number;
+  /** Set when the meter filled up and paid out its drop. */
+  paidOut?: string;
+}
+
+/**
+ * Adds a finished run's score to the floor's RNG meter. If the meter is full, the target drops for sure.
+ * If the target dropped anyway, the meter resets.
+ */
+export function applyRngMeter(floor: FloorDef, meter: { target: string | null; xp: number }, score: number, loot: Loot): RngResult {
+  const drop = floor.drops.find((d) => d.item === meter.target);
+  if (!drop) return { target: null, gained: 0, xp: 0, required: 0 };
+  const required = rngRequired(drop);
+  if (loot.items.includes(drop.item)) {
+    meter.xp = 0;
+    return { target: drop.item, gained: 0, xp: 0, required };
+  }
+  meter.xp += score;
+  const gained = score;
+  if (meter.xp >= required) {
+    meter.xp -= required;
+    meter.xp = Math.min(meter.xp, required - 1);
+    loot.items.push(drop.item);
+    return { target: drop.item, gained, xp: meter.xp, required, paidOut: drop.item };
+  }
+  return { target: drop.item, gained, xp: meter.xp, required };
 }
 
 /** Catacombs XP for a finished run: more for better scores. */

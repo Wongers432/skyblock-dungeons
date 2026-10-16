@@ -45,6 +45,21 @@ export function aiMove(b: Mark[], rng: Rng): number {
   return rng.pick(moves);
 }
 
+/** The best squares for the player (X) to take, used by the puzzle glow helper. */
+export function bestPlayerMoves(b: Mark[]): number[] {
+  let bestScore = 2;
+  let moves: number[] = [];
+  for (let i = 0; i < 9; i++) {
+    if (b[i]) continue;
+    b[i] = 'X';
+    const v = minimax(b, 'O');
+    b[i] = null;
+    if (v < bestScore) { bestScore = v; moves = [i]; }
+    else if (v === bestScore) moves.push(i);
+  }
+  return moves;
+}
+
 // ---------- Three Weirdos ----------
 export const WEIRDO_NAMES = [
   'Baxter', 'Benjamin', 'Carver', 'Elmo', 'Hope', 'Hugo', 'Lino', 'Luverne', 'Madelyn',

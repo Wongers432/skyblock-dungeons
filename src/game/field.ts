@@ -40,7 +40,7 @@ export interface Projectile {
   vx: number;
   vy: number;
   damage: number;
-  kind: 'arrow' | 'balloon' | 'fireball' | 'skull';
+  kind: 'arrow' | 'balloon' | 'fireball' | 'skull' | 'boulder' | 'lightning';
   tappable: boolean;
   life: number;
 }
@@ -60,7 +60,7 @@ export interface Shot {
 }
 
 export interface Fx {
-  kind: 'text' | 'ring' | 'puff';
+  kind: 'text' | 'ring' | 'puff' | 'corpse' | 'slash';
   x: number;
   y: number;
   t: number;
@@ -68,6 +68,9 @@ export interface Fx {
   text?: string;
   color: string;
   r?: number;
+  /** corpse: the sprite name; slash: the swing angle. */
+  sprite?: string;
+  angle?: number;
 }
 
 let nextMobId = 1;

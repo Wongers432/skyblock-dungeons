@@ -124,12 +124,30 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
     }
     if (m.boss) lights.push({ x: m.x, y: m.y, r: 2 });
     ctx.globalAlpha = m.invuln && m.invuln !== Infinity ? 0.5 + 0.3 * Math.sin(time * 20) : 1;
-    drawSprite(ctx, m.sprite, X(m.x), feet + bob, h, m.flash > 0);
+    const frame = moving ? [1, 0, 2, 0][Math.floor(time * 7 + m.id) & 3] : 0;
+    // Bosses breathe: a slow squash and stretch.
+    const breathe = m.boss ? 1 + Math.sin(time * 2 + m.id) * 0.025 : 1;
+    // Hit knockback: flash doubles as a tiny recoil away from the player.
+    const recoil = m.flash > 0 ? (m.x < f.player.x ? -1 : 1) * ts * 0.08 : 0;
+    drawSprite(ctx, m.sprite, X(m.x) + recoil, feet + bob, h * breathe, m.flash > 0, m.x > f.player.x, frame);
     ctx.globalAlpha = 1;
     const top = feet - h - 4;
     if (m.puzzle && m.blazeValue !== undefined) {
       lights.push({ x: m.x, y: m.y, r: 1.4 });
+      if (run.profile.settings.puzzleGlow && (room?.controller as { nextValue?: number } | undefined)?.nextValue === m.blazeValue) {
+        overlays.push(() => {
+          const pulse = 0.6 + 0.4 * Math.sin(time * 6);
+          ctx.strokeStyle = `rgba(255,211,74,${pulse})`;
+          ctx.lineWidth = Math.max(2, ts * 0.12);
+          ctx.beginPath();
+          ctx.arc(X(m.x), Y(m.y) - h * 0.15, ts * 0.75, 0, Math.PI * 2);
+          ctx.stroke();
+          label(ctx, 'NEXT', X(m.x), top - Math.max(10, ts * 0.38), Math.max(9, ts * 0.3), '#ffd34a');
+        });
+      }
       overlays.push(() => label(ctx, `${m.blazeValue}❤`, X(m.x), top, Math.max(10, ts * 0.38), '#ffcc33'));
+    } else if (m.boss && !m.sprite.startsWith('livid')) {
+      overlays.push(() => label(ctx, m.name, X(m.x), top - 2, Math.max(10, ts * 0.36), '#ffcc55'));
     } else if (!m.boss && !m.puzzle) {
       overlays.push(() => {
         const bw = ts * 0.9;
@@ -147,7 +165,7 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
   // Player.
   const pFeet = Y(f.player.y) + ts * 0.55;
   shadow(ctx, X(f.player.x), pFeet, ts * 0.4);
-  drawSprite(ctx, 'player', X(f.player.x), pFeet + Math.sin(time * 2.5) * ts * 0.02, ts * 1.3);
+  drawPlayer(ctx, run, X(f.player.x), pFeet + Math.sin(time * 2.5) * ts * 0.02, ts);
   if (run.shield > 0) {
     ctx.strokeStyle = 'rgba(255,220,80,0.8)';
     ctx.lineWidth = 2;
@@ -198,6 +216,16 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
       ctx.beginPath();
       ctx.arc(X(p.x), Y(p.y), ts * 0.15, 0, Math.PI * 2);
       ctx.fill();
+    } else if (p.kind === 'boulder') {
+      const r = ts * 0.38;
+      ctx.fillStyle = '#6e655a';
+      ctx.beginPath();
+      ctx.arc(X(p.x), Y(p.y), r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#958a7a';
+      ctx.fillRect(X(p.x) - r * 0.5, Y(p.y) - r * 0.6, r * 0.6, r * 0.4);
+      ctx.fillStyle = '#4a433b';
+      ctx.fillRect(X(p.x), Y(p.y) + r * 0.1, r * 0.5, r * 0.35);
     } else if (p.kind === 'skull') {
       const sz = ts * 0.5;
       ctx.fillStyle = '#2b2b2b';
@@ -256,6 +284,23 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
       ctx.beginPath();
       ctx.arc(X(fx.x), Y(fx.y), Math.max(1, ts * fx.r! * (0.3 + 0.7 * k)), 0, Math.PI * 2);
       ctx.stroke();
+    } else if (fx.kind === 'corpse') {
+      // The mob tips over and fades into the floor.
+      const h = ts * 1.3 * (fx.r ?? 1);
+      ctx.save();
+      ctx.globalAlpha = 1 - k;
+      ctx.translate(X(fx.x), Y(fx.y) + h * 0.4);
+      ctx.rotate((fx.angle ?? 1) * Math.min(1, k * 2.2) * (Math.PI / 2));
+      drawSprite(ctx, fx.sprite!, 0, 0, h, k < 0.15);
+      ctx.restore();
+    } else if (fx.kind === 'slash') {
+      ctx.globalAlpha = 1 - k;
+      ctx.strokeStyle = fx.color;
+      ctx.lineWidth = Math.max(2, ts * 0.12 * (1 - k));
+      ctx.beginPath();
+      const a = fx.angle ?? 0, rr = ts * (fx.r ?? 0.6);
+      ctx.arc(X(fx.x), Y(fx.y), rr, a - 1.1 + k * 1.2, a + 0.3 + k * 1.2);
+      ctx.stroke();
     } else {
       ctx.globalAlpha = 1 - k;
       ctx.fillStyle = fx.color;
@@ -270,6 +315,35 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
   drawScreenFx(ctx, run, f, X, Y, ts, area);
   if (run.view === 'boss') drawBossBar(ctx, run, area);
   return xf;
+}
+
+/** The player: faces the last thing hit and swings a sword coloured by the weapon's rarity. */
+function drawPlayer(ctx: CanvasRenderingContext2D, run: Run, x: number, feet: number, ts: number) {
+  const h = ts * 1.3;
+  drawSprite(ctx, 'player', x, feet, h, run.hurt > 0.2, run.faceLeft);
+  const wd = run.stats.weaponDef;
+  if (!wd) return;
+  const dir = run.faceLeft ? -1 : 1;
+  const k = run.swing > 0 ? 1 - run.swing / 0.18 : 0;
+  // Rest angle points up and out; a swing sweeps it forward.
+  const ang = dir * (-0.6 + k * 2.2);
+  const hx = x + dir * h * 0.32, hy = feet - h * 0.45;
+  const len = ts * (wd.id === 'giants_sword' ? 1.1 : 0.7);
+  ctx.save();
+  ctx.translate(hx, hy);
+  ctx.rotate(ang);
+  const blade = { COMMON: '#d8d8d8', UNCOMMON: '#7dff7d', RARE: '#7d9dff', EPIC: '#d07dff', LEGENDARY: '#ffcc55', MYTHIC: '#ff88ff' }[wd.rarity] ?? '#d8d8d8';
+  const w = Math.max(2, ts * 0.11);
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(-w / 2 - 1, -len - 1, w + 2, len + 2);
+  ctx.fillStyle = blade;
+  ctx.fillRect(-w / 2, -len, w, len * 0.78);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillRect(-w / 2, -len, Math.max(1, w * 0.35), len * 0.78);
+  ctx.fillStyle = '#6b3f1d';
+  ctx.fillRect(-w * 1.4, -len * 0.24, w * 2.8, w * 0.7);
+  ctx.fillRect(-w / 2, -len * 0.22, w, len * 0.22);
+  ctx.restore();
 }
 
 function shadow(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) {

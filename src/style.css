@@ -24,6 +24,9 @@ html, body {
 canvas#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
 #ui { position: fixed; inset: 0; pointer-events: none; }
 #ui > * { pointer-events: auto; }
+/* HUD strips, toasts and hints sit over the playfield; taps must fall through to the canvas. */
+#ui > .hud-top, #ui > .hud-bottom, #ui > .toasts, #ui > .hint { pointer-events: none; }
+#ui > .hud-top button, #ui > .hud-bottom button { pointer-events: auto; }
 button {
   font: inherit; color: var(--text); background: var(--panel2); border: 2px solid var(--border);
   border-radius: 6px; padding: 8px 12px; cursor: pointer; touch-action: manipulation;
@@ -117,3 +120,22 @@ textarea { width: 100%; min-height: 80px; background: #000; color: var(--text); 
 table.score { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.score td { padding: 2px 0; }
 table.score td:last-child { text-align: right; }
+
+/* Puzzle glow helper. */
+.glow { box-shadow: 0 0 0 2px #ffd34a, 0 0 14px 4px rgba(255,211,74,0.7); animation: glowpulse 1s ease-in-out infinite alternate; }
+.weirdo.glow { border-radius: 6px; padding: 2px 4px; }
+@keyframes glowpulse { from { box-shadow: 0 0 0 2px #ffd34a, 0 0 6px 2px rgba(255,211,74,0.4); } to { box-shadow: 0 0 0 2px #ffd34a, 0 0 16px 6px rgba(255,211,74,0.8); } }
+
+/* RNG meter. */
+.bar.rng > div { background: linear-gradient(90deg, #a24bd6, #ff77ff); }
+.rng-list { display: flex; flex-direction: column; gap: 6px; }
+.rng-item { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; background: #1a1920; }
+.rng-item.selected { border-color: #ff77ff; box-shadow: 0 0 10px rgba(255,119,255,0.35); }
+.rng-mini { margin-top: 8px; }
+
+/* Goldor's terminals. */
+.terminal { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px auto; width: 210px; }
+.terminal .pane { height: 60px; font-size: 22px; font-weight: bold; padding: 0; background: #2a2a30; }
+.terminal .pane.green { background: #2f8a3a; border-color: #55ff55; }
+.terminal .pane.red { background: #8a2f2f; border-color: #ff5555; }
+.toasts.boss { top: calc(80px + var(--safe-top)); }

@@ -10,7 +10,7 @@ export interface BossBar {
   color: string;
 }
 
-type ToScreen = (n: number) => number;
+export type ToScreen = (n: number) => number;
 
 /** Room-specific behaviour layered on top of normal combat. */
 export interface Controller {
@@ -62,7 +62,7 @@ export class BloodController implements Controller {
   }
 
   onTap(x: number, y: number): boolean {
-    if (this.portal && Math.hypot(x - 4, y - 4) < 1.3) {
+    if (this.portal && Math.hypot(x - 4, y - 4) < 1.7) {
       this.run.startBoss();
       return true;
     }
@@ -74,6 +74,11 @@ export class BlazeController implements Controller {
   private order: number[];
   private next = 0;
   private failed = false;
+
+  /** The blaze value that should be shot next (for the puzzle glow helper). */
+  get nextValue(): number | undefined {
+    return this.failed ? undefined : this.order[this.next];
+  }
 
   constructor(private run: Run, private room: RoomRT, readonly puzzle: BlazePuzzle) {
     const f = room.field;
@@ -102,7 +107,7 @@ export class BlazeController implements Controller {
     if (this.failed || this.room.cleared) return false;
     const f = this.room.field;
     let m: Mob | null = null;
-    let best = 1.15;
+    let best = 1.4;
     for (const b of f.aliveMobs()) {
       const d = Math.hypot(b.x - x, b.y - 0.3 - y);
       if (d < best) { best = d; m = b; }
@@ -202,9 +207,9 @@ export class BonzoController implements Controller {
 }
 
 /** A laser that charges (warning line) and then fires at the player. */
-interface Laser { from: Mob; charge: number; fire: number; damage: number }
+export interface Laser { from: Mob; charge: number; fire: number; damage: number }
 
-function updateLaser(run: Run, field: Field, l: Laser | null, dt: number): Laser | null {
+export function updateLaser(run: Run, field: Field, l: Laser | null, dt: number): Laser | null {
   if (!l) return null;
   if (l.from.dead) return null;
   if (l.charge > 0) {
@@ -220,7 +225,7 @@ function updateLaser(run: Run, field: Field, l: Laser | null, dt: number): Laser
   return l.fire > 0 ? l : null;
 }
 
-function drawLaser(ctx: CanvasRenderingContext2D, field: Field, l: Laser | null, X: ToScreen, Y: ToScreen, ts: number) {
+export function drawLaser(ctx: CanvasRenderingContext2D, field: Field, l: Laser | null, X: ToScreen, Y: ToScreen, ts: number) {
   if (!l) return;
   const fy = l.from.y - 0.3 * l.from.scale;
   ctx.beginPath();
@@ -236,7 +241,7 @@ function drawLaser(ctx: CanvasRenderingContext2D, field: Field, l: Laser | null,
   ctx.stroke();
 }
 
-function shield(ctx: CanvasRenderingContext2D, m: Mob, X: ToScreen, Y: ToScreen, ts: number, time: number, color: string) {
+export function shield(ctx: CanvasRenderingContext2D, m: Mob, X: ToScreen, Y: ToScreen, ts: number, time: number, color: string) {
   ctx.strokeStyle = color;
   ctx.globalAlpha = 0.5 + 0.2 * Math.sin(time * 3);
   ctx.lineWidth = 3;

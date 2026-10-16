@@ -38,7 +38,7 @@ export interface AbilityDef {
 export interface ItemDef {
   id: string;
   name: string;
-  kind: Slot | 'scroll';
+  kind: Slot | 'scroll' | 'material';
   rarity: Rarity;
   stats: ItemStats;
   /** Seconds between taps for weapons. */
@@ -173,6 +173,46 @@ export const ITEMS: Record<string, ItemDef> = {
       mana: 100, cooldown: 6, targeting: 'point', power: 7, radius: 5,
     },
   },
+  necro_helmet: {
+    id: 'necro_helmet', name: 'Necromancer Lord Helmet', kind: 'helmet', rarity: 'LEGENDARY', floor: 6,
+    stats: { health: 100, defense: 60, intelligence: 100, strength: 15 }, essence: 'wither', sprite: 'helmet_necro',
+  },
+  necro_chestplate: {
+    id: 'necro_chestplate', name: 'Necromancer Lord Chestplate', kind: 'chestplate', rarity: 'LEGENDARY', floor: 6,
+    stats: { health: 190, defense: 110, intelligence: 120, strength: 15 }, essence: 'wither', sprite: 'chest_necro',
+  },
+  necro_leggings: {
+    id: 'necro_leggings', name: 'Necromancer Lord Leggings', kind: 'leggings', rarity: 'LEGENDARY', floor: 6,
+    stats: { health: 160, defense: 95, intelligence: 100, strength: 15 }, essence: 'wither', sprite: 'legs_necro',
+  },
+  necro_boots: {
+    id: 'necro_boots', name: 'Necromancer Lord Boots', kind: 'boots', rarity: 'LEGENDARY', floor: 6,
+    stats: { health: 90, defense: 55, intelligence: 80, strength: 15 }, essence: 'wither', sprite: 'boots_necro',
+  },
+  necron_helmet: {
+    id: 'necron_helmet', name: "Necron's Helmet", kind: 'helmet', rarity: 'LEGENDARY', floor: 7,
+    stats: { health: 140, defense: 80, strength: 40, critDamage: 30 }, essence: 'wither', sprite: 'helmet_necron',
+  },
+  necron_chestplate: {
+    id: 'necron_chestplate', name: "Necron's Chestplate", kind: 'chestplate', rarity: 'LEGENDARY', floor: 7,
+    stats: { health: 260, defense: 140, strength: 40, critDamage: 30 }, essence: 'wither', sprite: 'chest_necron',
+  },
+  necron_leggings: {
+    id: 'necron_leggings', name: "Necron's Leggings", kind: 'leggings', rarity: 'LEGENDARY', floor: 7,
+    stats: { health: 220, defense: 120, strength: 40, critDamage: 30 }, essence: 'wither', sprite: 'legs_necron',
+  },
+  necron_boots: {
+    id: 'necron_boots', name: "Necron's Boots", kind: 'boots', rarity: 'LEGENDARY', floor: 7,
+    stats: { health: 130, defense: 75, strength: 40, critDamage: 30 }, essence: 'wither', sprite: 'boots_necron',
+  },
+  necron_handle: {
+    id: 'necron_handle', name: "Necron's Handle", kind: 'material', rarity: 'LEGENDARY', floor: 7,
+    stats: {}, essence: 'wither', sprite: 'handle', passive: `Crafting material. Necron's Handle + ${8} Wither Catalysts + 2,000 Wither Essence = Hyperion (craft it in Gear).`,
+  },
+  wither_catalyst: {
+    id: 'wither_catalyst', name: 'Wither Catalyst', kind: 'material', rarity: 'EPIC', floor: 7,
+    stats: {}, essence: 'wither', sprite: 'catalyst', passive: 'Crafting material for the Hyperion. You need 8.',
+  },
   hyperion: {
     id: 'hyperion', name: 'Hyperion', kind: 'weapon', rarity: 'LEGENDARY', floor: 7,
     stats: { damage: 140, strength: 150, intelligence: 350 }, attackCooldown: 0.3, essence: 'wither', sprite: 'sword_hyperion',
@@ -193,6 +233,14 @@ export const ITEMS: Record<string, ItemDef> = {
 };
 
 export const SCROLLS = ['scroll_implosion', 'scroll_shadow_warp', 'scroll_wither_shield'];
+
+/** Hyperion recipe (the "middle ground"): the Handle plus Catacombs grind materials. */
+export const HYPERION_RECIPE = { handle: 'necron_handle', catalyst: 'wither_catalyst', catalysts: 8, essence: 2000 };
+
+/** Items that can be equipped and upgraded (not scrolls or crafting materials). */
+export function isGear(def: ItemDef): boolean {
+  return def.kind !== 'scroll' && def.kind !== 'material';
+}
 
 /** Builds the Hyperion ability from whichever scrolls have been applied. */
 export function hyperionAbility(scrolls: string[]): AbilityDef | undefined {

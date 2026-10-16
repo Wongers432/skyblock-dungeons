@@ -51,6 +51,11 @@ export const MOBS: Record<string, MobDef> = {
   spirit_wolf: { id: 'spirit_wolf', name: 'Spirit Wolf', hp: 260, damage: 16, speed: 2.6, attackCooldown: 0.9, sprite: 'spirit_wolf', size: 0.9 },
   spirit_bear: { id: 'spirit_bear', name: 'Spirit Bear', hp: 700, damage: 22, speed: 1.2, attackCooldown: 1.4, armor: 0.1, sprite: 'spirit_bear', size: 1.3 },
   // Livid and his clones (Floor V).
+  terracotta: { id: 'terracotta', name: 'Terracotta', hp: 500, damage: 20, speed: 1.6, attackCooldown: 1.1, sprite: 'terracotta', size: 1 },
+  golem: { id: 'golem', name: 'Sadan Golem', hp: 1600, damage: 30, speed: 1.1, attackCooldown: 1.6, armor: 0.2, sprite: 'golem', size: 1.4 },
+  lost_adventurer: { id: 'lost_adventurer', name: 'Lost Adventurer', hp: 600, damage: 24, speed: 1.8, attackCooldown: 0.9, armor: 0.15, sprite: 'adventurer', size: 1 },
+  wither_guard: { id: 'wither_guard', name: 'Wither Guard', hp: 420, damage: 22, speed: 1.4, attackCooldown: 1.2, armor: 0.25, sprite: 'wither_guard', size: 1.1 },
+  wither_miner: { id: 'wither_miner', name: 'Wither Miner', hp: 300, damage: 26, speed: 2, attackCooldown: 0.9, sprite: 'wither_miner', size: 1 },
   livid: { id: 'livid', name: 'Livid', hp: 6000, damage: 18, speed: 0, attackCooldown: 2.2, range: 99, projectile: 'arrow', sprite: 'livid', size: 1.3 },
   blaze: { id: 'blaze', name: 'Blaze', hp: 1, damage: 0, speed: 0.6, attackCooldown: 99, sprite: 'blaze', size: 0.9 },
 };
@@ -158,8 +163,38 @@ export const FLOORS: FloorDef[] = [
       { item: 'shadow_boots', chance: tiers(0.004, 0.006, 0.01, 0.015, 0.025, 0.04) },
     ],
   },
-  { id: 6, name: 'Floor VI', boss: 'Sadan', implemented: false, reqLevel: 19, cols: 6, rows: 6, puzzles: 3, fairyRooms: 1, witherDoors: 3, timeLimit: 840, mobHpMult: 16, mobDmgMult: 7, mobsPerCell: [3, 4], secretChance: 0.6, cryptChance: 0.35, bloodMobs: 16, mobPool: ['zombie', 'skeleton'], xp: 3500, essence: { type: 'wither', base: 60 }, drops: [] },
-  { id: 7, name: 'Floor VII', boss: 'The Wither Lords', implemented: false, reqLevel: 24, cols: 6, rows: 6, puzzles: 4, fairyRooms: 1, witherDoors: 3, timeLimit: 960, mobHpMult: 26, mobDmgMult: 10, mobsPerCell: [3, 5], secretChance: 0.6, cryptChance: 0.35, bloodMobs: 18, mobPool: ['zombie', 'skeleton'], xp: 9000, essence: { type: 'wither', base: 100 }, drops: [] },
+  {
+    id: 6, name: 'Floor VI', boss: 'Sadan', implemented: true, reqLevel: 19,
+    cols: 6, rows: 6, puzzles: 3, fairyRooms: 1, witherDoors: 3, timeLimit: 900,
+    mobHpMult: 6.5, mobDmgMult: 6.5, mobsPerCell: [2, 3], secretChance: 0.6, cryptChance: 0.4,
+    bloodMobs: 10, mobPool: ['zombie', 'skeleton', 'knight', 'skelmaster', 'superarcher', 'lost_adventurer'], xp: 3500,
+    essence: { type: 'wither', base: 60 },
+    drops: [
+      { item: 'giants_sword', chance: tiers(0.002, 0.003, 0.005, 0.01, 0.02, 0.035) },
+      { item: 'necro_helmet', chance: tiers(0.004, 0.006, 0.01, 0.015, 0.025, 0.04) },
+      { item: 'necro_chestplate', chance: tiers(0.002, 0.004, 0.006, 0.01, 0.018, 0.03) },
+      { item: 'necro_leggings', chance: tiers(0.003, 0.005, 0.008, 0.012, 0.02, 0.035) },
+      { item: 'necro_boots', chance: tiers(0.004, 0.006, 0.01, 0.015, 0.025, 0.04) },
+    ],
+  },
+  {
+    id: 7, name: 'Floor VII', boss: 'The Wither Lords', implemented: true, reqLevel: 24,
+    cols: 6, rows: 6, puzzles: 4, fairyRooms: 1, witherDoors: 3, timeLimit: 1020,
+    mobHpMult: 13, mobDmgMult: 12, mobsPerCell: [2, 3], secretChance: 0.6, cryptChance: 0.4,
+    bloodMobs: 12, mobPool: ['skeleton', 'knight', 'skelmaster', 'superarcher', 'lost_adventurer', 'wither_guard', 'wither_miner'], xp: 9000,
+    essence: { type: 'wither', base: 100 },
+    drops: [
+      { item: 'necron_handle', chance: tiers(0.0005, 0.001, 0.002, 0.004, 0.008, 0.015) },
+      { item: 'wither_catalyst', chance: tiers(0.04, 0.06, 0.09, 0.13, 0.18, 0.25) },
+      { item: 'scroll_implosion', chance: tiers(0.001, 0.002, 0.003, 0.006, 0.012, 0.02) },
+      { item: 'scroll_shadow_warp', chance: tiers(0.001, 0.002, 0.003, 0.006, 0.012, 0.02) },
+      { item: 'scroll_wither_shield', chance: tiers(0.001, 0.002, 0.003, 0.006, 0.012, 0.02) },
+      { item: 'necron_helmet', chance: tiers(0.003, 0.005, 0.008, 0.012, 0.02, 0.03) },
+      { item: 'necron_chestplate', chance: tiers(0.0015, 0.003, 0.005, 0.008, 0.013, 0.02) },
+      { item: 'necron_leggings', chance: tiers(0.002, 0.004, 0.006, 0.01, 0.016, 0.025) },
+      { item: 'necron_boots', chance: tiers(0.003, 0.005, 0.008, 0.012, 0.02, 0.03) },
+    ],
+  },
 ];
 
 export function floorById(id: number): FloorDef {

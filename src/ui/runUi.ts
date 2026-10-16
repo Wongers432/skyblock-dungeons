@@ -1,8 +1,10 @@
 import { CHEST_NAME } from '../data/floors';
 import { ITEMS, RARITY_COLOR } from '../data/items';
-import { aiMove, winner } from '../game/puzzles';
+import { aiMove, bestPlayerMoves, winner } from '../game/puzzles';
 import type { Run, RunEnd } from '../game/run';
 import { h, fmtTime } from './dom';
+import { saveProfile } from '../game/save';
+import type { WitherLordsController } from '../game/bosses67';
 
 export interface RunUiActions {
   setPaused(p: boolean): void;
@@ -102,6 +104,7 @@ export class RunUi {
     this.abilityBtn.disabled = !ab || r.view === 'map';
     this.abilityBtn.classList.toggle('aiming', r.aiming);
     this.mapBtn.style.display = r.view === 'room' ? '' : 'none';
+    this.toasts.classList.toggle('boss', r.view === 'boss');
     this.hint.textContent = r.view === 'map'
       ? 'Tap a room to go there.'
       : r.aiming ? 'Tap where the ability should land.' : '';
@@ -110,14 +113,20 @@ export class RunUi {
 
   private renderPuzzle() {
     const r = this.run;
+    const glow = r.profile.settings.puzzleGlow;
+    if (r.view === 'boss' && r.terminal) {
+      this.renderTerminal(glow);
+      return;
+    }
     const room = r.view === 'room' ? r.current : null;
     const pz = room?.puzzle;
-    const key = room && pz && !pz.done && pz.kind !== 'blaze' ? `${room.plan.id}:${pz.kind}:${pz.kind === 'tictactoe' ? pz.board.join(',') : ''}` : '';
+    const key = room && pz && !pz.done && pz.kind !== 'blaze' ? `${room.plan.id}:${pz.kind}:${pz.kind === 'tictactoe' ? pz.board.join(',') : ''}:${glow}` : '';
     if (key === this.puzzleKey) return;
     this.puzzleKey = key;
     this.puzzleBox.replaceChildren();
     if (!room || !pz || pz.done || pz.kind === 'blaze') return;
     if (pz.kind === 'tictactoe') {
+      const hints = glow ? bestPlayerMoves([...pz.board]) : [];
       const play = (i: number) => {
         if (pz.board[i] || pz.done) return;
         pz.board[i] = 'X';
@@ -133,20 +142,53 @@ export class RunUi {
       this.puzzleBox.append(h('div', { class: 'panel puzzle' },
         h('h2', {}, 'Tic Tac Toe'),
         h('div', { class: 'muted' }, "You are X. Win or tie against the AI. If it beats you, the puzzle fails."),
-        h('div', { class: 'ttt' }, pz.board.map((m, i) => h('button', { onclick: () => play(i), style: { color: m === 'X' ? '#55ffff' : '#ff5555' } }, m ?? ''))),
+        h('div', { class: 'ttt' }, pz.board.map((m, i) => h('button', { class: glow && !pz.done && hints.includes(i) ? 'glow' : '', onclick: () => play(i), style: { color: m === 'X' ? '#55ffff' : '#ff5555' } }, m ?? ''))),
       ));
     } else {
       const d = pz.data;
       this.puzzleBox.append(h('div', { class: 'panel puzzle' },
         h('h2', {}, 'Three Weirdos'),
         h('div', { class: 'muted' }, 'Exactly one of them is lying. Open the chest that has the reward.'),
-        d.names.map((name, i) => h('div', { class: 'weirdo' },
+        d.names.map((name, i) => h('div', { class: 'weirdo' + (glow && i === d.answer ? ' glow' : '') },
           h('b', { class: 'who' }, name),
           h('p', {}, `"${d.lines[i]}"`),
           h('button', { class: 'small', onclick: () => { pz.chosen = i; r.solvePuzzle(room, i === d.answer); this.refresh(); } }, 'Open'),
         )),
       ));
     }
+  }
+
+  /** Goldor's terminals on Floor VII. The fight keeps going while one is open. */
+  private renderTerminal(glow: boolean) {
+    const r = this.run;
+    const t = r.terminal!;
+    const ctl = r.bossController as WitherLordsController;
+    const key = `term:${t.id}:${t.kind}:${t.next}:${t.cells.join(',')}:${glow}`;
+    if (key === this.puzzleKey) return;
+    this.puzzleKey = key;
+    this.puzzleBox.replaceChildren();
+    const panes = t.cells.map((c, i) => {
+      let label = '';
+      let cls = 'pane';
+      if (t.kind === 'order') {
+        const n = c as number;
+        label = String(n);
+        if (n < t.next) cls += ' green';
+        if (glow && n === t.next) cls += ' glow';
+      } else {
+        cls += c ? ' green' : ' red';
+        if (glow && !c) cls += ' glow';
+      }
+      return h('button', { class: cls, onclick: () => ctl.pressPane(i) }, label);
+    });
+    this.puzzleBox.append(h('div', { class: 'panel puzzle' },
+      h('div', { class: 'row spread' },
+        h('h2', {}, t.kind === 'order' ? 'Click in order!' : 'Correct all the panes!'),
+        h('button', { class: 'small', onclick: () => ctl.closeTerminal() }, 'Close'),
+      ),
+      h('div', { class: 'muted' }, t.kind === 'order' ? 'Tap the panes from 1 to 9. A wrong pane hurts and resets.' : 'Tap every red pane to turn it green.'),
+      h('div', { class: 'terminal' }, panes),
+    ));
   }
 
   showPause() {
@@ -160,6 +202,12 @@ export class RunUi {
       h('div', { class: 'muted' }, `${r.floor.name}  ·  ${fmtTime(r.time)}  ·  ${r.rooms.filter((x) => x.cleared).length}/${r.rooms.length} rooms cleared`),
       h('div', { class: 'btns' },
         h('button', { class: 'primary', onclick: close }, 'Resume'),
+        h('button', { onclick: (e: Event) => {
+          r.profile.settings.puzzleGlow = !r.profile.settings.puzzleGlow;
+          saveProfile(r.profile);
+          (e.currentTarget as HTMLElement).textContent = `Puzzle glow: ${r.profile.settings.puzzleGlow ? 'ON' : 'off'}`;
+          this.refresh();
+        } }, `Puzzle glow: ${r.profile.settings.puzzleGlow ? 'ON' : 'off'}`),
         admin ? h('button', { onclick: () => { r.adminClearRoom(); close(); } }, 'Admin: kill everything here') : null,
         admin ? h('button', { onclick: () => { r.adminKeys(); close(); } }, 'Admin: give keys') : null,
         admin ? h('button', { onclick: () => { r.adminRevealMap(); close(); } }, 'Admin: reveal map') : null,
@@ -200,7 +248,11 @@ export class RunUi {
           h('h3', {}, CHEST_NAME[loot.chest]),
           h('div', { class: 'loot' }, `+${loot.essence} ${this.run.floor.essence.type} essence`),
           end.secretEssence ? h('div', { class: 'loot' }, `+${end.secretEssence} essence from secrets and puzzles`) : null,
-          loot.items.map((id) => h('div', { class: 'loot rare', style: { color: RARITY_COLOR[ITEMS[id].rarity] } }, `RARE DROP! ${ITEMS[id].name}`)),
+          loot.items.map((id) => h('div', { class: 'loot rare', style: { color: RARITY_COLOR[ITEMS[id].rarity] } }, `${end.rng?.paidOut === id ? 'RNG METER DROP!' : 'RARE DROP!'} ${ITEMS[id].name}`)),
+          end.rng?.target ? h('div', { class: 'rng-mini' },
+            h('div', { class: 'muted' }, `RNG Meter: ${ITEMS[end.rng.target].name}  ${end.rng.xp.toLocaleString()} / ${end.rng.required.toLocaleString()}${end.rng.gained ? `  (+${end.rng.gained})` : ''}`),
+            h('div', { class: 'bar rng' }, h('div', { style: { width: `${(100 * end.rng.xp) / end.rng.required}%` } })),
+          ) : h('div', { class: 'muted' }, 'Tip: pick an RNG Meter target in the hub to work toward a guaranteed drop.'),
           h('div', { class: 'loot', style: { color: '#55ffff' } }, `+${end.xp} Catacombs XP`),
           end.levelAfter > end.levelBefore ? h('div', { class: 'loot rare' }, `CATACOMBS LEVEL UP! ${end.levelBefore} → ${end.levelAfter}`) : null,
         ));
