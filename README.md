@@ -22,6 +22,9 @@ A private, solo, offline 2D take on Hypixel SkyBlock's Catacombs, built as an in
 - **Puzzle glow** setting (Settings tab or pause menu) highlights the right answer in every puzzle and terminal.
 - Hyperion crafting: Necron's Handle + 8 Wither Catalysts + 2,000 Wither Essence, then the three scrolls.
 - Room mobs stay idle until you get close, so big rooms come at you in waves.
+- Tap the glowing arrow in a doorway to walk straight into the next room (it uses a key if the door is locked).
+- The Watcher keeps spawning his mobs while you're elsewhere; they wait asleep until you come back.
+- Bonzo picks random attacks: Balloon Barrage, Balloon Ring, Party Spiral, Firework Show (rockets with blast markers) and Confetti Blast. Tap balloons and rockets to pop them. All bosses have 25% less health.
 - **Calibrate taps** in Settings: tap 9 dots and the game shifts every tap to where you meant it and sizes tap areas to how precise you are.
 - Hyperion's Wither Impact hits every mob in the room. Secrets, keys and crypts have big tap areas.
 - Looks: torch-lit rooms with dynamic lighting, 3D walls and pillars, cobwebs, bones, barrels, banners and moss; themed boss arenas per floor; hit shake, red hurt vignette and drop shadows.

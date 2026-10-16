@@ -260,16 +260,17 @@ function tryGenerate(floor: FloorDef, rng: Rng, seed: number): DungeonPlan | nul
 }
 
 /** Tile spot just inside a door, in the room's local tile coordinates. */
-export function doorTiles(room: RoomPlan, door: DoorPlan): { tiles: Pt[]; stand: Pt } {
+export function doorTiles(room: RoomPlan, door: DoorPlan): { tiles: Pt[]; stand: Pt; dir: Pt } {
   const mine = door.a === room.id ? door.cellA : door.cellB;
   const other = door.a === room.id ? door.cellB : door.cellA;
   const dx = other.x - mine.x, dy = other.y - mine.y;
   const lx = (mine.x - room.bx) * CELL, ly = (mine.y - room.by) * CELL;
   const h = CELL / 2;
-  if (dx === 1) return { tiles: [{ x: lx + CELL - 1, y: ly + h - 1 }, { x: lx + CELL - 1, y: ly + h }], stand: { x: lx + CELL - 0.6, y: ly + h } };
-  if (dx === -1) return { tiles: [{ x: lx, y: ly + h - 1 }, { x: lx, y: ly + h }], stand: { x: lx + 0.6, y: ly + h } };
-  if (dy === 1) return { tiles: [{ x: lx + h - 1, y: ly + CELL - 1 }, { x: lx + h, y: ly + CELL - 1 }], stand: { x: lx + h, y: ly + CELL - 0.6 } };
-  return { tiles: [{ x: lx + h - 1, y: ly }, { x: lx + h, y: ly }], stand: { x: lx + h, y: ly + 0.6 } };
+  const dir = { x: dx, y: dy };
+  if (dx === 1) return { dir, tiles: [{ x: lx + CELL - 1, y: ly + h - 1 }, { x: lx + CELL - 1, y: ly + h }], stand: { x: lx + CELL - 0.6, y: ly + h } };
+  if (dx === -1) return { dir, tiles: [{ x: lx, y: ly + h - 1 }, { x: lx, y: ly + h }], stand: { x: lx + 0.6, y: ly + h } };
+  if (dy === 1) return { dir, tiles: [{ x: lx + h - 1, y: ly + CELL - 1 }, { x: lx + h, y: ly + CELL - 1 }], stand: { x: lx + h, y: ly + CELL - 0.6 } };
+  return { dir, tiles: [{ x: lx + h - 1, y: ly }, { x: lx + h, y: ly }], stand: { x: lx + h, y: ly + 0.6 } };
 }
 
 function buildRoomTiles(room: RoomPlan, doors: DoorPlan[], floor: FloorDef, rng: Rng) {

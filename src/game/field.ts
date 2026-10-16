@@ -40,9 +40,14 @@ export interface Projectile {
   vx: number;
   vy: number;
   damage: number;
-  kind: 'arrow' | 'balloon' | 'fireball' | 'skull' | 'boulder' | 'lightning';
+  kind: 'arrow' | 'balloon' | 'fireball' | 'skull' | 'boulder' | 'lightning' | 'rocket';
   tappable: boolean;
   life: number;
+  /** Rockets fly to (tx, ty) and blow up there with this radius. */
+  tx?: number;
+  ty?: number;
+  boom?: number;
+  color?: string;
 }
 
 export interface Shot {
@@ -60,7 +65,7 @@ export interface Shot {
 }
 
 export interface Fx {
-  kind: 'text' | 'ring' | 'puff' | 'corpse' | 'slash' | 'burst' | 'boom';
+  kind: 'text' | 'ring' | 'puff' | 'corpse' | 'slash' | 'burst' | 'boom' | 'firework';
   x: number;
   y: number;
   t: number;
@@ -75,8 +80,12 @@ export interface Fx {
 
 let nextMobId = 1;
 
+/** Health multiplier for bosses. */
+export const BOSS_HP = 0.75;
+
 export function makeMob(def: MobDef, x: number, y: number, hpMult: number, dmgMult: number, extra: Partial<Mob> = {}): Mob {
-  const hp = Math.round(def.hp * hpMult);
+  // Bosses have less health than their table value so fights keep moving.
+  const hp = Math.round(def.hp * hpMult * (extra.boss ? BOSS_HP : 1));
   return {
     id: nextMobId++, def, name: def.name, x, y, hp, maxHp: hp, damage: def.damage * dmgMult,
     atk: def.attackCooldown * (0.5 + Math.random() * 0.5), stun: 0, flash: 0, dead: false,

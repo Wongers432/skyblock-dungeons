@@ -32,6 +32,14 @@ export class BloodController implements Controller {
   timer = 1.5;
   done = false;
   portal = false;
+  /** The Watcher's mouth opens briefly whenever he spawns something. */
+  shout = 0;
+  private toldDone = false;
+
+  /** Mobs the Watcher still has to spawn. */
+  get remaining(): number {
+    return Math.max(0, this.run.floor.bloodMobs - this.spawned);
+  }
 
   constructor(private run: Run, private room: RoomRT) {}
 
@@ -39,22 +47,34 @@ export class BloodController implements Controller {
     return this.room.field;
   }
 
+  /**
+   * Runs every frame, also while the player is elsewhere: the Watcher keeps spawning his mobs
+   * (they wait asleep until you come back), so you can go and find secrets in the meantime.
+   */
   update(dt: number) {
     if (this.done) return;
     const f = this.field;
     const total = this.run.floor.bloodMobs;
+    const here = this.run.view === 'room' && this.run.current === this.room;
+    this.shout = Math.max(0, this.shout - dt);
     this.timer -= dt;
-    if (this.timer <= 0 && this.spawned < total && f.aliveMobs().length < 3) {
-      this.timer = 3.5;
+    if (this.timer <= 0 && this.spawned < total && (!here || f.aliveMobs().length < 4)) {
+      this.timer = here ? 2.6 : 2;
+      this.shout = 0.6;
       for (let i = 0; i < 2 && this.spawned < total; i++) {
-        const p = f.randomFloor(() => this.run.rng.next(), f.player, 3.5);
+        const p = here ? f.randomFloor(() => this.run.rng.next(), f.player, 3.5) : f.randomFloor(() => this.run.rng.next(), { x: 4, y: 4 }, 2.5);
         f.mobs.push(makeMob(MOBS.blood, p.x, p.y, this.run.floor.mobHpMult, this.run.floor.mobDmgMult, {
           name: this.run.rng.pick(BLOOD_NAMES),
           sprite: this.run.rng.chance(0.3) ? 'skeleton' : 'bloodmob',
+          aggro: here,
         }));
         f.fx.push({ kind: 'puff', x: p.x, y: p.y, t: 0, life: 0.5, color: '#ff3333' });
         this.spawned++;
       }
+    }
+    if (this.spawned >= total && !this.toldDone) {
+      this.toldDone = true;
+      this.run.events.toast('The Watcher: That will be enough for now. Come and kill them!', '#ff5555');
     }
     if (this.spawned >= total && f.aliveMobs().length === 0) {
       this.done = true;
@@ -133,10 +153,15 @@ export class BlazeController implements Controller {
   }
 }
 
+type BonzoAttack = 'volley' | 'ring' | 'spiral' | 'rockets' | 'shotgun';
+const BALLOON_COLORS = ['#ff4444', '#44aaff', '#ffdd33', '#55dd55', '#ff66dd'];
+
 export class BonzoController implements Controller {
   bonzo: Mob;
   phase = 1;
-  private balloonTimer = 2.5;
+  private attackTimer = 1.2;
+  private attack: { kind: BonzoAttack; left: number; tick: number; ang: number } | null = null;
+  private lastAttack: BonzoAttack | null = null;
   private summonTimer = 9;
   private wander = { x: 7, y: 3 };
 
@@ -144,10 +169,80 @@ export class BonzoController implements Controller {
     run.events.toast("Bonzo: Gratz for making it this far, but I'm basically unbeatable.", '#ff5555');
     const hpMult = run.floor.mobHpMult;
     this.bonzo = makeMob(
-      { id: 'bonzo', name: 'Bonzo', hp: 2200, damage: 0, speed: 2.2, attackCooldown: 99, sprite: 'bonzo', size: 1.6 },
+      { id: 'bonzo', name: 'Bonzo', hp: 2200, damage: 0, speed: 3, attackCooldown: 99, sprite: 'bonzo', size: 1.6 },
       7, 3, hpMult, run.floor.mobDmgMult, { boss: true },
     );
     field.mobs.push(this.bonzo);
+  }
+
+  private balloon(ang: number, speed: number, dmg = 16) {
+    const b = this.bonzo;
+    this.field.projectiles.push({
+      x: b.x, y: b.y - 0.4, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, damage: dmg * this.run.floor.mobDmgMult,
+      kind: 'balloon', tappable: true, life: 6, color: this.run.rng.pick(BALLOON_COLORS),
+    });
+  }
+
+  private rocket() {
+    const f = this.field, b = this.bonzo, p = f.player, rng = this.run.rng;
+    // Aimed around the player: one dead on, the rest close by.
+    const tx = p.x + (rng.next() - 0.5) * 3, ty = p.y + (rng.next() - 0.5) * 2.4;
+    const d = Math.hypot(tx - b.x, ty - b.y) || 1, speed = 6;
+    f.projectiles.push({
+      x: b.x, y: b.y - 0.4, vx: ((tx - b.x) / d) * speed, vy: ((ty - b.y) / d) * speed, damage: 26 * this.run.floor.mobDmgMult,
+      kind: 'rocket', tappable: true, life: d / speed, tx, ty, boom: 1.3, color: rng.pick(BALLOON_COLORS),
+    });
+  }
+
+  private startAttack() {
+    const options: BonzoAttack[] = (['volley', 'ring', 'spiral', 'rockets', 'shotgun'] as BonzoAttack[]).filter((a) => a !== this.lastAttack);
+    const kind = this.run.rng.pick(options);
+    this.lastAttack = kind;
+    const p2 = this.phase === 2;
+    const left = { volley: p2 ? 6 : 4, ring: p2 ? 2 : 1, spiral: p2 ? 22 : 16, rockets: p2 ? 5 : 3, shotgun: p2 ? 3 : 2 }[kind];
+    this.attack = { kind, left, tick: 0, ang: this.run.rng.next() * Math.PI * 2 };
+    const name = { volley: 'Balloon Barrage!', ring: 'Balloon Ring!', spiral: 'Party Spiral!', rockets: 'Firework Show!', shotgun: 'Confetti Blast!' }[kind];
+    this.field.text(this.bonzo.x, this.bonzo.y - 2, name, '#ffdd55');
+  }
+
+  private stepAttack(dt: number) {
+    const a = this.attack!;
+    const b = this.bonzo, p = this.field.player;
+    const aim = Math.atan2(p.y - b.y, p.x - b.x);
+    const p2 = this.phase === 2;
+    a.tick -= dt;
+    if (a.tick > 0) return;
+    switch (a.kind) {
+      case 'volley': // quick aimed balloons
+        this.balloon(aim + (this.run.rng.next() - 0.5) * 0.25, p2 ? 5.2 : 4.4);
+        a.tick = 0.16;
+        break;
+      case 'ring': { // a ring in every direction, one of them aimed at you
+        const n = p2 ? 12 : 10;
+        const off = a.left % 2 ? Math.PI / n : 0;
+        for (let i = 0; i < n; i++) this.balloon(aim + off + (i / n) * Math.PI * 2, 3.8, 14);
+        a.tick = 0.45;
+        break;
+      }
+      case 'spiral':
+        a.ang += 0.5;
+        this.balloon(a.ang, 3.6, 12);
+        if (p2) this.balloon(a.ang + Math.PI, 3.6, 12);
+        a.tick = 0.07;
+        break;
+      case 'rockets':
+        this.rocket();
+        a.tick = 0.3;
+        break;
+      case 'shotgun': // a tight fan of fast balloons
+        for (let i = -2; i <= 2; i++) this.balloon(aim + i * 0.22, 5.6, 12);
+        a.tick = 0.5;
+        break;
+    }
+    if (--a.left <= 0) {
+      this.attack = null;
+      this.attackTimer = p2 ? 0.5 + this.run.rng.next() * 0.5 : 0.8 + this.run.rng.next() * 0.7;
+    }
   }
 
   update(dt: number) {
@@ -165,16 +260,11 @@ export class BonzoController implements Controller {
       b.x += (dx / d) * speed * dt;
       b.y += (dy / d) * speed * dt;
     }
-    this.balloonTimer -= dt;
-    if (this.balloonTimer <= 0) {
-      this.balloonTimer = this.phase === 1 ? 2.2 : 1.5;
-      const count = this.phase === 1 ? 1 : 2;
-      const p = f.player;
-      for (let i = 0; i < count; i++) {
-        const ang = Math.atan2(p.y - b.y, p.x - b.x) + (count > 1 ? (i - 0.5) * 0.5 : 0);
-        const speed = this.phase === 1 ? 2.6 : 3.2;
-        f.projectiles.push({ x: b.x, y: b.y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, damage: 30 * this.run.floor.mobDmgMult, kind: 'balloon', tappable: true, life: 8 });
-      }
+    if (b.invuln && b.invuln > 0) return;
+    if (this.attack) this.stepAttack(dt);
+    else {
+      this.attackTimer -= dt;
+      if (this.attackTimer <= 0) this.startAttack();
     }
     this.summonTimer -= dt;
     if (this.summonTimer <= 0) {
@@ -196,8 +286,9 @@ export class BonzoController implements Controller {
       this.phase = 2;
       m.dead = false;
       m.hp = Math.round(m.maxHp * 0.6);
-      m.invuln = 2.5;
-      this.balloonTimer = 2.5;
+      m.invuln = 2;
+      this.attack = null;
+      this.attackTimer = 0.6;
       this.field.projectiles = [];
       this.run.events.toast("Bonzo: Oh, I'm not done yet!", '#ff5555');
       return;

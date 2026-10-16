@@ -1,5 +1,5 @@
 import type { Field } from '../game/field';
-import { doorTiles } from '../game/dungeonGen';
+import { doorTiles, type DoorPlan } from '../game/dungeonGen';
 import type { BloodController } from '../game/controllers';
 import { secretPos, type RoomRT, type Run } from '../game/run';
 import { drawSprite, spriteColors, texture } from './sprites';
@@ -38,15 +38,16 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
 
   const room: RoomRT | null = run.view === 'room' ? run.current : null;
 
-  // Doors in the room's outer wall.
+  // Doors in the room's outer wall. Their signs are drawn after the lighting.
+  const doorSigns: (() => void)[] = [];
   if (room) {
     for (const d of run.doorsOf(room)) {
-      const { tiles } = doorTiles(room.plan, d);
+      const { tiles, dir } = doorTiles(room.plan, d);
       const open = run.openDoors.has(d.id);
       const color = open ? null : d.type === 'blood' ? '#b01515' : '#141414';
+      doorSigns.push(() => drawDoorSign(ctx, run, room, d, X, Y, ts, time));
       for (const t of tiles) {
-        const dx = t.x === 0 ? -1 : t.x === f.w - 1 ? 1 : 0;
-        const dy = dx ? 0 : t.y === 0 ? -1 : 1;
+        const dx = dir.x, dy = dir.y;
         const px = X(t.x + dx), py = Y(t.y + dy);
         if (color) {
           ctx.fillStyle = color;
@@ -103,6 +104,7 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
     }
     if (room.plan.type === 'blood') {
       drawWatcher(ctx, room, X, Y, ts, time);
+      if (!(room.controller as BloodController | undefined)?.done) lights.push({ x: 4, y: 2.2, r: 2.6 });
       if ((room.controller as BloodController | undefined)?.portal) lights.push({ x: 4, y: 4, r: 3 });
     }
   }
@@ -233,17 +235,63 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
       ctx.fillStyle = '#ff4444';
       ctx.fillRect(X(p.x) - sz * 0.3, Y(p.y) - sz * 0.15, sz * 0.2, sz * 0.15);
       ctx.fillRect(X(p.x) + sz * 0.1, Y(p.y) - sz * 0.15, sz * 0.2, sz * 0.15);
+    } else if (p.kind === 'rocket') {
+      // Target marker on the floor that tightens as the rocket arrives.
+      const tx = X(p.tx ?? p.x), ty = Y(p.ty ?? p.y), R = ts * (p.boom ?? 1.3);
+      const urgency = Math.max(0, Math.min(1, 1 - p.life / 0.9));
+      ctx.strokeStyle = `rgba(255,80,60,${0.35 + 0.5 * urgency})`;
+      ctx.lineWidth = Math.max(1.5, ts * 0.07);
+      ctx.setLineDash([ts * 0.25, ts * 0.15]);
+      ctx.beginPath();
+      ctx.arc(tx, ty, R, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = `rgba(255,60,40,${0.12 + 0.2 * urgency})`;
+      ctx.beginPath();
+      ctx.arc(tx, ty, R * (1 - 0.6 * (1 - urgency)), 0, Math.PI * 2);
+      ctx.fill();
+      // The rocket: stick, coloured body, nose cone and a sparkling exhaust.
+      const ang = Math.atan2(p.vy, p.vx);
+      const hx = X(p.x), hy = Y(p.y);
+      ctx.save();
+      ctx.translate(hx, hy);
+      ctx.rotate(ang);
+      for (let i = 0; i < 5; i++) {
+        ctx.fillStyle = ['#ffffff', '#ffdd33', '#ff8833', '#ff4422', '#aa2211'][i];
+        const sz = Math.max(2, ts * (0.16 - i * 0.02));
+        ctx.fillRect(-ts * (0.45 + i * 0.16) + (Math.random() - 0.5) * 3, -sz / 2 + (Math.random() - 0.5) * 4, sz, sz);
+      }
+      ctx.fillStyle = '#c8a060';
+      ctx.fillRect(-ts * 0.45, -ts * 0.03, ts * 0.3, ts * 0.06);
+      ctx.fillStyle = p.color ?? '#ff4444';
+      ctx.fillRect(-ts * 0.2, -ts * 0.1, ts * 0.32, ts * 0.2);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(-ts * 0.12, -ts * 0.1, ts * 0.05, ts * 0.2);
+      ctx.fillStyle = '#eeeeee';
+      ctx.beginPath();
+      ctx.moveTo(ts * 0.12, -ts * 0.1);
+      ctx.lineTo(ts * 0.26, 0);
+      ctx.lineTo(ts * 0.12, ts * 0.1);
+      ctx.fill();
+      ctx.restore();
+      lights.push({ x: p.x, y: p.y, r: 0.9 });
     } else {
-      ctx.strokeStyle = '#eee';
+      // Balloon: string, body, knot and a shine, wobbling as it drifts.
+      const bx = X(p.x) + Math.sin(p.life * 9) * ts * 0.04, by = Y(p.y);
+      const r = ts * 0.32;
+      ctx.strokeStyle = 'rgba(240,240,240,0.8)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(X(p.x), Y(p.y) + ts * 0.3);
-      ctx.lineTo(X(p.x), Y(p.y) + ts * 0.6);
+      ctx.moveTo(bx, by + r);
+      ctx.quadraticCurveTo(bx + Math.sin(p.life * 6) * ts * 0.15, by + r * 1.6, bx, by + r * 2.2);
       ctx.stroke();
-      ctx.fillStyle = ['#ff4444', '#44aaff', '#ffdd33', '#55dd55'][Math.abs(Math.floor(p.x * 3 + p.y)) % 4];
+      ctx.fillStyle = p.color ?? ['#ff4444', '#44aaff', '#ffdd33', '#55dd55'][Math.abs(Math.floor(p.x * 3 + p.y)) % 4];
       ctx.beginPath();
-      ctx.arc(X(p.x), Y(p.y), ts * 0.32, 0, Math.PI * 2);
+      ctx.ellipse(bx, by, r * 0.88, r, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillRect(bx - r * 0.15, by + r * 0.88, r * 0.3, r * 0.22);
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.fillRect(bx - r * 0.5, by - r * 0.55, r * 0.28, r * 0.38);
     }
   }
   for (const s of f.shots) {
@@ -269,6 +317,7 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
   }
   run.controller?.draw?.(ctx, X, Y, ts, time);
   for (const o of overlays) o();
+  for (const o of doorSigns) o();
   drawDust(ctx, f, X, Y, ts, time);
 
   // Effects.
@@ -335,6 +384,48 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(area.x, area.y, area.w, area.h);
       }
+    } else if (fx.kind === 'firework') {
+      // Firework: a flash, then sparks flying out with trails, drooping and twinkling out.
+      const R = fx.r ?? 1;
+      const seed = fx.angle ?? 0;
+      const pal = [fx.color, '#ffffff', ['#ffdd33', '#55ffff', '#ff66dd', '#77ff77'][seed % 4]];
+      ctx.globalCompositeOperation = 'lighter';
+      if (k < 0.25) {
+        const g = ctx.createRadialGradient(X(fx.x), Y(fx.y), 0, X(fx.x), Y(fx.y), ts * R * 1.2);
+        g.addColorStop(0, `rgba(255,255,255,${0.9 * (1 - k / 0.25)})`);
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(X(fx.x) - ts * R * 1.2, Y(fx.y) - ts * R * 1.2, ts * R * 2.4, ts * R * 2.4);
+      }
+      const n = Math.round(18 + 10 * R);
+      const ease = (q: number) => 1 - (1 - q) * (1 - q) * (1 - q);
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + ((seed * 31 + i * 17) % 10) * 0.03;
+        const sp = R * (1.2 + (((seed + i * 53) % 40) / 40) * 0.8);
+        const pos = (q: number) => ({ x: fx.x + Math.cos(a) * sp * ease(q), y: fx.y + Math.sin(a) * sp * ease(q) + 0.9 * q * q });
+        const head = pos(k), tail = pos(Math.max(0, k - 0.12));
+        const twinkle = k > 0.6 && (i + Math.floor(fx.t * 30)) % 3 === 0 ? 0 : 1;
+        ctx.globalAlpha = (1 - k) * twinkle;
+        ctx.strokeStyle = pal[i % pal.length];
+        ctx.lineWidth = Math.max(2, ts * 0.11 * (1 - k * 0.6));
+        ctx.beginPath();
+        ctx.moveTo(X(tail.x), Y(tail.y));
+        ctx.lineTo(X(head.x), Y(head.y));
+        ctx.stroke();
+        ctx.fillStyle = '#ffffff';
+        const sz = Math.max(1.5, ts * 0.09);
+        ctx.fillRect(X(head.x) - sz / 2, Y(head.y) - sz / 2, sz, sz);
+      }
+      // A second, smaller crackle ring.
+      if (k > 0.3) {
+        ctx.globalAlpha = 1 - k;
+        ctx.strokeStyle = pal[2];
+        ctx.lineWidth = Math.max(1, ts * 0.05);
+        ctx.beginPath();
+        ctx.arc(X(fx.x), Y(fx.y), ts * R * 0.6 * ease((k - 0.3) / 0.7), 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.globalCompositeOperation = 'source-over';
     } else if (fx.kind === 'slash') {
       ctx.globalAlpha = 1 - k;
       ctx.strokeStyle = fx.color;
@@ -396,6 +487,45 @@ function shadow(ctx: CanvasRenderingContext2D, x: number, y: number, r: number) 
 }
 
 type ToScreen = (n: number) => number;
+
+/** A pulsing arrow in each doorway showing you can walk through, and what is behind it. */
+function drawDoorSign(ctx: CanvasRenderingContext2D, run: Run, room: RoomRT, d: DoorPlan, X: ToScreen, Y: ToScreen, ts: number, time: number) {
+  const spot = run.doorSpot(room, d);
+  const { dir } = doorTiles(room.plan, d);
+  const next = run.through(d);
+  if (!next) return;
+  const open = run.openDoors.has(d.id);
+  const color = !open ? (d.type === 'blood' ? '#ff4444' : '#bbbbbb') : next.visited ? '#ffffff' : '#ffd34a';
+  const push = Math.sin(time * 4) * 0.12;
+  const cx = X(spot.x + dir.x * push), cy = Y(spot.y + dir.y * push);
+  const a = Math.atan2(dir.y, dir.x);
+  const s = ts * 0.42;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(a);
+  ctx.globalAlpha = open ? 0.85 : 0.7;
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = Math.max(3, ts * 0.2);
+  ctx.strokeStyle = 'rgba(0,0,0,0.75)';
+  const chevron = () => {
+    ctx.beginPath();
+    ctx.moveTo(-s * 0.5, -s * 0.7);
+    ctx.lineTo(s * 0.4, 0);
+    ctx.lineTo(-s * 0.5, s * 0.7);
+  };
+  chevron();
+  ctx.stroke();
+  ctx.lineWidth = Math.max(1.5, ts * 0.1);
+  ctx.strokeStyle = color;
+  chevron();
+  ctx.stroke();
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  if (!open) {
+    const ly = cy + (dir.y < 0 ? -ts * 0.45 : dir.y > 0 ? ts * 0.85 : ts * 0.95);
+    label(ctx, d.type === 'blood' ? (run.bloodKey ? 'OPEN' : 'BLOOD') : run.witherKeys > 0 ? 'OPEN' : 'LOCKED', cx, ly, Math.max(8, ts * 0.3), color);
+  }
+}
 
 function drawLighting(ctx: CanvasRenderingContext2D, run: Run, f: Field, X: ToScreen, Y: ToScreen, ts: number, time: number, lights: { x: number; y: number; r: number }[]) {
   const dark = DARKNESS[f.theme];
@@ -482,20 +612,95 @@ function drawScreenFx(ctx: CanvasRenderingContext2D, run: Run, f: Field, X: ToSc
   }
 }
 
+/** The Watcher: a floating demonic head with one huge eye that follows you. */
+const WATCHER_ROWS = [
+  '..aa....aa..',
+  '.ahha..ahha.',
+  'aaaaaaaaaaaa',
+  'abccccccccba',
+  'abcbbccbbcba',
+  'abeeeeeeeeba',
+  'abeeeeeeeeba',
+  'abeeeeeeeeba',
+  'abbccccccbba',
+  'abmtmtmtmtba',
+  'abdmmmmmmdba',
+  '.aaaaaaaaaa.',
+];
+const WATCHER_COLORS: Record<string, string> = { a: '#140c10', h: '#3a2a30', b: '#3d2f39', c: '#58444f', d: '#2a1e26', e: '#e9e1cf', m: '#120606', t: '#d8ccb4' };
+
+function drawWatcherHead(ctx: CanvasRenderingContext2D, room: RoomRT, ctl: BloodController, X: (n: number) => number, Y: (n: number) => number, ts: number, time: number) {
+  const s = ts * 2;
+  const u = s / 12;
+  const cx = X(4), cy = Y(2.1) + Math.sin(time * 1.6) * ts * 0.12;
+  const x0 = cx - s / 2, y0 = cy - s / 2;
+  // Red aura and shadow on the floor.
+  ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(cx, cy, s * 0.2, cx, cy, s * (0.95 + 0.08 * Math.sin(time * 3)));
+  g.addColorStop(0, 'rgba(255,40,40,0.45)');
+  g.addColorStop(1, 'rgba(255,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(cx - s * 1.1, cy - s * 1.1, s * 2.2, s * 2.2);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(cx, Y(3.3), s * 0.4, s * 0.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // The head, pixel by pixel. The mouth gapes open while he spawns mobs.
+  const shout = ctl.shout > 0;
+  WATCHER_ROWS.forEach((row, ry) => {
+    for (let rx = 0; rx < row.length; rx++) {
+      let ch = row[rx];
+      if (ch === '.') continue;
+      if (shout && ry === 9 && ch === 't' && rx % 4 === 1) ch = 'm';
+      ctx.fillStyle = WATCHER_COLORS[ch];
+      ctx.fillRect(Math.floor(x0 + rx * u), Math.floor(y0 + ry * u), Math.ceil(u), Math.ceil(u));
+    }
+  });
+  if (shout) {
+    ctx.fillStyle = `rgba(255,60,30,${0.5 + 0.4 * Math.sin(time * 30)})`;
+    ctx.fillRect(x0 + 3 * u, y0 + 10 * u, 6 * u, u * 0.7);
+  }
+  // Bloodshot veins in the corners of the eye.
+  ctx.fillStyle = '#c23a3a';
+  for (const [vx, vy] of [[2, 5], [2, 7], [3, 6], [9, 5], [9, 7], [8, 6]]) ctx.fillRect(x0 + vx * u, y0 + vy * u + u * 0.35, u * 0.6, u * 0.3);
+  // Iris and pupil track the player; he blinks every few seconds.
+  const p = room.field.player;
+  const look = Math.atan2(p.y - 2.1, p.x - 4);
+  const ex = cx + Math.cos(look) * u * 2.2, ey = y0 + 6.5 * u + Math.sin(look) * u * 0.7;
+  const blink = (time % 4.3) < 0.14;
+  if (blink) {
+    ctx.fillStyle = WATCHER_COLORS.c;
+    ctx.fillRect(x0 + 2 * u, y0 + 5 * u, 8 * u, 3 * u);
+    ctx.fillStyle = WATCHER_COLORS.a;
+    ctx.fillRect(x0 + 2 * u, y0 + 6.4 * u, 8 * u, u * 0.3);
+  } else {
+    ctx.fillStyle = '#b01010';
+    ctx.fillRect(ex - u * 1.5, ey - u * 1.4, u * 3, u * 2.8);
+    ctx.fillStyle = '#ff3b3b';
+    ctx.fillRect(ex - u * 1.1, ey - u * 1.0, u * 2.2, u * 2);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(ex - u * 0.55, ey - u * 0.9, u * 1.1, u * 1.8);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(ex - u * 1.0, ey - u * 1.0, u * 0.5, u * 0.5);
+  }
+  // Blood dripping from the jaw.
+  for (let i = 0; i < 3; i++) {
+    const k = ((time * 0.7 + i * 0.37) % 1);
+    ctx.globalAlpha = 1 - k;
+    ctx.fillStyle = '#a01010';
+    ctx.fillRect(x0 + (3 + i * 3) * u, y0 + 11 * u + k * ts * 0.9, u * 0.5, u * 0.8);
+  }
+  ctx.globalAlpha = 1;
+  label(ctx, 'The Watcher', cx, y0 - u * 0.5, Math.max(10, ts * 0.34), '#ff5555');
+  const left = ctl.remaining;
+  if (left > 0) label(ctx, `${left} mobs to come`, cx, y0 + s + ts * 0.55, Math.max(9, ts * 0.28), '#ffaaaa');
+}
+
 function drawWatcher(ctx: CanvasRenderingContext2D, room: RoomRT, X: (n: number) => number, Y: (n: number) => number, ts: number, time: number) {
   const ctl = room.controller as BloodController | undefined;
   if (!ctl) return;
-  if (!ctl.done) {
-    // The Watcher: a floating head with one big eye.
-    const cx = X(4), cy = Y(1.2) + Math.sin(time * 2) * ts * 0.1;
-    const s = ts * 1.1;
-    ctx.fillStyle = '#2b1d1d';
-    ctx.fillRect(cx - s / 2, cy - s / 2, s, s);
-    ctx.fillStyle = '#eee';
-    ctx.fillRect(cx - s * 0.3, cy - s * 0.18, s * 0.6, s * 0.36);
-    ctx.fillStyle = '#c00';
-    ctx.fillRect(cx - s * 0.12 + Math.sin(time) * s * 0.12, cy - s * 0.12, s * 0.24, s * 0.24);
-  }
+  if (!ctl.done) drawWatcherHead(ctx, room, ctl, X, Y, ts, time);
   if (ctl.portal) {
     const cx = X(4), cy = Y(4);
     for (let i = 0; i < 3; i++) {

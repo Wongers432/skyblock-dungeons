@@ -166,16 +166,43 @@ export class Run {
       if (check.reason) this.events.toast(check.reason, '#ff5555');
       return;
     }
-    if (check.unlock) {
-      this.openDoors.add(check.unlock.id);
-      if (check.unlock.type === 'wither') {
-        this.witherKeys--;
-        this.events.toast('Opened the Wither Door!', '#aaaaaa');
-      } else {
-        this.events.toast('The BLOOD DOOR has been opened!', '#ff5555');
-      }
-    }
+    if (check.unlock) this.unlock(check.unlock);
     this.enterRoom(room);
+  }
+
+  private unlock(d: DoorPlan) {
+    this.openDoors.add(d.id);
+    if (d.type === 'wither') {
+      this.witherKeys--;
+      this.events.toast('Opened the Wither Door!', '#aaaaaa');
+    } else {
+      this.events.toast('The BLOOD DOOR has been opened!', '#ff5555');
+    }
+  }
+
+  /** Where a door of a room is drawn, in that room's tiles (the gap in the outer wall). */
+  doorSpot(room: RoomRT, d: DoorPlan): Pt {
+    const { tiles, dir } = doorTiles(room.plan, d);
+    const dx = dir.x, dy = dir.y;
+    const cx = (tiles[0].x + tiles[1].x) / 2 + 0.5, cy = (tiles[0].y + tiles[1].y) / 2 + 0.5;
+    return { x: cx + dx * 0.7, y: cy + dy * 0.7 };
+  }
+
+  /** The room on the other side of one of the current room's doors. */
+  through(d: DoorPlan): RoomRT | null {
+    return this.current ? this.other(d, this.current.plan.id) : null;
+  }
+
+  /** Walk through a door of the current room, unlocking it with a key if needed. */
+  useDoor(d: DoorPlan) {
+    const next = this.through(d);
+    if (!next || this.view !== 'room') return;
+    if (!this.openDoors.has(d.id)) {
+      if (d.type === 'wither' && this.witherKeys <= 0) return this.events.toast('This Wither Door needs a Wither Key.', '#ff5555');
+      if (d.type === 'blood' && !this.bloodKey) return this.events.toast('The Blood Door needs the Blood Key.', '#ff5555');
+      this.unlock(d);
+    }
+    this.enterRoom(next);
   }
 
   private enterRoom(room: RoomRT) {
@@ -310,6 +337,9 @@ export class Run {
         this.shield = 0;
       }
     }
+    // The Watcher keeps working while you're in another room or on the map.
+    const blood = this.rooms[this.plan.blood];
+    if (blood.controller && blood.controller !== this.controller) blood.controller.update(dt);
     const f = this.field;
     if (!f) return;
     if (this.conjureTime > 0) {
@@ -403,10 +433,20 @@ export class Run {
       pr.x += pr.vx * dt;
       pr.y += pr.vy * dt;
       pr.life -= dt;
+      if (pr.x < -1 || pr.y < -1 || pr.x > f.w + 1 || pr.y > f.h + 1) pr.life = 0;
+      if (pr.kind === 'rocket') {
+        // Rockets blow up where they were aimed; standing in the blast hurts.
+        if (pr.life <= 0) {
+          this.fireworkFx(f, pr.tx ?? pr.x, pr.ty ?? pr.y, pr.color ?? '#ff5555', pr.boom ?? 1.4);
+          if (Math.hypot((pr.tx ?? pr.x) - p.x, (pr.ty ?? pr.y) - p.y) < (pr.boom ?? 1.4)) this.damagePlayer(pr.damage);
+        }
+        continue;
+      }
       if (Math.hypot(pr.x - p.x, pr.y - p.y) < 0.45) {
         pr.life = 0;
         this.damagePlayer(pr.damage);
-        if (pr.kind !== 'arrow') f.ring(pr.x, pr.y, 1, pr.kind === 'skull' ? '#555555' : pr.kind === 'boulder' ? '#bba58a' : '#ff5555');
+        if (pr.kind === 'balloon') this.fireworkFx(f, pr.x, pr.y, pr.color ?? '#ff5555', 1);
+        else if (pr.kind !== 'arrow') f.ring(pr.x, pr.y, 1, pr.kind === 'skull' ? '#555555' : pr.kind === 'boulder' ? '#bba58a' : '#ff5555');
       }
     }
     f.projectiles = f.projectiles.filter((pr) => pr.life > 0);
@@ -418,7 +458,7 @@ export class Run {
         const stepLen = 13 * dt;
         if (d <= stepLen) {
           this.explode(f, s.tx!, s.ty!, s.radius, s.damage, s.color ?? '#ff77aa');
-          for (let i = 0; i < 3; i++) f.fx.push({ kind: 'puff', x: s.tx! + (Math.random() - 0.5) * s.radius, y: s.ty! + (Math.random() - 0.5) * s.radius, t: 0, life: 0.5, color: ['#ff5555', '#55ff55', '#5599ff', '#ffdd33'][i % 4] });
+          this.fireworkFx(f, s.tx!, s.ty!, s.color ?? '#ff77aa', s.radius);
           s.life = 0;
         } else {
           s.x += (dx / d) * stepLen;
@@ -439,6 +479,12 @@ export class Run {
       }
     }
     f.shots = f.shots.filter((s) => s.life > 0);
+  }
+
+  /** A firework burst: coloured sparks with trails, a flash and a crackle ring. */
+  fireworkFx(f: Field, x: number, y: number, color: string, r: number) {
+    f.fx.push({ kind: 'firework', x, y, t: 0, life: 0.9, color, r, angle: Math.floor(Math.random() * 1000) });
+    this.shake = Math.max(this.shake, 0.08);
   }
 
   damagePlayer(raw: number) {
@@ -593,15 +639,7 @@ export class Run {
     if (this.aiming) return this.cast(x, y);
     if (this.controller?.onTap?.(x, y)) return;
     const tapSize = this.profile.settings.tapSize ?? 1;
-    const near = (px: number, py: number, r: number) => Math.hypot(px - x, py - y) <= r;
 
-    for (const pr of f.projectiles) {
-      if (pr.tappable && near(pr.x, pr.y, 1.0 * tapSize)) {
-        pr.life = 0;
-        f.fx.push({ kind: 'puff', x: pr.x, y: pr.y, t: 0, life: 0.3, color: '#ff8888' });
-        return;
-      }
-    }
     const room = this.view === 'room' ? this.current : null;
     // Everything tappable competes; the closest one (relative to its tap size) wins, so a mob
     // standing near a secret no longer steals the tap and vice versa.
@@ -610,6 +648,16 @@ export class Run {
       const score = Math.hypot(px - x, py - y) / r;
       if (score <= 1 && (!best || score < best.score)) best = { score, act };
     };
+    for (const pr of f.projectiles) {
+      if (!pr.tappable) continue;
+      consider(pr.x, pr.y, 1.0 * tapSize, () => {
+        pr.life = 0;
+        if (pr.kind === 'balloon' || pr.kind === 'rocket') {
+          this.fireworkFx(f, pr.x, pr.y, pr.color ?? '#ff8888', 0.7);
+          f.text(pr.x, pr.y - 0.4, 'POP!', '#ffffff');
+        } else f.fx.push({ kind: 'puff', x: pr.x, y: pr.y, t: 0, life: 0.3, color: '#ff8888' });
+      });
+    }
     if (room?.key?.spawned && !room.key.taken) {
       const key = room.key;
       consider(key.x, key.y, PICKUP_RADIUS * tapSize, () => {
@@ -633,6 +681,10 @@ export class Run {
       });
     }
     if (room) {
+      for (const d of this.doorsOf(room)) {
+        const spot = this.doorSpot(room, d);
+        consider(spot.x, spot.y, 1.2 * tapSize, () => this.useDoor(d));
+      }
       if (room.cleared) {
         for (const s of room.secrets) {
           if (s.found) continue;
