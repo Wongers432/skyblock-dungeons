@@ -463,7 +463,7 @@ export class Run {
       }
       if (Math.hypot(pr.x - p.x, pr.y - p.y) < 0.45) {
         pr.life = 0;
-        this.damagePlayer(pr.damage);
+        this.damagePlayer(pr.damage, pr.pierce);
         if (pr.kind === 'balloon') this.fireworkFx(f, pr.x, pr.y, pr.color ?? '#ff5555', 1);
         else if (pr.kind !== 'arrow') f.ring(pr.x, pr.y, 1, pr.kind === 'skull' ? '#555555' : pr.kind === 'boulder' ? '#bba58a' : '#ff5555');
       }
@@ -506,10 +506,10 @@ export class Run {
     this.shake = Math.max(this.shake, 0.08);
   }
 
-  damagePlayer(raw: number) {
+  damagePlayer(raw: number, pierce = false) {
     if (this.ended || this.profile.admin.godMode) return;
     let dmg = damageTaken(raw, this.stats.defense) * this.power.taken;
-    if (this.shield > 0) {
+    if (this.shield > 0 && !pierce) {
       const absorbed = Math.min(this.shield, dmg);
       this.shield -= absorbed;
       dmg -= absorbed;

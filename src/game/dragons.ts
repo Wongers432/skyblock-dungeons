@@ -5,9 +5,10 @@ import { makeMob, type Field, type Mob } from './field';
 import type { Run } from './run';
 
 /**
- * M7 finale: the Wither King's five dragons. Each one flies across the arena over its own
- * statue and can only be hurt while it is right above it. A dragon that gets past its statue
- * alive goes back to the end of the line and comes round again at full health.
+ * M7 finale: the Wither King's five dragons. They take off one after another until three are in
+ * the air at once, and every one keeps sweeping the arena at full speed, raining fire, until it
+ * dies. They can be hit anywhere, but each one takes double damage while it crosses its own statue,
+ * and every so often it dives to its statue to charge a huge breath that only heavy damage interrupts.
  */
 type DragonKind = 'red' | 'orange' | 'green' | 'blue' | 'purple';
 
@@ -19,17 +20,30 @@ const DRAGONS: Record<DragonKind, { name: string; color: string; statue: { x: nu
   purple: { name: 'Soul Dragon', color: '#b25cff', statue: { x: 11.6, y: 9 } },
 };
 
-/** How close to its statue a dragon has to be to take damage. */
+/** Inside this range of its own statue a dragon takes double damage. */
 const STATUE_RANGE = 1.7;
-const FLY_SPEED = 3.4;
-const STATUE_SPEED = 0.4;
+const FLY_SPEED = 4.2;
+const MAX_AIRBORNE = 3;
+/** Seconds between take-offs. */
+const SPAWN_GAP = 6;
+/** Seconds between a dragon's statue dives. */
+const DIVE_EVERY = 10;
+/** Damage (fraction of max health) that interrupts a charging breath. */
+const INTERRUPT_AT = 0.25;
+/** Damage as a fraction of your max health. Defense and Wither Shield don't help against dragon fire. */
+const FIREBALL_HIT = 0.15;
+const BREATH_HIT = 0.5;
 
 interface Dragon {
   kind: DragonKind;
   mob: Mob;
-  path: { x: number; y: number }[];
-  leg: number;
+  target: { x: number; y: number };
+  legs: number;
   breath: number;
+  dive: number;
+  /** Seconds left charging the big breath (> 0 while charging). */
+  charging: number;
+  hpAtCharge: number;
   wasNear: boolean;
 }
 
@@ -41,17 +55,32 @@ export class DragonController implements Controller {
   private queue: DragonKind[];
   private active: Dragon[] = [];
   private slain = 0;
-  private spawnTimer = 2.5;
+  private spawnTimer = 0;
   private intro = 2.5;
 
   constructor(private run: Run, private field: Field) {
     this.queue = run.rng.shuffle(['red', 'orange', 'green', 'blue', 'purple'] as DragonKind[]);
     run.events.toast('The Wither King: You... again? Then face my dragons!', '#b25cff');
-    run.events.toast('Dragons can only be hurt right above their own statue. Hit them there!', '#ffcc55');
+    run.events.toast('Dragons take double damage over their own statue. Tap their fireballs, and hit a charging dragon hard to stop its breath!', '#ffcc55');
   }
 
   get total(): number {
     return 5;
+  }
+
+  /** Raw damage that lands as `frac` of max health after defense (before the level penalty). */
+  private trueDamage(frac: number): number {
+    const s = this.run.stats;
+    return s.maxHp * frac * (100 + s.defense) / 100;
+  }
+
+  private nextWaypoint(d: Dragon) {
+    const f = this.field;
+    const rng = this.run.rng;
+    d.legs++;
+    // Every third sweep goes over its own statue; the rest criss-cross the arena.
+    if (d.legs % 3 === 0) d.target = { ...DRAGONS[d.kind].statue };
+    else d.target = { x: 1.2 + rng.next() * (f.w - 2.4), y: 1.2 + rng.next() * (f.h - 2.6) };
   }
 
   private spawn() {
@@ -60,60 +89,87 @@ export class DragonController implements Controller {
     const st = DRAGONS[kind].statue;
     const f = this.field;
     const rng = this.run.rng;
-    // Enter from a random point off one side and leave through the opposite side, over the statue.
-    const fromLeft = st.x > f.w / 2 ? rng.chance(0.75) : rng.chance(0.25);
-    const start = { x: fromLeft ? -2.5 : f.w + 2.5, y: 1 + rng.next() * (f.h - 2) };
-    const end = { x: fromLeft ? f.w + 2.5 : -2.5, y: 1 + rng.next() * (f.h - 2) };
-    const mob = makeMob(dragonDef(kind), start.x, start.y, 1, this.run.floor.mobDmgMult, { boss: true, invuln: Infinity, name: DRAGONS[kind].name });
+    // Take off from beyond the arena edge nearest its statue.
+    const start = { x: st.x > f.w / 2 ? f.w + 2.5 : -2.5, y: st.y };
+    const mob = makeMob(dragonDef(kind), start.x, start.y, 1, this.run.floor.mobDmgMult, { boss: true, name: DRAGONS[kind].name });
     mob.hp = mob.maxHp = M7_DRAGON_HP;
     f.mobs.push(mob);
-    this.active.push({ kind, mob, path: [start, { x: st.x, y: st.y }, end], leg: 1, breath: 1.5 + rng.next(), wasNear: false });
+    this.active.push({ kind, mob, target: { ...st }, legs: 0, breath: 1.2 + rng.next(), dive: 4 + rng.next() * 5, charging: 0, hpAtCharge: 0, wasNear: false });
     this.run.events.toast(`The ${DRAGONS[kind].name} is spawning!`, DRAGONS[kind].color);
   }
 
   update(dt: number) {
     const f = this.field;
+    const rng = this.run.rng;
     if (this.intro > 0) { this.intro -= dt; return; }
     this.spawnTimer -= dt;
-    // Up to two dragons in the air; the next takes off a few seconds after the last.
-    if (this.spawnTimer <= 0 && this.active.length < 2 && this.queue.length) {
+    if (this.spawnTimer <= 0 && this.active.length < MAX_AIRBORNE && this.queue.length) {
       this.spawn();
-      this.spawnTimer = 5;
+      this.spawnTimer = SPAWN_GAP;
     }
+    const fire = this.trueDamage(FIREBALL_HIT);
     for (const d of this.active) {
       const m = d.mob;
       if (m.dead) continue;
       const st = DRAGONS[d.kind].statue;
       const near = Math.hypot(m.x - st.x, m.y - st.y) <= STATUE_RANGE;
-      m.invuln = near ? 0 : Infinity;
-      if (near && !d.wasNear) f.text(st.x, st.y - 1.6, 'AT ITS STATUE!', DRAGONS[d.kind].color);
+      // Negative armor: double damage over its own statue.
+      m.armor = near ? -1 : 0;
+      if (near && !d.wasNear) f.text(st.x, st.y - 1.6, 'DOUBLE DAMAGE!', DRAGONS[d.kind].color);
       d.wasNear = near;
-      const target = d.path[d.leg];
-      const dx = target.x - m.x, dy = target.y - m.y;
-      const dist = Math.hypot(dx, dy);
-      const speed = (near ? STATUE_SPEED : FLY_SPEED) * (m.stun > 0 ? 0.3 : 1);
-      if (dist <= speed * dt) {
-        m.x = target.x;
-        m.y = target.y;
-        d.leg++;
-      } else {
-        m.x += (dx / dist) * speed * dt;
-        m.y += (dy / dist) * speed * dt;
+
+      if (d.charging > 0) {
+        // Hovering over its statue, charging a breath that hits hard unless it dies first.
+        d.charging -= dt;
+        if (d.hpAtCharge - m.hp >= m.maxHp * INTERRUPT_AT) {
+          f.text(m.x, m.y - 1.8, 'INTERRUPTED!', '#55ff55');
+          d.charging = 0;
+          d.dive = DIVE_EVERY;
+          this.nextWaypoint(d);
+        } else if (d.charging <= 0) {
+          this.run.events.toast(`The ${DRAGONS[d.kind].name} breathes fire!`, DRAGONS[d.kind].color);
+          for (let i = -3; i <= 3; i++) this.run.shoot(f, m.x, m.y - 0.4, d.kind === 'blue' ? 'skull' : 'fireball', fire, i * 0.16);
+          this.run.damagePlayer(this.trueDamage(BREATH_HIT), true);
+          this.run.shake = 0.5;
+          d.dive = DIVE_EVERY;
+          this.nextWaypoint(d);
+        }
+        continue;
       }
-      // Breath attack: a fireball at the player while it is over the arena.
+
+      d.dive -= dt;
+      if (d.dive <= 0 && d.legs % 3 !== 0) {
+        // Head for the statue to charge the big breath.
+        d.legs = 2;
+        this.nextWaypoint(d);
+        d.dive = Infinity;
+      }
+      const dx = d.target.x - m.x, dy = d.target.y - m.y;
+      const dist = Math.hypot(dx, dy);
+      const step = FLY_SPEED * dt;
+      if (dist <= step) {
+        m.x = d.target.x;
+        m.y = d.target.y;
+        if (d.dive === Infinity) {
+          d.charging = 2.6;
+          d.hpAtCharge = m.hp;
+          f.text(m.x, m.y - 1.8, 'CHARGING BREATH!', '#ff5555');
+        } else this.nextWaypoint(d);
+      } else {
+        m.x += (dx / dist) * step;
+        m.y += (dy / dist) * step;
+      }
+      // Fire breath while over the arena.
       d.breath -= dt;
       if (d.breath <= 0 && m.x > 0 && m.x < f.w) {
-        d.breath = 2 + this.run.rng.next() * 0.8;
-        this.run.shoot(f, m.x, m.y - 0.4, d.kind === 'blue' ? 'skull' : 'fireball', 55 * this.run.floor.mobDmgMult);
-      }
-      if (d.leg >= d.path.length) {
-        // Got past its statue alive: back of the line, full health next time.
-        m.dead = true;
-        f.mobs = f.mobs.filter((x) => x !== m);
-        this.queue.push(d.kind);
-        this.run.events.toast(`The ${DRAGONS[d.kind].name} escaped! It's back in line.`, '#ff5555');
+        d.breath = 1.4 + rng.next() * 0.8;
+        const kind = d.kind === 'blue' ? 'skull' : 'fireball';
+        this.run.shoot(f, m.x, m.y - 0.4, kind, fire);
+        if (d.kind === 'red' || d.kind === 'purple') this.run.shoot(f, m.x, m.y - 0.4, kind, fire, rng.chance(0.5) ? 0.25 : -0.25);
       }
     }
+    // Dragon fire burns straight through Wither Shield.
+    for (const p of f.projectiles) if (p.kind === 'fireball' || p.kind === 'skull') p.pierce = true;
     this.active = this.active.filter((d) => !d.mob.dead);
   }
 
@@ -168,15 +224,31 @@ export class DragonController implements Controller {
     for (const d of this.active) {
       const m = d.mob;
       if (m.dead) continue;
-      const near = m.invuln === 0;
-      const next = d.path[Math.min(d.leg, d.path.length - 1)];
-      const face = next.x >= m.x ? 1 : -1;
+      const near = m.armor < 0;
+      const face = d.target.x >= m.x ? 1 : -1;
       // Shadow on the ground below the flying dragon.
       ctx.fillStyle = 'rgba(0,0,0,0.3)';
       ctx.beginPath();
       ctx.ellipse(X(m.x), Y(m.y + 1.2), ts * 1.3, ts * 0.35, 0, 0, Math.PI * 2);
       ctx.fill();
-      drawDragon(ctx, X(m.x), Y(m.y - 0.3), ts, DRAGONS[d.kind].color, face, Math.sin(time * 9 + m.id), m.flash > 0, near ? time : undefined);
+      drawDragon(ctx, X(m.x), Y(m.y - 0.3), ts, DRAGONS[d.kind].color, face, Math.sin(time * (d.charging > 0 ? 16 : 9) + m.id), m.flash > 0, near ? time : undefined);
+      if (d.charging > 0) {
+        // A swelling fire ring while it charges its breath.
+        const k = 1 - d.charging / 2.6;
+        ctx.strokeStyle = '#ff5533';
+        ctx.globalAlpha = 0.5 + 0.4 * Math.sin(time * 20);
+        ctx.lineWidth = Math.max(2, ts * 0.12);
+        ctx.beginPath();
+        ctx.arc(X(m.x), Y(m.y), ts * (0.8 + 2.2 * k), 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
+      // Health bar over each dragon, since several fly at once.
+      const bw = ts * 2.2, bx = X(m.x) - bw / 2, by = Y(m.y) - ts * 2.1;
+      ctx.fillStyle = 'rgba(0,0,0,0.75)';
+      ctx.fillRect(bx - 1, by - 1, bw + 2, 6);
+      ctx.fillStyle = DRAGONS[d.kind].color;
+      ctx.fillRect(bx, by, bw * Math.max(0, m.hp / m.maxHp), 4);
     }
     const text = this.bannerText();
     if (text) arenaBanner(ctx, X, Y, this.field.w, ts, time, text[0], text[1]);
@@ -184,10 +256,10 @@ export class DragonController implements Controller {
 
   private bannerText(): [string, string] | null {
     if (this.intro > 0) return ['THE WITHER DRAGONS ARE COMING', '#b25cff'];
-    const at = this.active.find((d) => d.mob.invuln === 0 && !d.mob.dead);
-    if (at) return [`HIT THE ${DRAGONS[at.kind].name.toUpperCase()} NOW!`, DRAGONS[at.kind].color];
-    const fly = this.active.find((d) => !d.mob.dead);
-    if (fly) return [`KILL THE ${DRAGONS[fly.kind].name.toUpperCase()} AT ITS STATUE`, DRAGONS[fly.kind].color];
+    const charge = this.active.find((d) => d.charging > 0 && !d.mob.dead);
+    if (charge) return [`STOP THE ${DRAGONS[charge.kind].name.toUpperCase()}'S BREATH!`, '#ff5555'];
+    const at = this.active.find((d) => d.mob.armor < 0 && !d.mob.dead);
+    if (at) return [`${DRAGONS[at.kind].name.toUpperCase()} OVER ITS STATUE: DOUBLE DAMAGE!`, DRAGONS[at.kind].color];
     return [`DRAGONS SLAIN ${this.slain}/5`, '#ffffff'];
   }
 }

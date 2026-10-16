@@ -222,8 +222,8 @@ export const MASTER_OFFSET = 100;
  */
 export const M7_MOB_HP: [number, number] = [320_000, 750_000];
 export const M7_BOSS_HP = 1_650_000;
-/** Each Wither Dragon has to lose all of this during one pass over its statue. */
-export const M7_DRAGON_HP = 340_000;
+/** Each Wither Dragon's health (double damage over its own statue). */
+export const M7_DRAGON_HP = 2_000_000;
 function m7Hp(baseHp: number, boss: boolean): number {
   if (boss) return M7_BOSS_HP;
   const k = Math.min(1, Math.max(0, (baseHp - 90) / 610));

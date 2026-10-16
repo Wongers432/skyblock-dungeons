@@ -41,6 +41,8 @@ export interface Projectile {
   vy: number;
   damage: number;
   kind: 'arrow' | 'balloon' | 'fireball' | 'skull' | 'boulder' | 'lightning' | 'rocket';
+  /** Goes straight through Wither Shield (dragon fire). */
+  pierce?: boolean;
   tappable: boolean;
   life: number;
   /** Rockets fly to (tx, ty) and blow up there with this radius. */
