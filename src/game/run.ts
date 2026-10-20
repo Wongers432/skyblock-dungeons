@@ -865,8 +865,10 @@ export class Run {
   // ---------- Score and end ----------
 
   scoreNow(): ScoreResult {
-    const total = this.rooms.length;
-    const cleared = this.rooms.filter((r) => r.cleared).length;
+    // The blood room doesn't count, so the score is settled before the boss.
+    const scored = this.scoredRooms;
+    const total = scored.length;
+    const cleared = scored.filter((r) => r.cleared).length;
     const secretsTotal = this.rooms.reduce((s, r) => s + r.secrets.length, 0);
     return computeScore({
       roomsCleared: cleared, roomsTotal: total,
@@ -876,14 +878,17 @@ export class Run {
     });
   }
 
+  /** Rooms that count towards the score: every room but the blood room. */
+  get scoredRooms() {
+    return this.rooms.filter((r) => r.plan.type !== 'blood');
+  }
+
   get secretsTotal(): number {
     return this.rooms.reduce((s, r) => s + r.secrets.length, 0);
   }
 
   finish(victory: boolean) {
     if (this.ended) return;
-    const blood = this.rooms[this.plan.blood];
-    if (victory) blood.cleared = true;
     const score = this.scoreNow();
     const p = this.profile;
     const levelBefore = cataLevel(p.cataXp).level;
