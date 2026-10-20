@@ -221,6 +221,11 @@ export class RunUi {
           (e.currentTarget as HTMLElement).textContent = `Puzzle glow: ${r.profile.settings.puzzleGlow ? 'ON' : 'off'}`;
           this.refresh();
         } }, `Puzzle glow: ${r.profile.settings.puzzleGlow ? 'ON' : 'off'}`),
+        h('button', { onclick: (e: Event) => {
+          r.profile.settings.sound = !r.profile.settings.sound;
+          saveProfile(r.profile);
+          (e.currentTarget as HTMLElement).textContent = `Sound: ${r.profile.settings.sound ? 'ON' : 'off'}`;
+        } }, `Sound: ${r.profile.settings.sound ? 'ON' : 'off'}`),
         admin ? h('button', { onclick: () => { r.adminClearRoom(); close(); } }, 'Admin: kill everything here') : null,
         admin ? h('button', { onclick: () => { r.adminKeys(); close(); } }, 'Admin: give keys') : null,
         admin ? h('button', { onclick: () => { r.adminRevealMap(); close(); } }, 'Admin: reveal map') : null,

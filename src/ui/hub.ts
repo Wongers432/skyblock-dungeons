@@ -360,6 +360,10 @@ export class Hub {
           h('span', { class: 'muted' }, 'Highlights the right answer in puzzles (Tic Tac Toe, Three Weirdos, Higher or Lower and more). You can also toggle it from the pause menu.'),
         ),
         h('div', { class: 'row', style: { marginBottom: '8px' } },
+          h('button', { class: 'small' + (p.settings.sound ? ' primary' : ''), onclick: () => { p.settings.sound = !p.settings.sound; this.commit(); } }, `Sound: ${p.settings.sound ? 'ON' : 'off'}`),
+          h('span', { class: 'muted' }, 'Music while you clear the dungeon (it fades out at the boss) and quiet sound effects for hits, deaths, secrets and doors.'),
+        ),
+        h('div', { class: 'row', style: { marginBottom: '8px' } },
           h('button', { class: 'small', onclick: () => openCalibration({ tapOffset: p.settings.tapOffset ?? { x: 0, y: 0 }, tapSize: p.settings.tapSize ?? 1 }, (c) => {
             p.settings.tapOffset = c.tapOffset;
             p.settings.tapSize = c.tapSize;
