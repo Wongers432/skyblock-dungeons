@@ -3,6 +3,7 @@
 A private, solo, offline 2D take on Hypixel SkyBlock's Catacombs, built as an installable web app (PWA) for iPhone.
 
 ## What's in it (v0.4, Floors 1–7)
+- **Entrance Floor (Tutorial)**: starts on first launch (replay it from the settings menu). A small fixed dungeon with tooltips on killing mobs, finding secrets, puzzles (and turning on Puzzle glow), Wither Doors, the Blood Key and the Blood Room. It ends at the Watcher's portal and gives 25 Catacombs XP the first time.
 - Randomly generated dungeon each run: 1x1, 1x2, 2x1, 2x2 and L rooms built from hand-made layouts.
 - Map screen first; tap a room to zoom in, tap the corner minimap (or **Map**) to go back.
 - Tap mobs to hit them; weapon abilities do area damage.

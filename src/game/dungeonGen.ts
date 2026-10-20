@@ -284,9 +284,12 @@ export function doorTiles(room: RoomPlan, door: DoorPlan): { tiles: Pt[]; stand:
   return { dir, tiles: [{ x: lx + h - 1, y: ly }, { x: lx + h, y: ly }], stand: { x: lx + h, y: ly + 0.6 } };
 }
 
-function buildRoomTiles(room: RoomPlan, doors: DoorPlan[], floor: FloorDef, rng: Rng) {
+/** Lays out a room's tiles, doors, mobs, secrets and crypts. `layout` replaces the random pick (the tutorial uses fixed rooms). */
+export function buildRoomTiles(room: RoomPlan, doors: DoorPlan[], floor: FloorDef, rng: Rng, layout?: string[]) {
   let rows: string[];
-  if (room.type === 'normal') {
+  if (layout) {
+    rows = layout;
+  } else if (room.type === 'normal') {
     if (room.shape === '1x1') rows = rotateTimes(rng.pick(LAYOUTS['1x1']), rng.int(0, 3));
     else if (room.shape === '1x2') rows = rotateTimes(rng.pick(LAYOUTS['1x2']), rng.pick([0, 2]));
     else if (room.shape === '2x1') rows = rotateTimes(rng.pick(LAYOUTS['1x2']), rng.pick([1, 3]));

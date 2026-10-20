@@ -2,6 +2,7 @@ import './style.css';
 import { registerSW } from 'virtual:pwa-register';
 import { loadProfile, saveProfile, type Profile } from './game/save';
 import { Run } from './game/run';
+import { TUTORIAL_FLOOR } from './data/floors';
 import { drawField, screenToField, type Rect, type Xform } from './render/fieldView';
 import { drawMap, roomAt, type MapXform } from './render/mapView';
 import { Hub } from './ui/hub';
@@ -29,6 +30,7 @@ let miniRect: Rect | null = null;
 const hub = new Hub(ui, () => profile, {
   play: (floorId) => startRun(floorId),
   replaceProfile: (p) => { profile = p; saveProfile(p); },
+  replayTutorial: () => startRun(TUTORIAL_FLOOR.id),
 });
 
 function startRun(floorId: number) {
@@ -52,7 +54,7 @@ function startRun(floorId: number) {
   setSoundEnabled(profile.settings.sound);
   musicOn = profile.settings.sound;
   if (musicOn) startMusic();
-  runUi.toast(`Welcome to the Catacombs, ${run.floor.name}! Tap a room to begin.`, '#55ff55');
+  if (!run.floor.tutorial) runUi.toast(`Welcome to the Catacombs, ${run.floor.name}! Tap a room to begin.`, '#55ff55');
 }
 
 function toHub() {
@@ -233,6 +235,13 @@ document.addEventListener('visibilitychange', () => {
 });
 
 hub.show();
+
+// New players start with the Entrance tutorial. It can be replayed from Settings.
+if (!profile.tutorialSeen) {
+  profile.tutorialSeen = true;
+  saveProfile(profile);
+  startRun(TUTORIAL_FLOOR.id);
+}
 
 // Test hook used by the automated playtest script.
 (window as unknown as { __dbg: unknown }).__dbg = { run: () => run, xf: () => fieldXf, profile: () => profile, start: startRun, setPaused: (p: boolean) => { paused = p; } };

@@ -37,6 +37,8 @@ export interface Profile {
   };
   /** RNG meter per floor: the chosen drop and how much meter has been filled. */
   rng: Record<string, { target: string | null; xp: number }>;
+  /** Whether the Entrance tutorial has been offered (it starts by itself on first launch). */
+  tutorialSeen: boolean;
 }
 
 const KEY = 'skyblock-dungeons-save-v1';
@@ -63,6 +65,7 @@ export function freshProfile(): Profile {
     admin: { enabled: true, godMode: false, unlockAll: false },
     settings: { puzzleGlow: false, sound: true, tapOffset: { x: 0, y: 0 }, tapSize: 1, tapCalV: TAP_CAL_V },
     rng: {},
+    tutorialSeen: false,
   };
   p.equipped.weapon = newItem(p, 'iron_sword').uid;
   p.equipped.helmet = newItem(p, 'iron_helmet').uid;
@@ -79,6 +82,8 @@ function sanitize(p: Profile): Profile {
   const base = freshProfile();
   const out = { ...base, ...p, essence: { ...base.essence, ...p.essence }, admin: { ...base.admin, ...p.admin }, settings: { ...base.settings, ...p.settings }, rng: { ...p.rng } };
   if (p.settings?.tapCalV !== TAP_CAL_V) out.settings = { ...out.settings, tapOffset: { x: 0, y: 0 }, tapSize: 1, tapCalV: TAP_CAL_V };
+  // Saves from before the tutorial existed: only new players get it on launch.
+  out.tutorialSeen = p.tutorialSeen ?? (p.runs ?? 0) > 0;
   out.items = (p.items ?? []).filter((i) => ITEMS[i.id]);
   for (const slot of Object.keys(out.equipped) as Slot[]) {
     if (!out.items.some((i) => i.uid === out.equipped[slot])) out.equipped[slot] = null;

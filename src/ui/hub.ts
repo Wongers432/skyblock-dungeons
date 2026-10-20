@@ -14,6 +14,8 @@ type Tab = 'dungeons' | 'rng' | 'gear' | 'admin' | 'save';
 export interface HubActions {
   play(floorId: number): void;
   replaceProfile(p: Profile): void;
+  /** Shown as "Replay tutorial" in the settings menu when provided. */
+  replayTutorial?(): void;
 }
 
 const STAT_LABEL: Record<keyof ItemStats, string> = {
