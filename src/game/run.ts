@@ -5,6 +5,7 @@ import { generateDungeon, doorTiles, type DoorPlan, type DungeonPlan, type Pt, t
 import { Field, makeMob, setHpRule, type Mob } from './field';
 import { DragonController } from './dragons';
 import { Rng } from './rng';
+import type { Sfx } from '../audio/sound';
 import { baseHit, cataLevel, computeStats, damageTaken, levelPower, type PlayerStats } from './progression';
 import { newItem, saveProfile, type Profile } from './save';
 import { applyRngMeter, computeScore, rollLoot, runXp, type Loot, type RngResult, type ScoreResult } from './score';
@@ -56,6 +57,8 @@ export interface RunEvents {
   banner?: (msg: string, kind: 's' | 'splus') => void;
   changed: () => void;
   ended: (end: RunEnd) => void;
+  /** A short sound effect. */
+  sfx?: (kind: Sfx) => void;
 }
 
 export class Run {
@@ -181,6 +184,7 @@ export class Run {
 
   private unlock(d: DoorPlan) {
     this.openDoors.add(d.id);
+    this.events.sfx?.('door');
     if (d.type === 'wither') {
       this.witherKeys--;
       this.events.toast('Opened the Wither Door!', '#aaaaaa');
@@ -272,6 +276,7 @@ export class Run {
     if (room.cleared) return;
     room.cleared = true;
     if (room.plan.type === 'normal') {
+      this.events.sfx?.('roomClear');
       this.events.toast(room.secrets.length ? `Room cleared! ${room.secrets.length} secret${room.secrets.length > 1 ? 's' : ''} here.` : 'Room cleared!', '#55ff55');
       if (room.key) {
         const spot = room.field.randomFloor(() => this.rng.next(), room.field.player, 1.5);
@@ -516,6 +521,7 @@ export class Run {
     }
     this.hp -= dmg;
     this.hurt = 0.3;
+    if (dmg > 0) this.events.sfx?.('hurt');
     if (dmg > this.stats.maxHp * 0.08) this.shake = 0.2;
     if (this.hp <= 0) {
       if (this.stats.hasBonzoMask && !this.maskUsed) {
@@ -538,6 +544,7 @@ export class Run {
     const dmg = Math.max(1, Math.round(amount * (amount >= 1e9 ? 1 : this.power.dealt) * (1 - m.armor)));
     m.hp -= dmg;
     m.flash = 0.12;
+    this.events.sfx?.(crit ? 'crit' : 'hit');
     f.text(m.x, m.y - 0.8, crit ? `✧${dmg.toLocaleString()}✧` : dmg.toLocaleString(), color ?? (crit ? '#ffcc33' : '#ffffff'));
     if (m.hp <= 0) this.killMob(f, m);
   }
@@ -546,6 +553,7 @@ export class Run {
     m.hp = 0;
     m.dead = true;
     this.deathFx(f, m);
+    this.events.sfx?.(m.boss ? 'bossDeath' : 'mobDeath');
     if (m.crypt) {
       this.crypts++;
       if (this.crypts <= 5) this.events.toast(`Crypt cleared! (${this.crypts}/5 bonus)`, '#55ffff');
@@ -569,6 +577,7 @@ export class Run {
     for (const m of f.aliveMobs()) {
       m.dead = true;
       this.deathFx(f, m);
+      this.events.sfx?.(m.boss ? 'bossDeath' : 'mobDeath');
     }
   }
 
@@ -674,6 +683,7 @@ export class Run {
         if (pr.kind === 'balloon' || pr.kind === 'rocket') {
           this.fireworkFx(f, pr.x, pr.y, pr.color ?? '#ff8888', 0.7);
           f.text(pr.x, pr.y - 0.4, 'POP!', '#ffffff');
+          this.events.sfx?.('pop');
         } else f.fx.push({ kind: 'puff', x: pr.x, y: pr.y, t: 0, life: 0.3, color: '#ff8888' });
       });
     }
@@ -681,6 +691,7 @@ export class Run {
       const key = room.key;
       consider(key.x, key.y, PICKUP_RADIUS * tapSize, () => {
         key.taken = true;
+        this.events.sfx?.('key');
         if (room.plan.key === 'blood') {
           this.bloodKey = true;
           this.events.toast('You picked up the BLOOD KEY!', '#ff5555');
@@ -711,6 +722,7 @@ export class Run {
           consider(sp.x, sp.y, PICKUP_RADIUS * tapSize, () => {
             s.found = true;
             this.secretsFound++;
+            this.events.sfx?.('secret');
             const ess = this.rng.int(1, 3);
             this.secretEssence += ess;
             f.text(sp.x, sp.y - 0.5, `SECRET! +${ess} essence`, '#55ffff');

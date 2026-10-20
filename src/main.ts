@@ -6,6 +6,7 @@ import { drawField, screenToField, type Rect, type Xform } from './render/fieldV
 import { drawMap, roomAt, type MapXform } from './render/mapView';
 import { Hub } from './ui/hub';
 import { RunUi } from './ui/runUi';
+import { holdMusic, setSoundEnabled, sfx, startMusic, stopMusic, unlockAudio } from './audio/sound';
 
 registerSW({ immediate: true });
 
@@ -18,6 +19,8 @@ let run: Run | null = null;
 let runUi: RunUi | null = null;
 let paused = false;
 let lastFloor = 1;
+let musicOn = false;
+let musicHeld = false;
 
 let fieldXf: Xform | null = null;
 let mapXf: MapXform | null = null;
@@ -38,16 +41,23 @@ function startRun(floorId: number) {
     banner: (m, k) => runUi?.banner(m, k),
     changed: () => runUi?.refresh(),
     ended: (end) => runUi?.showResults(end),
+    sfx,
   });
   runUi = new RunUi(ui, run, {
     setPaused: (p) => { paused = p; },
     playAgain: () => startRun(lastFloor),
     toHub: () => toHub(),
   });
+  // The dungeon theme plays from the start of the clear until the boss.
+  setSoundEnabled(profile.settings.sound);
+  musicOn = profile.settings.sound;
+  if (musicOn) startMusic();
   runUi.toast(`Welcome to the Catacombs, ${run.floor.name}! Tap a room to begin.`, '#55ff55');
 }
 
 function toHub() {
+  stopMusic();
+  musicOn = false;
   runUi?.destroy();
   runUi = null;
   run = null;
@@ -146,6 +156,7 @@ function tapPoint(e: PointerEvent) {
 
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
+  unlockAudio();
   if (!run || paused || run.ended) return;
   const { x, y } = tapPoint(e);
   if (run.view === 'map' && mapXf) {
@@ -193,12 +204,29 @@ function frame(now: number) {
   prev = now;
   if (run && !paused && !run.ended && !document.hidden) run.update(dt);
   if (run) {
+    syncMusic(run);
     draw(now / 1000);
     runUi?.update();
   }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+/** Music runs during the clear and fades out when the boss starts, the run ends or sound is turned off. */
+function syncMusic(r: Run) {
+  setSoundEnabled(profile.settings.sound);
+  const want = profile.settings.sound && !r.ended && r.view !== 'boss';
+  if (want !== musicOn) {
+    musicOn = want;
+    if (want) startMusic();
+    else stopMusic();
+  }
+  const hold = paused || document.hidden;
+  if (hold !== musicHeld) {
+    musicHeld = hold;
+    holdMusic(hold);
+  }
+}
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && run && !run.ended) runUi?.showPause();
