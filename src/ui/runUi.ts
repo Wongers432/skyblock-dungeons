@@ -297,7 +297,9 @@ export class RunUi {
           end.rng?.target ? h('div', { class: 'rng-mini' },
             h('div', { class: 'muted' }, `RNG Meter: ${ITEMS[end.rng.target].name}  ${end.rng.xp.toLocaleString()} / ${end.rng.required.toLocaleString()}${end.rng.gained ? `  (+${end.rng.gained})` : ''}`),
             h('div', { class: 'bar rng' }, h('div', { style: { width: `${(100 * end.rng.xp) / end.rng.required}%` } })),
-          ) : h('div', { class: 'muted' }, 'Tip: the RNG Meter (in the hub) unlocks for a floor after your first clear.'),
+          ) : end.rng ? h('div', { class: 'muted rng-mini' },
+            `RNG Meter: no target. ${end.rng.xp.toLocaleString()} meter XP stored${end.rng.gained ? `  (+${end.rng.gained})` : ''}. Pick a drop in the hub to use it.`)
+          : h('div', { class: 'muted' }, 'Tip: the RNG Meter (in the hub) unlocks for a floor after your first clear.'),
           h('div', { class: 'loot', style: { color: '#55ffff' } }, `+${end.xp} Catacombs XP`),
           end.levelAfter > end.levelBefore ? h('div', { class: 'loot rare' }, `CATACOMBS LEVEL UP! ${end.levelBefore} → ${end.levelAfter}`) : null,
         ));

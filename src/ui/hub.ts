@@ -6,7 +6,7 @@ import {
 import { exportProfile, freshProfile, importProfile, newItem, saveProfile, type ItemInstance, type Profile } from '../game/save';
 import { openCalibration } from './calibrate';
 import { h } from './dom';
-import { rngRequired } from '../game/score';
+import { rngCarryOver, rngRequired, rngStoreCap } from '../game/score';
 import { fmtTime } from './dom';
 
 type Tab = 'dungeons' | 'rng' | 'gear' | 'admin';
@@ -186,7 +186,7 @@ export class Hub {
     return h('div', {},
       h('div', { class: 'card' },
         h('h3', {}, 'RNG Meter'),
-        h('div', { class: 'muted' }, 'Pick one drop per floor. Every win adds its score to that floor\'s meter, and the fuller it is the better your odds (up to 3x). When it fills, the drop is guaranteed. If the item drops on its own, the meter resets.'),
+        h('div', { class: 'muted' }, 'Pick one drop per floor. Every win adds its score to that floor\'s meter, and the fuller it is the better your odds (up to 3x). When it fills, the drop is guaranteed. If the item drops on its own, the meter resets. Wins with no drop picked still bank their score, ready for when you pick one.'),
       ),
       ALL_FLOORS.filter((f) => f.drops.length).map((f) => {
         const meter = p.rng[String(f.id)] ?? { target: null, xp: 0 };
@@ -210,7 +210,10 @@ export class Hub {
               h('div', { class: 'muted', style: { marginTop: '4px' } },
                 `Guaranteed in about ${Math.max(1, Math.ceil((rngRequired(target) - meter.xp) / 300))} more S+ runs. Drop chance now ${pct(Math.min(1, target.chance.bedrock * (1 + 2 * meter.xp / rngRequired(target))))} at S+.`),
             )
-            : h('div', { class: 'muted', style: { margin: '6px 0 10px' } }, 'No target selected. Tap a drop below.'),
+            : h('div', { class: 'muted', style: { margin: '6px 0 10px' } },
+              meter.xp > 0
+                ? `No target selected. ${meter.xp.toLocaleString()} / ${rngStoreCap(f).toLocaleString()} meter XP stored, tap a drop below to use it.`
+                : 'No target selected. Wins still store meter XP. Tap a drop below.'),
           h('div', { class: 'rng-list' }, f.drops.map((d) => {
             const it = ITEMS[d.item];
             const selected = meter.target === d.item;
@@ -219,8 +222,13 @@ export class Hub {
               disabled: !unlocked,
               onclick: () => {
                 if (selected || !unlocked) return;
-                if (meter.xp > 0 && !confirm(`Switch target to ${it.name}? Your meter progress (${meter.xp}) carries over.`)) return;
-                p.rng[String(f.id)] = { target: d.item, xp: meter.xp };
+                const xp = rngCarryOver(meter.xp, d);
+                // Picking a first target is free; only ask when progress is on the line.
+                if (meter.target && meter.xp > 0 && !confirm(xp < meter.xp
+                  ? `Switch target to ${it.name}? Your meter progress (${meter.xp}) is capped at ${xp} for this drop.`
+                  : `Switch target to ${it.name}? Your meter progress (${meter.xp}) carries over.`)) return;
+                if (!meter.target && xp < meter.xp && !confirm(`Use ${xp} of your ${meter.xp} stored meter XP on ${it.name}? The rest is lost.`)) return;
+                p.rng[String(f.id)] = { target: d.item, xp };
                 this.commit();
               },
             },
