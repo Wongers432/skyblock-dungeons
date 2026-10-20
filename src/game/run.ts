@@ -9,6 +9,7 @@ import type { Sfx } from '../audio/sound';
 import { baseHit, cataLevel, computeStats, damageTaken, levelPower, type PlayerStats } from './progression';
 import { newItem, saveProfile, type Profile } from './save';
 import { applyRngMeter, computeScore, rollLoot, runXp, type Loot, type RngResult, type ScoreResult } from './score';
+import { tutorialDungeon } from './tutorial';
 import { makeBlaze, makeWeirdos, type Mark, type WeirdosPuzzle } from './puzzles';
 import { BlazeController, BloodController, BonzoController, LividController, ProfessorController, ScarfController, ThornController, type Controller } from './controllers';
 
@@ -116,7 +117,7 @@ export class Run {
     this.floor = floorById(floorId);
     setHpRule(this.floor.hpRule ?? null);
     this.rng = new Rng(seed ^ 0x5bd1e995);
-    this.plan = generateDungeon(this.floor, seed);
+    this.plan = this.floor.tutorial ? tutorialDungeon(this.floor, seed) : generateDungeon(this.floor, seed);
     this.stats = computeStats(profile);
     this.power = levelPower(this.floor, this.stats.cataLevel);
     this.hp = this.stats.maxHp;
@@ -250,7 +251,7 @@ export class Run {
     switch (room.plan.type) {
       case 'entrance':
         room.cleared = true;
-        this.events.toast(`Welcome to the Catacombs, ${this.floor.name}!`, '#55ff55');
+        if (!this.floor.tutorial) this.events.toast(`Welcome to the Catacombs, ${this.floor.name}!`, '#55ff55');
         break;
       case 'fairy':
         room.cleared = true;
@@ -326,7 +327,7 @@ export class Run {
     }
     this.time += dt;
     this.gradeCheck -= dt;
-    if (this.gradeCheck <= 0) {
+    if (this.gradeCheck <= 0 && !this.floor.tutorial) {
       this.gradeCheck = 0.5;
       const g = this.scoreNow().grade;
       if ((g === 'S' || g === 'S+') && !this.gradesShown.has(g)) {
@@ -833,6 +834,8 @@ export class Run {
   }
 
   startBoss() {
+    // The tutorial ends at the Blood Room portal.
+    if (this.floor.tutorial) return this.finish(true);
     this.bossField = new Field(ARENA, 'arena');
     this.bossField.setPlayer({ x: ARENA[0].length / 2, y: ARENA.length - 1.2 });
     const Ctl = { 1: BonzoController, 2: ScarfController, 3: ProfessorController, 4: ThornController, 5: LividController, 6: SadanController, 7: WitherLordsController }[baseFloor(this.floor)] ?? BonzoController;
@@ -897,7 +900,14 @@ export class Run {
     let newBest = false;
     let rng: RngResult | undefined;
     p.runs++;
-    if (victory) {
+    if (victory && this.floor.tutorial) {
+      // A little Catacombs XP the first time only, so the tutorial can't be farmed.
+      const key = String(this.floor.id);
+      xp = p.completions[key] ? 0 : this.floor.xp;
+      p.cataXp += xp;
+      p.essence[this.floor.essence.type] += this.secretEssence;
+      p.completions[key] = (p.completions[key] ?? 0) + 1;
+    } else if (victory) {
       const key0 = String(this.floor.id);
       // The RNG meter only unlocks once this floor has been completed before.
       const meterOn = (p.completions[key0] ?? 0) > 0;
@@ -919,7 +929,7 @@ export class Run {
     saveProfile(p);
     this.ended = {
       victory,
-      reason: victory ? `${this.floor.boss} defeated!` : 'You died. The run is over.',
+      reason: victory ? (this.floor.tutorial ? 'You cleared the Entrance. You are ready for Floor I!' : `${this.floor.boss} defeated!`) : 'You died. The run is over.',
       score, seconds: this.time, loot, rng, secretEssence: victory ? this.secretEssence : 0, xp,
       levelBefore, levelAfter: cataLevel(p.cataXp).level, newBest,
     };

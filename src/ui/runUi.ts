@@ -5,6 +5,7 @@ import type { Run, RunEnd } from '../game/run';
 import { h, fmtTime } from './dom';
 import { saveProfile } from '../game/save';
 import type { WitherLordsController } from '../game/bosses67';
+import { tutorialTip } from '../game/tutorial';
 
 export interface RunUiActions {
   setPaused(p: boolean): void;
@@ -31,6 +32,9 @@ export class RunUi {
   private mapBtn: HTMLButtonElement;
   private last = '';
   private puzzleKey = '';
+  /** Entrance tutorial tooltip; it sits above the toasts. */
+  private tip: HTMLElement | null = null;
+  private tipKey = '';
 
   constructor(private root: HTMLElement, private run: Run, private actions: RunUiActions) {
     this.info = h('div', { class: 'hud-sub' });
@@ -68,7 +72,8 @@ export class RunUi {
   toast(msg: string, color = '#ffffff') {
     const t = h('div', { class: 'toast', style: { color } }, msg);
     this.toasts.append(t);
-    while (this.toasts.children.length > 4) this.toasts.firstChild?.remove();
+    const all = this.toasts.querySelectorAll('.toast');
+    for (let i = 0; i < all.length - 4; i++) all[i].remove();
     setTimeout(() => t.remove(), 3000);
   }
 
@@ -103,8 +108,30 @@ export class RunUi {
     this.hpText.textContent = `❤ ${Math.ceil(r.hp)} / ${s.maxHp}${r.shield > 0 ? `  +${Math.ceil(r.shield)}` : ''}`;
     this.manaFill.style.width = `${(r.mana / s.maxMana) * 100}%`;
     this.manaText.textContent = `✎ ${Math.floor(r.mana)} / ${s.maxMana}`;
+    if (r.floor.tutorial) this.updateTip();
     const ab = s.ability;
     if (ab) this.abilityCd.style.width = `${ab.cooldown ? (r.abilityCd / ab.cooldown) * 100 : 0}%`;
+  }
+
+  private updateTip() {
+    const r = this.run;
+    const tip = tutorialTip(r);
+    const key = tip ? `${tip.title}|${tip.text}|${tip.glowButton ?? ''}` : '';
+    if (key === this.tipKey) return;
+    this.tipKey = key;
+    this.tip?.remove();
+    this.tip = null;
+    if (!tip) return;
+    this.tip = h('div', { class: 'tutorial-tip' },
+      h('b', {}, tip.title),
+      h('div', {}, tip.text),
+      tip.glowButton ? h('button', { class: 'small primary', onclick: () => {
+        r.profile.settings.puzzleGlow = true;
+        saveProfile(r.profile);
+        this.refresh();
+      } }, 'Turn on puzzle glow') : null,
+    );
+    this.toasts.prepend(this.tip);
   }
 
   /** Rebuild the parts that change on events (view, puzzles, ability). */
@@ -255,7 +282,7 @@ export class RunUi {
       end.newBest ? h('div', { style: { textAlign: 'center', color: '#55ffff' } }, 'New personal best!') : null,
       lootBox,
       h('div', { class: 'btns' },
-        h('button', { class: 'primary', onclick: () => this.actions.playAgain() }, 'Run it again'),
+        h('button', { class: 'primary', onclick: () => this.actions.playAgain() }, this.run.floor.tutorial ? 'Replay the tutorial' : 'Run it again'),
         h('button', { onclick: () => this.actions.toHub() }, 'Back to hub'),
       ),
     );
@@ -279,6 +306,9 @@ export class RunUi {
         if (big.length) this.rngesus(big, end.rng?.paidOut);
       } }, `Open the ${CHEST_NAME[loot.chest]}`);
       lootBox.append(chestBtn);
+    } else if (end.victory && this.run.floor.tutorial) {
+      lootBox.append(h('div', { class: 'loot', style: { color: '#55ffff', textAlign: 'center' } },
+        end.xp ? `+${end.xp} Catacombs XP` : 'Tutorial XP already collected.'));
     } else {
       lootBox.append(h('div', { class: 'muted', style: { textAlign: 'center' } }, 'No chest this time.'));
     }

@@ -106,6 +106,8 @@ export interface FloorDef {
   hpRule?: (baseHp: number, boss: boolean) => number;
   /** Master Mode: the Catacombs level where you stop being underpowered here. */
   masteryLevel?: number;
+  /** The Entrance tutorial: a fixed little dungeon with tooltips and no boss. */
+  tutorial?: boolean;
 }
 
 const tiers = (wood: number, gold: number, diamond: number, emerald: number, obsidian: number, bedrock: number) =>
@@ -276,7 +278,21 @@ export function baseFloor(f: FloorDef): number {
   return f.base ?? f.id;
 }
 
+/** Catacombs XP for finishing the tutorial the first time. */
+export const TUTORIAL_XP = 25;
+
+/** The Entrance tutorial. Not in the floor list; it starts on first launch and from Settings. */
+export const TUTORIAL_FLOOR: FloorDef = {
+  id: 0, name: 'Entrance Floor (Tutorial)', boss: 'The Watcher', implemented: true, reqLevel: 0, tutorial: true,
+  cols: 3, rows: 2, puzzles: 1, fairyRooms: 0, witherDoors: 1, timeLimit: 900,
+  mobHpMult: 0.5, mobDmgMult: 0.4, mobsPerCell: [3, 3], secretChance: 1, cryptChance: 0,
+  bloodMobs: 4, mobPool: ['zombie'], xp: TUTORIAL_XP,
+  essence: { type: 'undead', base: 0 },
+  drops: [],
+};
+
 export function floorById(id: number): FloorDef {
+  if (id === TUTORIAL_FLOOR.id) return TUTORIAL_FLOOR;
   const f = ALL_FLOORS.find((x) => x.id === id);
   if (!f) throw new Error('Unknown floor ' + id);
   return f;
