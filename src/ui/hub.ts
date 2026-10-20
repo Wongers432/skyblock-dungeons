@@ -1,4 +1,4 @@
-import { ALL_FLOORS, FLOORS, MASTER_FLOORS, floorById } from '../data/floors';
+import { ALL_FLOORS, FLOORS, MASTER_FLOORS, baseFloor, floorById, type FloorDef } from '../data/floors';
 import { HYPERION_RECIPE, ITEMS, RARITY_COLOR, SCROLLS, SLOTS, isGear, type ItemStats } from '../data/items';
 import {
   MAX_CATA, MAX_ITEM_LEVEL, baseHit, cataLevel, levelPower, computeStats, findItem, itemAbility, itemStats, salvageValue, upgradeCost, xpForLevel,
@@ -9,11 +9,13 @@ import { h } from './dom';
 import { rngRequired } from '../game/score';
 import { fmtTime } from './dom';
 
-type Tab = 'dungeons' | 'rng' | 'gear' | 'admin' | 'save';
+type Tab = 'dungeons' | 'rng' | 'gear' | 'admin';
 
 export interface HubActions {
   play(floorId: number): void;
   replaceProfile(p: Profile): void;
+  /** Shown as "Replay tutorial" in the settings menu when provided. */
+  replayTutorial?(): void;
 }
 
 const STAT_LABEL: Record<keyof ItemStats, string> = {
@@ -27,6 +29,8 @@ export class Hub {
   private openItem: string | null = null;
   private el: HTMLElement | null = null;
   private scrollTop = 0;
+  private settingsOpen = false;
+  private settingsScroll = 0;
 
   constructor(private root: HTMLElement, private profile: () => Profile, private actions: HubActions) {}
 
@@ -45,37 +49,92 @@ export class Hub {
   }
 
   private render() {
-    if (this.el) this.scrollTop = this.el.scrollTop;
+    if (this.el) {
+      this.scrollTop = this.el.scrollTop;
+      const panel = this.el.querySelector('.settings-panel');
+      if (panel) this.settingsScroll = panel.scrollTop;
+    }
     this.el?.remove();
     const p = this.profile();
     const cata = cataLevel(p.cataXp);
-    const tabs: [Tab, string][] = [['dungeons', 'Dungeons'], ['rng', 'RNG Meter'], ['gear', 'Gear'], ['save', 'Settings']];
-    if (p.admin.enabled) tabs.push(['admin', 'Admin']);
+    const tabs: [Tab, string, string][] = [['dungeons', '⚔', 'Dungeons'], ['rng', '✦', 'RNG Meter'], ['gear', '⛨', 'Gear']];
+    if (p.admin.enabled) tabs.push(['admin', '⚒', 'Admin']);
+    const settings = this.settingsOpen ? this.settingsMenu(p) : null;
     this.el = h('div', { class: 'hub' },
-      h('h1', {}, 'SkyBlock Dungeons'),
-      h('div', { class: 'sub' }, 'Solo Catacombs. Clear rooms, find secrets, beat the boss, grind the drops.'),
-      h('div', { class: 'card' },
-        h('div', { class: 'row spread' },
-          h('b', {}, `Catacombs Level ${cata.level}`),
-          h('span', { class: 'muted' }, cata.need ? `${cata.into.toLocaleString()} / ${cata.need.toLocaleString()} XP` : 'MAX'),
+      h('header', { class: 'hub-top' },
+        h('div', {},
+          h('h1', {}, 'SkyBlock Dungeons'),
+          h('div', { class: 'sub' }, 'Solo Catacombs. Clear rooms, find secrets, beat the boss, grind the drops.'),
         ),
-        h('div', { class: 'bar', style: { marginTop: '6px' } }, h('div', { style: { width: `${cata.need ? (100 * cata.into) / cata.need : 100}%` } })),
-        h('div', { class: 'row', style: { marginTop: '8px' } },
-          h('span', { class: 'pill' }, `Undead Essence: ${p.essence.undead.toLocaleString()}`),
-          h('span', { class: 'pill' }, `Wither Essence: ${p.essence.wither.toLocaleString()}`),
-          h('span', { class: 'pill' }, `+${cata.level * 3}% dungeon stats`),
+        h('button', { class: 'icon-btn', title: 'Settings', 'aria-label': 'Settings', onclick: () => this.openSettings() }, '⚙'),
+      ),
+      h('div', { class: 'card profile-card' },
+        h('div', { class: 'cata-badge', title: 'Catacombs level' }, String(cata.level)),
+        h('div', { class: 'profile-main' },
+          h('div', { class: 'row spread' },
+            h('b', {}, `Catacombs Level ${cata.level}`),
+            h('span', { class: 'muted' }, cata.need ? `${cata.into.toLocaleString()} / ${cata.need.toLocaleString()} XP` : 'MAX'),
+          ),
+          h('div', { class: 'bar', style: { marginTop: '6px' } }, h('div', { style: { width: `${cata.need ? (100 * cata.into) / cata.need : 100}%` } })),
+          h('div', { class: 'row', style: { marginTop: '8px' } },
+            h('span', { class: 'pill undead' }, `☠ ${p.essence.undead.toLocaleString()} Undead`),
+            h('span', { class: 'pill wither' }, `✪ ${p.essence.wither.toLocaleString()} Wither`),
+            h('span', { class: 'pill' }, `+${cata.level * 3}% dungeon stats`),
+          ),
         ),
       ),
-      h('div', { class: 'tabs' }, tabs.map(([id, name]) =>
-        h('button', { class: this.tab === id ? 'active' : '', onclick: () => { this.tab = id; this.scrollTop = 0; this.render(); } }, name))),
+      this.nextUp(p, cata.level),
+      h('nav', { class: 'tabs' }, tabs.map(([id, icon, name]) =>
+        h('button', { class: this.tab === id ? 'active' : '', onclick: () => { this.tab = id; this.scrollTop = 0; this.render(); } },
+          h('span', { class: 'tab-icon' }, icon), name))),
       this.tab === 'dungeons' ? this.dungeons(p, cata.level)
         : this.tab === 'rng' ? this.rngMeter(p)
         : this.tab === 'gear' ? this.gear(p)
-        : this.tab === 'admin' ? this.admin(p)
-        : this.save(p),
+        : this.admin(p),
+      settings,
     );
     this.root.append(this.el);
     this.el.scrollTop = this.scrollTop;
+    const panel = this.el.querySelector('.settings-panel');
+    if (panel) panel.scrollTop = this.settingsScroll;
+  }
+
+  private openSettings() {
+    this.settingsOpen = true;
+    this.settingsScroll = 0;
+    this.render();
+  }
+
+  private closeSettings() {
+    this.settingsOpen = false;
+    this.render();
+  }
+
+  private unlocked(p: Profile, f: FloorDef, level: number) {
+    const needFloor = f.requires ? floorById(f.requires) : null;
+    const cleared = !needFloor || (p.completions[String(needFloor.id)] ?? 0) > 0;
+    return p.admin.unlockAll || (level >= f.reqLevel && cleared);
+  }
+
+  /** The furthest floor the player can play right now, one tap from the top of the screen. */
+  private nextUp(p: Profile, level: number) {
+    const open = ALL_FLOORS.filter((f) => f.implemented && this.unlocked(p, f, level));
+    const f = open.find((x) => !(p.completions[String(x.id)] ?? 0)) ?? open[open.length - 1];
+    if (!f) return null;
+    const best = p.best[String(f.id)];
+    return h('div', { class: 'card next-up' + (f.master ? ' master' : '') },
+      this.floorBadge(f),
+      h('div', { class: 'next-up-main' },
+        h('div', { class: 'eyebrow' }, best ? 'Jump back in' : 'Next up'),
+        h('b', {}, `${f.name}: ${f.boss}`),
+        h('div', { class: 'muted' }, best ? `Best ${best.grade} (${best.score}) in ${fmtTime(best.time)}` : 'Not cleared yet'),
+      ),
+      h('button', { class: 'primary play-btn', onclick: () => this.actions.play(f.id) }, '▶ Play'),
+    );
+  }
+
+  private floorBadge(f: FloorDef) {
+    return h('div', { class: 'floor-badge' + (f.master ? ' master' : '') }, `${f.master ? 'M' : 'F'}${baseFloor(f)}`);
   }
 
   private dungeons(p: Profile, level: number) {
@@ -90,27 +149,34 @@ export class Hub {
     return h('div', {}, toggle, intro, list.map((f) => {
       const best = p.best[String(f.id)];
       const needFloor = f.requires ? floorById(f.requires) : null;
-      const cleared = !needFloor || (p.completions[String(needFloor.id)] ?? 0) > 0;
-      const unlocked = p.admin.unlockAll || (level >= f.reqLevel && cleared);
-      return h('div', { class: 'card' },
-        h('div', { class: 'row spread' },
-          h('div', {},
-            h('h3', {}, `${f.name}: ${f.boss}`),
-            h('div', { class: 'muted' }, `Requires Catacombs ${f.reqLevel}${needFloor ? ` and a ${needFloor.name} clear` : ''}  ·  ${f.cols}x${f.rows} map  ·  ${f.xp.toLocaleString()} base XP`),
-            (() => {
-              const pw = levelPower(f, level);
-              if (pw.dealt >= 0.999) return f.masteryLevel ? h('div', { class: 'muted' }, `Mastered: full strength at Catacombs ${f.masteryLevel}`) : null;
-              const under = level < f.reqLevel;
-              return h('div', { style: { color: under ? '#ff5555' : '#ffaa00', fontSize: '0.85em' } },
-                `At Catacombs ${level}: you deal ${Math.round(pw.dealt * 1000) / 10}% damage and take ${Math.round(pw.taken * 100)}%` +
-                (f.masteryLevel ? `. Full strength at Catacombs ${f.masteryLevel}.` : '.'));
-            })(),
-            best ? h('div', { class: 'muted' }, 'Best: ', h('span', { class: 'grade' }, `${best.grade} (${best.score})`), ` in ${fmtTime(best.time)}  ·  ${p.completions[String(f.id)] ?? 0} clears`) : null,
-          ),
-          !f.implemented
-            ? h('button', { disabled: true }, 'Coming soon')
-            : h('button', { class: 'primary', disabled: !unlocked, onclick: () => this.actions.play(f.id) }, unlocked ? 'Play' : 'Locked'),
+      const unlocked = this.unlocked(p, f, level);
+      const clears = p.completions[String(f.id)] ?? 0;
+      return h('div', { class: 'card floor-card' + (unlocked && f.implemented ? '' : ' locked') },
+        this.floorBadge(f),
+        h('div', { class: 'floor-info' },
+          h('h3', {}, f.boss, h('span', { class: 'muted floor-name' }, f.name)),
+          h('div', { class: 'muted' }, `Requires Catacombs ${f.reqLevel}${needFloor ? ` and a ${needFloor.name} clear` : ''}  ·  ${f.cols}x${f.rows} map  ·  ${f.xp.toLocaleString()} base XP`),
+          (() => {
+            // Locked floors only need the requirement line above; the power warning matters once you can play.
+            if (!unlocked) return null;
+            const pw = levelPower(f, level);
+            if (pw.dealt >= 0.999) return f.masteryLevel ? h('div', { class: 'muted' }, `Mastered: full strength at Catacombs ${f.masteryLevel}`) : null;
+            const under = level < f.reqLevel;
+            return h('div', { style: { color: under ? '#ff5555' : '#ffaa00', fontSize: '0.85em' } },
+              `At Catacombs ${level}: you deal ${Math.round(pw.dealt * 1000) / 10}% damage and take ${Math.round(pw.taken * 100)}%` +
+              (f.masteryLevel ? `. Full strength at Catacombs ${f.masteryLevel}.` : '.'));
+          })(),
+          best
+            ? h('div', { class: 'row', style: { marginTop: '4px' } },
+              h('span', { class: 'pill grade-pill' }, `${best.grade} · ${best.score}`),
+              h('span', { class: 'muted' }, `${fmtTime(best.time)}  ·  ${clears} clear${clears === 1 ? '' : 's'}`))
+            : null,
         ),
+        !f.implemented
+          ? h('button', { disabled: true }, 'Coming soon')
+          : unlocked
+            ? h('button', { class: 'primary play-btn', onclick: () => this.actions.play(f.id) }, '▶ Play')
+            : h('button', { class: 'play-btn', disabled: true, 'aria-label': 'Locked' }, '🔒'),
       );
     }));
   }
@@ -299,7 +365,7 @@ export class Hub {
     return h('div', {},
       h('div', { class: 'card' },
         h('h3', {}, 'Admin tools (temporary)'),
-        h('div', { class: 'muted' }, 'For testing only. Turn this tab off in Save when you are done.'),
+        h('div', { class: 'muted' }, 'For testing only. Turn this tab off in Settings when you are done.'),
       ),
       h('div', { class: 'card' }, h('h3', {}, 'Spawn items'),
         h('div', { class: 'row' }, Object.values(ITEMS).map((d) =>
@@ -329,20 +395,57 @@ export class Hub {
     );
   }
 
-  private save(p: Profile) {
+  private toggleRow(label: string, desc: string, on: boolean, flip: () => void) {
+    return h('div', { class: 'setting-row' },
+      h('div', { class: 'setting-text' }, h('b', {}, label), h('div', { class: 'muted' }, desc)),
+      h('button', { class: 'switch' + (on ? ' on' : ''), role: 'switch', 'aria-checked': String(on), 'aria-label': label, onclick: flip }, h('span', {})),
+    );
+  }
+
+  private actionRow(label: string, desc: string, button: HTMLElement) {
+    return h('div', { class: 'setting-row' },
+      h('div', { class: 'setting-text' }, h('b', {}, label), h('div', { class: 'muted' }, desc)),
+      button,
+    );
+  }
+
+  private settingsMenu(p: Profile) {
     const area = h('textarea', { placeholder: 'Paste a save code here to load it' }) as HTMLTextAreaElement;
     const code = exportProfile(p);
-    return h('div', {},
-      h('div', { class: 'card' },
-        h('h3', {}, 'Back up your save'),
+    const panel = h('div', { class: 'panel settings-panel', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Settings', onclick: () => {} },
+      h('div', { class: 'row spread settings-head' },
+        h('h2', {}, '⚙ Settings'),
+        h('button', { class: 'icon-btn small-icon', 'aria-label': 'Close settings', onclick: () => this.closeSettings() }, '✕'),
+      ),
+      h('div', { class: 'settings-section' },
+        h('div', { class: 'eyebrow' }, 'Gameplay'),
+        this.toggleRow('Puzzle glow', 'Highlights the right answer in puzzles (Tic Tac Toe, Three Weirdos, Higher or Lower and more). You can also toggle it from the pause menu.',
+          p.settings.puzzleGlow, () => { p.settings.puzzleGlow = !p.settings.puzzleGlow; this.commit(); }),
+        this.toggleRow('Sound', 'Music while you clear the dungeon (it fades out at the boss) and quiet sound effects for hits, deaths, secrets and doors.',
+          p.settings.sound, () => { p.settings.sound = !p.settings.sound; this.commit(); }),
+        this.actionRow('Tap calibration',
+          `Tap some dots so mob, secret and map taps line up with your finger. Now: shift ${p.settings.tapOffset?.x ?? 0}, ${p.settings.tapOffset?.y ?? 0}px, tap areas ${Math.round((p.settings.tapSize ?? 1) * 100)}%.`,
+          h('button', { class: 'small', onclick: () => openCalibration({ tapOffset: p.settings.tapOffset ?? { x: 0, y: 0 }, tapSize: p.settings.tapSize ?? 1 }, (c) => {
+            p.settings.tapOffset = c.tapOffset;
+            p.settings.tapSize = c.tapSize;
+            this.commit();
+          }) }, 'Calibrate')),
+      ),
+      this.actions.replayTutorial
+        ? h('div', { class: 'settings-section' },
+          h('div', { class: 'eyebrow' }, 'Help'),
+          this.actionRow('Tutorial', 'Replay the Entrance floor tutorial: clearing rooms, secrets, puzzles and blood doors.',
+            h('button', { class: 'small primary', onclick: () => { this.settingsOpen = false; this.actions.replayTutorial?.(); } }, 'Replay')),
+        )
+        : null,
+      h('div', { class: 'settings-section' },
+        h('div', { class: 'eyebrow' }, 'Save data'),
         h('div', { class: 'muted' }, 'Your progress is stored on this device. Copy this code somewhere safe (Notes works) to restore it later.'),
         h('textarea', { readonly: true }, code),
         h('button', { class: 'small', onclick: async () => {
           try { await navigator.clipboard.writeText(code); alert('Save code copied.'); } catch { alert('Copy failed: select the text and copy it manually.'); }
         } }, 'Copy save code'),
-      ),
-      h('div', { class: 'card' },
-        h('h3', {}, 'Restore a save'),
+        h('div', { style: { height: '10px' } }),
         area,
         h('button', { class: 'small primary', onclick: () => {
           try {
@@ -353,33 +456,18 @@ export class Hub {
           } catch { alert("That doesn't look like a save code."); }
         } }, 'Load save code'),
       ),
-      h('div', { class: 'card' },
-        h('h3', {}, 'Settings'),
-        h('div', { class: 'row', style: { marginBottom: '8px' } },
-          h('button', { class: 'small' + (p.settings.puzzleGlow ? ' primary' : ''), onclick: () => { p.settings.puzzleGlow = !p.settings.puzzleGlow; this.commit(); } }, `Puzzle glow: ${p.settings.puzzleGlow ? 'ON' : 'off'}`),
-          h('span', { class: 'muted' }, 'Highlights the right answer in puzzles (Tic Tac Toe, Three Weirdos, Higher or Lower and more). You can also toggle it from the pause menu.'),
-        ),
-        h('div', { class: 'row', style: { marginBottom: '8px' } },
-          h('button', { class: 'small' + (p.settings.sound ? ' primary' : ''), onclick: () => { p.settings.sound = !p.settings.sound; this.commit(); } }, `Sound: ${p.settings.sound ? 'ON' : 'off'}`),
-          h('span', { class: 'muted' }, 'Music while you clear the dungeon (it fades out at the boss) and quiet sound effects for hits, deaths, secrets and doors.'),
-        ),
-        h('div', { class: 'row', style: { marginBottom: '8px' } },
-          h('button', { class: 'small', onclick: () => openCalibration({ tapOffset: p.settings.tapOffset ?? { x: 0, y: 0 }, tapSize: p.settings.tapSize ?? 1 }, (c) => {
-            p.settings.tapOffset = c.tapOffset;
-            p.settings.tapSize = c.tapSize;
-            this.commit();
-          }) }, 'Calibrate taps'),
-          h('span', { class: 'muted' }, `Tap some dots so the game can line up mob, secret and map taps with where your finger lands. Now: shift ${p.settings.tapOffset?.x ?? 0}, ${p.settings.tapOffset?.y ?? 0}px, tap areas ${Math.round((p.settings.tapSize ?? 1) * 100)}%.`),
-        ),
-        h('div', { class: 'row' },
-          h('button', { class: 'small', onclick: () => { p.admin.enabled = !p.admin.enabled; if (!p.admin.enabled && this.tab === 'admin') this.tab = 'dungeons'; this.commit(); } }, `Admin tab: ${p.admin.enabled ? 'ON' : 'off'}`),
+      h('div', { class: 'settings-section' },
+        h('div', { class: 'eyebrow' }, 'Advanced'),
+        this.toggleRow('Admin tab', 'Testing tools: spawn items, set your level, god mode.',
+          p.admin.enabled, () => { p.admin.enabled = !p.admin.enabled; if (!p.admin.enabled && this.tab === 'admin') this.tab = 'dungeons'; this.commit(); }),
+        this.actionRow('Reset all progress', 'Deletes every item, level and clear on this device.',
           h('button', { class: 'small danger', onclick: () => {
             if (!confirm('Delete ALL progress and start over?')) return;
             this.actions.replaceProfile(freshProfile());
             this.render();
-          } }, 'Reset all progress'),
-        ),
+          } }, 'Reset')),
       ),
     );
+    return h('div', { class: 'overlay settings-overlay', onclick: () => this.closeSettings() }, panel);
   }
 }
