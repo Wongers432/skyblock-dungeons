@@ -212,7 +212,7 @@ export class RunUi {
     const admin = r.profile.admin.enabled;
     this.overlay = h('div', { class: 'overlay' }, h('div', { class: 'panel' },
       h('h2', {}, 'Paused'),
-      h('div', { class: 'muted' }, `${r.floor.name}  ·  ${fmtTime(r.time)}  ·  ${r.rooms.filter((x) => x.cleared).length}/${r.rooms.length} rooms cleared`),
+      h('div', { class: 'muted' }, `${r.floor.name}  ·  ${fmtTime(r.time)}  ·  ${r.scoredRooms.filter((x) => x.cleared).length}/${r.scoredRooms.length} rooms cleared`),
       h('div', { class: 'btns' },
         h('button', { class: 'primary', onclick: close }, 'Resume'),
         h('button', { onclick: (e: Event) => {

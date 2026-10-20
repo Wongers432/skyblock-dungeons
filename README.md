@@ -32,7 +32,7 @@ A private, solo, offline 2D take on Hypixel SkyBlock's Catacombs, built as an in
 - Hyperion's Wither Impact hits every mob in the room. Secrets, keys and crypts have big tap areas.
 - Looks: torch-lit rooms with dynamic lighting, 3D walls and pillars, cobwebs, bones, barrels, banners and moss; themed boss arenas per floor; hit shake, red hurt vignette and drop shadows.
 - Bonzo's Staff fires an exploding firework on every tap. The Livid Dagger slashes every mob you swipe across.
-- Hypixel-style score (Skill / Exploration / Speed / Bonus), S at 270, S+ at 300.
+- Hypixel-style score (Skill / Exploration / Speed / Bonus), S at 270, S+ at 300. The blood room does not count, so you know your grade before the boss.
 - Free reward chest by grade (Wood → Bedrock) with essence and rare drops: F1 **Bonzo's Staff**, **Bonzo's Mask**; F2 **Conjuring**; F3 **Adaptive Blade** and **Adaptive armor**; F4 **Spirit Sceptre**, **Spirit Boots**; F5 **Livid Dagger**, **Shadow Fury**, **Shadow Assassin armor**; F6 **Giant's Sword**, **Necromancer Lord armor**; F7 **Necron's Handle**, **Wither Catalysts**, the three **scrolls**, **Necron's armor** and **Storm's armor** (lots of Intelligence for mana, and every piece cuts ability cooldowns by 8%, 40% with the full set).
 - Catacombs XP and levels (+3% health, defense and damage per level).
 - Essence upgrades for every item, level 1 to 50, cost rising each level.

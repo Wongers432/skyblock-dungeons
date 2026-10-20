@@ -114,7 +114,7 @@ const tiers = (wood: number, gold: number, diamond: number, emerald: number, obs
 export const FLOORS: FloorDef[] = [
   {
     id: 1, name: 'Floor I', boss: 'Bonzo', implemented: true, reqLevel: 0,
-    cols: 4, rows: 5, puzzles: 2, fairyRooms: 1, witherDoors: 1, timeLimit: 600,
+    cols: 4, rows: 4, puzzles: 2, fairyRooms: 1, witherDoors: 1, timeLimit: 540,
     mobHpMult: 1, mobDmgMult: 1, mobsPerCell: [2, 3], secretChance: 0.45, cryptChance: 0.35,
     bloodMobs: 6, mobPool: ['zombie', 'zombie', 'skeleton'], xp: 40,
     essence: { type: 'undead', base: 24 },
@@ -125,7 +125,7 @@ export const FLOORS: FloorDef[] = [
   },
   {
     id: 2, name: 'Floor II', boss: 'Scarf', implemented: true, reqLevel: 3,
-    cols: 5, rows: 5, puzzles: 2, fairyRooms: 1, witherDoors: 2, timeLimit: 660,
+    cols: 4, rows: 5, puzzles: 2, fairyRooms: 1, witherDoors: 2, timeLimit: 600,
     mobHpMult: 1.3, mobDmgMult: 1.2, mobsPerCell: [2, 3], secretChance: 0.5, cryptChance: 0.35,
     bloodMobs: 7, mobPool: ['zombie', 'zombie', 'skeleton', 'knight'], xp: 100,
     essence: { type: 'undead', base: 40 },
@@ -135,7 +135,7 @@ export const FLOORS: FloorDef[] = [
   },
   {
     id: 3, name: 'Floor III', boss: 'The Professor', implemented: true, reqLevel: 5,
-    cols: 5, rows: 5, puzzles: 3, fairyRooms: 1, witherDoors: 2, timeLimit: 720,
+    cols: 4, rows: 5, puzzles: 3, fairyRooms: 1, witherDoors: 2, timeLimit: 660,
     mobHpMult: 1.6, mobDmgMult: 1.4, mobsPerCell: [2, 3], secretChance: 0.55, cryptChance: 0.4,
     bloodMobs: 8, mobPool: ['zombie', 'skeleton', 'knight', 'skelmaster'], xp: 250,
     essence: { type: 'undead', base: 60 },
@@ -149,7 +149,7 @@ export const FLOORS: FloorDef[] = [
   },
   {
     id: 4, name: 'Floor IV', boss: 'Thorn', implemented: true, reqLevel: 9,
-    cols: 6, rows: 5, puzzles: 3, fairyRooms: 1, witherDoors: 2, timeLimit: 780,
+    cols: 5, rows: 5, puzzles: 3, fairyRooms: 1, witherDoors: 2, timeLimit: 720,
     mobHpMult: 3, mobDmgMult: 4, mobsPerCell: [2, 3], secretChance: 0.55, cryptChance: 0.4,
     bloodMobs: 8, mobPool: ['zombie', 'skeleton', 'knight', 'skelmaster', 'superarcher'], xp: 600,
     essence: { type: 'undead', base: 90 },
@@ -160,7 +160,7 @@ export const FLOORS: FloorDef[] = [
   },
   {
     id: 5, name: 'Floor V', boss: 'Livid', implemented: true, reqLevel: 14,
-    cols: 6, rows: 6, puzzles: 3, fairyRooms: 1, witherDoors: 3, timeLimit: 840,
+    cols: 5, rows: 6, puzzles: 3, fairyRooms: 1, witherDoors: 3, timeLimit: 780,
     mobHpMult: 4.5, mobDmgMult: 5, mobsPerCell: [2, 3], secretChance: 0.6, cryptChance: 0.4,
     bloodMobs: 9, mobPool: ['zombie', 'skeleton', 'knight', 'skelmaster', 'superarcher', 'assassin'], xp: 1500,
     essence: { type: 'wither', base: 40 },
@@ -175,7 +175,7 @@ export const FLOORS: FloorDef[] = [
   },
   {
     id: 6, name: 'Floor VI', boss: 'Sadan', implemented: true, reqLevel: 19,
-    cols: 6, rows: 6, puzzles: 3, fairyRooms: 1, witherDoors: 3, timeLimit: 900,
+    cols: 5, rows: 6, puzzles: 3, fairyRooms: 1, witherDoors: 3, timeLimit: 840,
     mobHpMult: 6.5, mobDmgMult: 6.5, mobsPerCell: [2, 3], secretChance: 0.6, cryptChance: 0.4,
     bloodMobs: 10, mobPool: ['zombie', 'skeleton', 'knight', 'skelmaster', 'superarcher', 'lost_adventurer'], xp: 3500,
     essence: { type: 'wither', base: 60 },
@@ -189,7 +189,7 @@ export const FLOORS: FloorDef[] = [
   },
   {
     id: 7, name: 'Floor VII', boss: 'The Wither Lords', implemented: true, reqLevel: 24,
-    cols: 6, rows: 6, puzzles: 4, fairyRooms: 1, witherDoors: 3, timeLimit: 1020,
+    cols: 5, rows: 6, puzzles: 4, fairyRooms: 1, witherDoors: 3, timeLimit: 960,
     mobHpMult: 13, mobDmgMult: 12, mobsPerCell: [2, 3], secretChance: 0.6, cryptChance: 0.4,
     bloodMobs: 12, mobPool: ['skeleton', 'knight', 'skelmaster', 'superarcher', 'lost_adventurer', 'wither_guard', 'wither_miner'], xp: 9000,
     essence: { type: 'wither', base: 100 },
