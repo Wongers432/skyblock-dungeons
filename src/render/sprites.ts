@@ -14,9 +14,11 @@ const PALETTE: Record<string, string> = {
 };
 
 const SPRITES: Record<string, string[]> = {
+  // A knight: plumed steel helm, blue tabard with a gold cross, steel legs.
   player: [
-    '..HHHH..', '..HssH..', '..KssK..', '..sHHs..', 'CCCCCCCC', 'sCCCCCCs',
-    'sCCCCCCs', '.CCCCCC.', '.BBBBBB.', '.BB..BB.', '.BB..BB.', '.PP..PP.',
+    '....rr....', '....RR....', '..WWWWWW..', '.WWWWWWWw.', '.WKKKKKKw.', '.wWWWWWww.',
+    'WwBBAABBwW', 'WwBAAAABwW', 'WwBBAABBwW', 'T.ttyytt.T', '..ww..ww..', '..WW..WW..',
+    '..ww..ww..', '..tt..tt..', '..KK..KK..',
   ],
   zombie: [
     '..GGGG..', '..KGGK..', '..GGGG..', '..GddG..', 'CCCCCCCC', 'GCCCCCCG',
@@ -275,17 +277,23 @@ function tinted(name: string, frame: number): HTMLCanvasElement {
  */
 export function drawSprite(ctx: CanvasRenderingContext2D, name: string, x: number, y: number, h: number, flash = false, flip = false, frame = 0) {
   const s = flash ? tinted(name, frame) : sprite(name, frame);
-  const px = h / (s.height - 2);
-  const w = s.width * px;
-  const dx = Math.round(x - w / 2), dy = Math.round(y - h - px);
+  // Pixel art: no smoothing, and each art pixel a whole number of screen pixels so none smear.
+  ctx.imageSmoothingEnabled = false;
+  const m = ctx.getTransform();
+  const dpr = Math.hypot(m.a, m.b) || 1;
+  const px = Math.max(1, Math.round((h / (s.height - 2)) * dpr)) / dpr;
+  h = px * (s.height - 2);
+  const w = s.width * px, ht = s.height * px;
+  const snap = (v: number) => Math.round(v * dpr) / dpr;
+  const dx = snap(x - w / 2), dy = snap(y - h - px);
   if (flip) {
     ctx.save();
-    ctx.translate(dx + Math.round(w), dy);
+    ctx.translate(dx + w, dy);
     ctx.scale(-1, 1);
-    ctx.drawImage(s, 0, 0, Math.round(w), Math.round(s.height * px));
+    ctx.drawImage(s, 0, 0, w, ht);
     ctx.restore();
   } else {
-    ctx.drawImage(s, dx, dy, Math.round(w), Math.round(s.height * px));
+    ctx.drawImage(s, dx, dy, w, ht);
   }
 }
 
