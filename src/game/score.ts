@@ -75,6 +75,16 @@ export function rngRequired(d: FloorDrop): number {
   return Math.round((runs * 0.6 * 300) / 100) * 100;
 }
 
+/** The most meter XP a floor can bank with no target: enough to fill its rarest drop. */
+export function rngStoreCap(floor: FloorDef): number {
+  return Math.max(0, ...floor.drops.map(rngRequired));
+}
+
+/** Meter XP left after switching to a drop: progress carries over, capped at that drop's requirement. */
+export function rngCarryOver(xp: number, d: FloorDrop): number {
+  return Math.min(xp, rngRequired(d));
+}
+
 export interface RngResult {
   target: string | null;
   gained: number;
@@ -86,11 +96,17 @@ export interface RngResult {
 
 /**
  * Adds a finished run's score to the floor's RNG meter. If the meter is full, the target drops for sure.
- * If the target dropped anyway, the meter resets.
+ * If the target dropped anyway, the meter resets. With no target the score is banked (up to the
+ * floor's rarest drop) and carries over once a drop is picked.
  */
 export function applyRngMeter(floor: FloorDef, meter: { target: string | null; xp: number }, score: number, loot: Loot): RngResult {
   const drop = floor.drops.find((d) => d.item === meter.target);
-  if (!drop) return { target: null, gained: 0, xp: 0, required: 0 };
+  if (!drop) {
+    const cap = rngStoreCap(floor);
+    const before = meter.xp;
+    meter.xp = Math.min(cap, meter.xp + score);
+    return { target: null, gained: meter.xp - before, xp: meter.xp, required: cap };
+  }
   const required = rngRequired(drop);
   if (loot.items.includes(drop.item)) {
     meter.xp = 0;
