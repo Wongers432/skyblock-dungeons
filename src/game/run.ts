@@ -362,12 +362,8 @@ export class Run {
         this.shield = 0;
       }
     }
-    // The Watcher keeps working while you're in another room or on the map.
-    const blood = this.rooms[this.plan.blood];
-    if (blood.controller && blood.controller !== this.controller) blood.controller.update(dt);
     const f = this.field;
-    if (!f) return;
-    if (this.conjureTime > 0) {
+    if (f && this.conjureTime > 0) {
       this.conjureTime -= dt;
       this.conjureTick -= dt;
       if (this.conjureTick <= 0) {
@@ -375,19 +371,34 @@ export class Run {
         this.explode(f, f.player.x, f.player.y, this.stats.ability?.radius ?? 2.4, this.conjureDamage, '#9fd8ff');
       }
     }
-    this.controller?.update(dt);
-    this.updateMobs(f, dt);
-    this.updateProjectiles(f, dt);
-    for (const fx of f.fx) fx.t += dt;
-    f.fx = f.fx.filter((x) => x.t < x.life);
+    // Every room keeps running while you're somewhere else: mobs keep walking, projectiles keep
+    // flying and the Watcher keeps spawning. Only the field you're standing in can hurt you.
+    if (this.view === 'boss' && this.bossField) this.updateField(this.bossField, this.bossController, dt, true);
+    for (const room of this.rooms) {
+      if (!room.started) continue;
+      this.updateField(room.field, room.controller ?? null, dt, room.field === f);
+      if (room.plan.type === 'normal' && !room.cleared && room.field.mobs.every((m) => m.dead || m.crypt)) this.clearRoom(room);
+    }
     if (this.view === 'room' && this.current) {
       for (const sec of this.current.secrets) sec.phase += dt;
-      const room = this.current;
-      if (room.plan.type === 'normal' && !room.cleared && f.mobs.every((m) => m.dead || m.crypt)) this.clearRoom(room);
     }
   }
 
-  private updateMobs(f: Field, dt: number) {
+  private updateField(f: Field, controller: Controller | null, dt: number, present: boolean) {
+    controller?.update(dt);
+    this.updateMobs(f, dt, present);
+    this.updateProjectiles(f, dt, present);
+    for (const fx of f.fx) fx.t += dt;
+    f.fx = f.fx.filter((x) => x.t < x.life);
+  }
+
+  /** The controller that runs a field (a room's puzzle or the Watcher, or the boss). */
+  private controllerOf(f: Field): Controller | null {
+    if (f === this.bossField) return this.bossController;
+    return this.rooms.find((r) => r.field === f)?.controller ?? null;
+  }
+
+  private updateMobs(f: Field, dt: number, present: boolean) {
     const p = f.player;
     for (const m of f.mobs) {
       if (m.dead) continue;
@@ -397,7 +408,8 @@ export class Run {
       if (m.puzzle || m.boss) continue;
       const dist = Math.hypot(p.x - m.x, p.y - m.y);
       if (!m.aggro) {
-        if (dist > AGGRO_RANGE && m.hp >= m.maxHp) continue;
+        // Sleeping mobs in a room you've left stay asleep until you come back.
+        if (!present || dist > AGGRO_RANGE && m.hp >= m.maxHp) continue;
         // Waking one mob wakes its neighbours too.
         for (const o of f.mobs) if (!o.dead && Math.hypot(o.x - m.x, o.y - m.y) < 2.5) o.aggro = true;
         m.aggro = true;
@@ -418,7 +430,7 @@ export class Run {
         const dir = f.stepToward(m.x, m.y);
         m.x += dir.x * m.def.speed * dt;
         m.y += dir.y * m.def.speed * dt;
-      } else if (m.atk <= 0) {
+      } else if (m.atk <= 0 && present) {
         m.atk = m.def.attackCooldown;
         if (m.def.range) {
           this.shoot(f, m.x, m.y, m.def.projectile ?? 'arrow', m.damage);
@@ -452,7 +464,7 @@ export class Run {
     f.projectiles.push({ x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, damage, kind, tappable: kind !== 'arrow', life: 8 });
   }
 
-  private updateProjectiles(f: Field, dt: number) {
+  private updateProjectiles(f: Field, dt: number, present: boolean) {
     const p = f.player;
     for (const pr of f.projectiles) {
       pr.x += pr.vx * dt;
@@ -463,11 +475,11 @@ export class Run {
         // Rockets blow up where they were aimed; standing in the blast hurts.
         if (pr.life <= 0) {
           this.fireworkFx(f, pr.tx ?? pr.x, pr.ty ?? pr.y, pr.color ?? '#ff5555', pr.boom ?? 1.4);
-          if (Math.hypot((pr.tx ?? pr.x) - p.x, (pr.ty ?? pr.y) - p.y) < (pr.boom ?? 1.4)) this.damagePlayer(pr.damage);
+          if (present && Math.hypot((pr.tx ?? pr.x) - p.x, (pr.ty ?? pr.y) - p.y) < (pr.boom ?? 1.4)) this.damagePlayer(pr.damage);
         }
         continue;
       }
-      if (Math.hypot(pr.x - p.x, pr.y - p.y) < 0.45) {
+      if (present && Math.hypot(pr.x - p.x, pr.y - p.y) < 0.45) {
         pr.life = 0;
         this.damagePlayer(pr.damage, pr.pierce);
         if (pr.kind === 'balloon') this.fireworkFx(f, pr.x, pr.y, pr.color ?? '#ff5555', 1);
@@ -559,7 +571,7 @@ export class Run {
       this.crypts++;
       if (this.crypts <= 5) this.events.toast(`Crypt cleared! (${this.crypts}/5 bonus)`, '#55ffff');
     }
-    this.controller?.onMobDeath?.(m);
+    this.controllerOf(f)?.onMobDeath?.(m);
   }
 
   /** Death effects: the body tips over and bursts into blocky bits; bosses explode. */
