@@ -616,13 +616,16 @@ export class ProfessorController implements Controller {
   }
 }
 
+/** Spirit animal spawn points in Thorn's arena (just inside the cut corners of the 14x14 arena). */
+const TOP_CORNERS = [{ x: 1.5, y: 1.5 }, { x: 12.5, y: 1.5 }];
+
 /** Floor IV: Thorn can only be hurt by the Spirit Bow, dropped by Spirit Bears. */
 export class ThornController implements Controller {
   thorn: Mob;
   hitsLeft = 4;
   private bear: Mob | null = null;
   private bearTimer = 4;
-  private wolfTimer = 3;
+  private wolfTimer = 2;
   private shotTimer = 2.5;
   private wander = { x: 7, y: 3 };
   /** Bow lying on the floor, or held by the player (with seconds left). */
@@ -664,14 +667,18 @@ export class ThornController implements Controller {
       this.shotTimer = angry ? 1.8 : 2.5;
       this.run.shoot(f, t.x, t.y, 'arrow', 16 * dm);
     }
+    // Wolves come in pairs from the top corners so they have to cross the arena to reach the player.
+    const master = !!this.run.floor.master;
     this.wolfTimer -= dt;
-    const wolves = f.aliveMobs().filter((m) => m.def.id === 'spirit_wolf').length;
+    let wolves = f.aliveMobs().filter((m) => m.def.id === 'spirit_wolf').length;
     if (this.wolfTimer <= 0) {
-      this.wolfTimer = angry ? 5 : 7;
-      if (wolves < 4) {
-        const p = f.randomFloor(() => rng.next(), f.player, 4);
+      this.wolfTimer = (angry ? 3 : 4) * (master ? 0.75 : 1);
+      const cap = master ? 10 : 8;
+      for (const p of TOP_CORNERS) {
+        if (wolves >= cap) break;
         f.mobs.push(makeMob(MOBS.spirit_wolf, p.x, p.y, hpm, dm));
         f.fx.push({ kind: 'puff', x: p.x, y: p.y, t: 0, life: 0.5, color: '#9fffd0' });
+        wolves++;
       }
     }
     if (!this.bear || this.bear.dead) {
@@ -679,7 +686,9 @@ export class ThornController implements Controller {
         this.bearTimer -= dt;
         if (this.bearTimer <= 0) {
           this.bearTimer = 6;
-          const p = f.randomFloor(() => rng.next(), f.player, 4);
+          // The bear walks in from whichever top corner is further from the player.
+          const p = TOP_CORNERS.reduce((a, b) =>
+            Math.hypot(b.x - f.player.x, b.y - f.player.y) > Math.hypot(a.x - f.player.x, a.y - f.player.y) ? b : a);
           this.bear = makeMob(MOBS.spirit_bear, p.x, p.y, hpm, dm);
           f.mobs.push(this.bear);
           this.run.events.toast('A Spirit Bear appeared! Kill it for the Spirit Bow.', '#9fffd0');
