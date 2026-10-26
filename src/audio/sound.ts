@@ -1,4 +1,12 @@
-import themeUrl from '../assets/dungeon-theme.mp3';
+import dungeonTheme from '../assets/dungeon-theme.mp3';
+import witherKing from '../assets/wither-king.mp3';
+import dramaLefidoot from '../assets/dungeon-drama-lefidoot.mp3';
+import dramaNetcavy from '../assets/dungeon-drama-netcavy.mp3';
+import necronsDoom from '../assets/necrons-doom.mp3';
+import lavaKraken from '../assets/lava-kraken.mp3';
+
+/** Each run plays one of these, picked at random. */
+const TRACKS = [dungeonTheme, witherKing, dramaLefidoot, dramaNetcavy, necronsDoom, lavaKraken];
 
 /** Short sound effects, all synthesized with Web Audio so they need no extra files. */
 export type Sfx = 'hit' | 'crit' | 'mobDeath' | 'bossDeath' | 'hurt' | 'secret' | 'key' | 'door' | 'roomClear' | 'pop';
@@ -12,6 +20,7 @@ let ctx: AudioContext | null = null;
 let sfxOut: GainNode | null = null;
 let music: HTMLAudioElement | null = null;
 let musicWanted = false;
+let lastTrack = -1;
 let fadeTimer = 0;
 const lastPlayed = new Map<Sfx, number>();
 
@@ -61,11 +70,19 @@ function fadeTo(target: number, then?: () => void) {
   }, (FADE_SECONDS * 1000) / steps);
 }
 
-/** Starts the dungeon theme from the top (a new clear). */
+/** Picks a random track, never the same one twice in a row. */
+function pickTrack(): number {
+  let i = Math.floor(Math.random() * TRACKS.length);
+  if (i === lastTrack && TRACKS.length > 1) i = (i + 1 + Math.floor(Math.random() * (TRACKS.length - 1))) % TRACKS.length;
+  return (lastTrack = i);
+}
+
+/** Starts a random dungeon track from the top (a new clear). */
 export function startMusic() {
   if (typeof window === 'undefined' || !enabled) return;
-  music ??= Object.assign(new Audio(themeUrl), { loop: true, preload: 'auto' });
   clearInterval(fadeTimer);
+  music?.pause();
+  music = Object.assign(new Audio(TRACKS[pickTrack()]), { loop: true, preload: 'auto' });
   music.currentTime = 0;
   music.volume = MUSIC_VOLUME;
   musicWanted = true;
