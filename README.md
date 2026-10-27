@@ -1,43 +1,33 @@
-# SkyBlock Dungeons
+# Hollowdeep
 
-A private, solo, offline 2D take on Hypixel SkyBlock's Catacombs, built as an installable web app (PWA) for iPhone.
+A solo, offline 2D dungeon crawler for iPhone, built as an installable web app (PWA). Hollowdeep is a living dungeon that rebuilds its rooms every night; seven Wardens guard its seven Depths, and the whole place builds up to one big show.
 
-## What's in it (v0.4, Floors 1–7)
-- **Entrance Floor (Tutorial)**: starts on first launch (replay it from the settings menu). A small fixed dungeon with tooltips on killing mobs, finding secrets, puzzles (and turning on Puzzle glow), Wither Doors, the Blood Key and the Blood Room. It ends at the Watcher's portal and gives 25 Catacombs XP the first time.
-- Randomly generated dungeon each run: 1x1, 1x2, 2x1, 2x2 and L rooms built from hand-made layouts.
+## What's in it (v0.5, Depths 1–7)
+- **The Threshold (tutorial)**: starts on first launch (replay it from Settings). A small fixed dungeon with tooltips on killing mobs, secrets, puzzles (and Puzzle glow), Rune Doors, the Gate Key and the Summoning Hall. It ends at the Gatekeeper's portal and gives 25 Delve XP the first time.
+- A randomly generated dungeon each run: 1x1, 1x2, 2x1, 2x2 and L rooms built from hand-made layouts, each furnished in one of ten room styles.
 - Map screen first; tap a room to zoom in, tap the corner minimap (or **Map**) to go back.
-- Tap mobs to hit them; weapon abilities do area damage.
-- Blood rush: a chain of Wither Doors runs from the entrance to the Blood Room, with the Fairy Room halfway. Each key drops in the room right before its door, so you rush wither room to wither room.
-- Big S and S+ banners when your live score reaches those grades.
-- Secrets (appear once a room is cleared), crypts (+bonus score), Fairy room (full heal).
-- Puzzles: Tic Tac Toe, Higher or Lower (blazes), Three Weirdos.
-- Blood room with the Watcher, then the floor boss (walking through the portal heals you):
-  - **F1 Bonzo**: two phases, balloons you can pop, undead adds.
-  - **F2 Scarf**: kill his 4 minions first (Warrior, Priest, Mage, Archer). The Priest heals them and revives dead ones, so kill it first. Then Scarf teleports around throwing fireballs.
-  - **F3 The Professor**: kill the 4 Guardians first (Healthy, Reinforced takes half damage, Chaos throws skulls, Laser charges a beam), then the Professor, then his Guardian form.
-  - **F4 Thorn**: only the Spirit Bow hurts him. Kill a Spirit Bear, tap the bow it drops, then tap Thorn to shoot (4 hits). Spirit Wolves keep coming.
-  - **F5 Livid**: 8 coloured Livids, only one is real. Its colour matches the block above the arena; hitting a fake blinds and hurts you. They shuffle around, and he enrages at half health with Shadow Assassins.
-  - **F6 Sadan**: kill 12 Terracottas, then his 4 Giants (Bigfoot stomps, L.A.S.R. lasers, the Diamond Giant swings, the Jolly Pink Giant throws boulders you can tap). Hit a Giant while it charges to interrupt it. Then Sadan himself, with Golems.
-  - **F7 The Wither Lords**: Maxor (slide both Energy Crystals into the power cells to fire the wall lasers and stun him), Storm (tap a crusher when he stands under it), Goldor (solve 4 terminals before he reaches you) and Necron (shields himself with Wither Guards at 66% and 33%).
-- **Master Mode** (switch at the top of the Dungeons tab): M1 to M7 are the same floors with far more mob health and damage. M1 needs a Floor VII clear; each later one needs the one before. M7 ends with the five Wither Dragons (2M health each). They take off every 6 seconds, up to three in the air at once, and sweep the arena at full speed until they die. They can be hit anywhere but take double damage over their own statue. Their fireballs cost 15% of your max health (tap them to destroy them) and every 10 seconds or so each dragon hovers over its statue to charge a breath worth 50% of your health, which you stop by dealing 25% of its health while it charges. Dragon fire ignores defense and Wither Shield. M7 drops the **Dark Claymore**: it swings every 0.5s, every swing crits, cleaves every mob near the target and cuts across the whole screen. At Catacombs 50 with level 50 gear, nothing else one-shots an M7 mob (a maxed Hyperion tops out around 270k against a 320k minimum). The four Wither Lords have 1.65M health each, just under a maxed Claymore crit (about 1.653M), so only Catacombs 50 with every piece at level 50 one-taps them.
-- **Catacombs level matters on every floor.** Below a floor's required level (only possible with Unlock all floors) each missing level cuts your damage by 40% and raises damage taken by 50%, so a Catacombs 24 player in M7 does almost nothing and dies to one hit. Master floors also have a mastery level (M1 30, M2 33, M3 36, M4 39, M5 42, M6 46, M7 50); each level short of it costs 2% damage dealt and adds 2% damage taken. The floor list shows your numbers. tests/balance.test.ts checks all of this.
-- **RNG Meter** tab: every drop for every floor with its odds, pick a target per floor, each win fills the meter and boosts your odds; a full meter guarantees the drop. A floor's meter unlocks after your first clear of it.
-- Phase banners in boss fights (DAMAGE MAXOR!, 1/2 CRYSTALS ACTIVATED, TERMINALS 2/4...), death and explosion effects, and a full-screen RNGESUS DROP celebration for rare drops.
-- **Puzzle glow** setting (Settings tab or pause menu) highlights the right answer in every puzzle and terminal.
-- Hyperion crafting: Necron's Handle + 8 Wither Catalysts + 2,000 Wither Essence, then the three scrolls.
-- Room mobs stay idle until you get close, so big rooms come at you in waves.
-- Tap the glowing arrow in a doorway to walk straight into the next room (it uses a key if the door is locked).
-- The Watcher keeps spawning his mobs while you're elsewhere; they wait asleep until you come back.
-- Bonzo picks random attacks: Balloon Barrage, Balloon Ring, Party Spiral, Firework Show (rockets with blast markers) and Confetti Blast. Tap balloons and rockets to pop them. All bosses have 25% less health.
-- **Calibrate taps** in Settings: tap 9 dots and the game shifts every tap to where you meant it and sizes tap areas to how precise you are.
-- Hyperion's Wither Impact hits every mob in the room. Secrets, keys and crypts have big tap areas.
-- Looks: torch-lit rooms with dynamic lighting, 3D walls and pillars, cobwebs, bones, barrels, banners and moss; themed boss arenas per floor; hit shake, red hurt vignette and drop shadows.
-- Bonzo's Staff fires an exploding firework on every tap. The Livid Dagger slashes every mob you swipe across.
-- Hypixel-style score (Skill / Exploration / Speed / Bonus), S at 270, S+ at 300. The blood room does not count, so you know your grade before the boss.
-- Free reward chest by grade (Wood → Bedrock) with essence and rare drops: F1 **Bonzo's Staff**, **Bonzo's Mask**; F2 **Conjuring**; F3 **Adaptive Blade** and **Adaptive armor**; F4 **Spirit Sceptre**, **Spirit Boots**; F5 **Livid Dagger**, **Shadow Fury**, **Shadow Assassin armor**; F6 **Giant's Sword**, **Necromancer Lord armor**; F7 **Necron's Handle**, **Wither Catalysts**, the three **scrolls**, **Necron's armor** and **Storm's armor** (lots of Intelligence for mana, and every piece cuts ability cooldowns by 8%, 40% with the full set).
-- Catacombs XP and levels (+3% health, defense and damage per level).
-- Essence upgrades for every item, level 1 to 50, cost rising each level.
-- Temporary **Admin** tab to spawn items (incl. Spirit Sceptre, Giant's Sword, Hyperion and its scrolls), essence and XP, a Catacombs level slider (0 to 50), plus god mode. Turn it off under Save.
+- Tap mobs to hit them; weapon abilities do area damage. Room mobs sleep until you get close.
+- The rush: a chain of Rune Doors runs from the Threshold to the Summoning Hall, with the Wellspring halfway. Each key drops in the room right before its door. The Gate Door needs the Gate Key.
+- Secrets (appear once a room is cleared), tombs (+bonus score), the Wellspring (full heal).
+- Puzzles: Tic Tac Toe, Higher or Lower (embers), Three Liars.
+- The Summoning Hall: the Gatekeeper sends in his extras (and keeps sending them while you're elsewhere). Clear them to open the portal to the Warden.
+- The Wardens:
+  - **Depth 1, Pip the Jester**: random Balloon Barrage, Balloon Ring, Party Spiral, Firework Show and Confetti Blast; tap balloons and rockets to pop them. He comes back for a second act.
+  - **Depth 2, Ossia the Bonecaller**: kill her four apprentices first (Brute, Mender, Hexer, Sniper). The Mender heals and revives the others, so kill it first. Then Ossia blinks around throwing fireballs.
+  - **Depth 3, Grimsby the Alchemist**: four Homunculi first (Stone, Plated takes half damage, Toxic throws skulls, Prism charges a beam), then Grimsby, then his transformed form.
+  - **Depth 4, Mother Bramble**: only the Moonbow hurts her. Kill a Grove Bear, tap the bow it drops, then tap her to shoot (4 hits). Wisp Wolves keep coming.
+  - **Depth 5, Lady Facet**: 8 masked copies, only one is real; its colour matches the block at the top. Hitting a fake blinds and hurts you. Shade Stalkers join at half health.
+  - **Depth 6, Foreman Basalt**: 12 Clay Soldiers, then four Titans (Stomper, Lens Titan, Blade Titan, Rose Titan throws boulders you can tap). Hit a Titan while it charges to interrupt it. Then Basalt with Forge Golems.
+  - **Depth 7, The Last Encore**: Boom the Drummer (slide both Spark Cores into the amps to stun him), Strobe the Light Tech (tap a lighting rig when he stands under it), Riff the Guitarist (solve 4 mixing desks before he reaches you) and the Maestro (hides behind Stage Guards at 66% and 33%).
+- **Nightmare Mode**: N1 to N7 are the same Depths with far more mob health and damage. N1 needs a Depth 7 clear; each later one needs the one before. N7 ends with five **Neon Phoenixes** (2M health each): they take off every 6 seconds, up to three in the air, and take double damage over their own statue. Their fireballs cost 15% of your max health (tap them to destroy them), and each one charges a blast worth 50% of your health that you stop by dealing 25% of its health. N7 drops the **Showstopper**, a huge greatsword where every swing crits and cleaves.
+- **Delver Rank matters everywhere.** Below a Depth's required rank (only possible with Unlock all Depths) each missing rank cuts your damage by 40% and raises damage taken by 50%. Nightmare Depths also have a mastery rank (N1 30 up to N7 50). tests/balance.test.ts checks this.
+- **Luck Meter** tab: every drop for every Depth with its odds; pick a target per Depth and each win fills the meter and boosts your odds; a full meter guarantees the drop.
+- Score: Skill / Exploration / Speed / Bonus, S at 270, S+ at 300, with big banners when you reach them. Free reward chest by grade (Wood, Iron, Gold, Crystal, Royal, Mythic) with essence and rare drops.
+- Drops: D1 **Pip's Party Wand**, **Jester's Grin**; D2 **Bonecaller's Tome**; D3 **Mutagen Blade** and armor; D4 **Wisp Sceptre**, **Wisp Treads**; D5 **Facet Dagger**, **Shade Rush**, **Shade Stalker armor**; D6 **Titan's Cleaver**, **Forgelord armor**; D7 **Maestro's Hilt**, **Resonance Crystals**, three pieces of sheet music, **Headliner armor** and **Strobe armor**.
+- **Crescendo** crafting: Maestro's Hilt + 8 Resonance Crystals + 2,000 Star Essence, then the Big Finish, Stage Dive and Standing Ovation sheet music unlock Encore Strike.
+- Delve XP and Delver Rank (+3% health, defense and damage per rank). Bone and Star essence upgrade every item from level 1 to 50.
+- **Calibrate taps** in Settings, **Puzzle glow**, music and sound effects.
+- Temporary **Admin** tab to spawn items, essence and XP, a rank slider (0 to 50) and god mode. Turn it off under Save.
 - Save backup: copy/paste a save code under Save.
 
 Death ends the run with no chest.

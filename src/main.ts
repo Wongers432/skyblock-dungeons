@@ -54,7 +54,7 @@ function startRun(floorId: number) {
   setSoundEnabled(profile.settings.sound);
   musicOn = profile.settings.sound;
   if (musicOn) startMusic();
-  if (!run.floor.tutorial) runUi.toast(`Welcome to the Catacombs, ${run.floor.name}! Tap a room to begin.`, '#55ff55');
+  if (!run.floor.tutorial) runUi.toast(`Welcome to Hollowdeep, ${run.floor.name}! Tap a room to begin.`, '#55ff55');
 }
 
 function toHub() {

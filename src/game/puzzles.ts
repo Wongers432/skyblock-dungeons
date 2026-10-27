@@ -62,8 +62,8 @@ export function bestPlayerMoves(b: Mark[]): number[] {
 
 // ---------- Three Weirdos ----------
 export const WEIRDO_NAMES = [
-  'Baxter', 'Benjamin', 'Carver', 'Elmo', 'Hope', 'Hugo', 'Lino', 'Luverne', 'Madelyn',
-  'Marshall', 'Melody', 'Montgomery', 'Morris', 'Ramsey', 'Rose', 'Victoria', 'Virginia', 'Willy',
+  'Alder', 'Bramwell', 'Cosmo', 'Dorrit', 'Ember', 'Fenwick', 'Gilda', 'Hollis', 'Ivo',
+  'Juniper', 'Kestrel', 'Lark', 'Mabel', 'Nettle', 'Orrin', 'Pippa', 'Quill', 'Tamsin',
 ];
 
 type Statement =

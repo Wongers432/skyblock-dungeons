@@ -3,8 +3,8 @@ import type { EssenceType } from './items';
 export type ChestTier = 'wood' | 'gold' | 'diamond' | 'emerald' | 'obsidian' | 'bedrock';
 export const CHEST_ORDER: ChestTier[] = ['wood', 'gold', 'diamond', 'emerald', 'obsidian', 'bedrock'];
 export const CHEST_NAME: Record<ChestTier, string> = {
-  wood: 'Wood Chest', gold: 'Gold Chest', diamond: 'Diamond Chest',
-  emerald: 'Emerald Chest', obsidian: 'Obsidian Chest', bedrock: 'Bedrock Chest',
+  wood: 'Wood Chest', gold: 'Iron Chest', diamond: 'Gold Chest',
+  emerald: 'Crystal Chest', obsidian: 'Royal Chest', bedrock: 'Mythic Chest',
 };
 /** Essence multiplier per chest tier. */
 export const CHEST_ESSENCE: Record<ChestTier, number> = {
@@ -32,38 +32,38 @@ export const MOBS: Record<string, MobDef> = {
   zombie: { id: 'zombie', name: 'Crypt Ghoul', hp: 120, damage: 12, speed: 1.5, attackCooldown: 1, sprite: 'zombie', size: 0.9 },
   skeleton: { id: 'skeleton', name: 'Skeleton Soldier', hp: 90, damage: 10, speed: 1.3, attackCooldown: 1.8, range: 5, sprite: 'skeleton', size: 0.9 },
   lurker: { id: 'lurker', name: 'Crypt Lurker', hp: 260, damage: 18, speed: 1.8, attackCooldown: 1, sprite: 'lurker', size: 1 },
-  blood: { id: 'blood', name: 'Blood Mob', hp: 200, damage: 8, speed: 1.6, attackCooldown: 1, sprite: 'bloodmob', size: 1 },
+  blood: { id: 'blood', name: 'Summoned Extra', hp: 200, damage: 8, speed: 1.6, attackCooldown: 1, sprite: 'bloodmob', size: 1 },
   knight: { id: 'knight', name: 'Zombie Knight', hp: 200, damage: 16, speed: 1.3, attackCooldown: 1.1, armor: 0.2, sprite: 'knight', size: 1 },
-  skelmaster: { id: 'skelmaster', name: 'Skeleton Master', hp: 150, damage: 15, speed: 1.2, attackCooldown: 2, range: 5.5, projectile: 'fireball', sprite: 'skelmaster', size: 0.95 },
-  // Scarf's minions (Floor II).
-  warrior: { id: 'warrior', name: 'Undead Warrior', hp: 450, damage: 22, speed: 1.9, attackCooldown: 1, armor: 0.15, sprite: 'warrior', size: 1.1 },
-  priest: { id: 'priest', name: 'Undead Priest', hp: 350, damage: 0, speed: 1, attackCooldown: 99, range: 6, projectile: 'none', sprite: 'priest', size: 1.1 },
-  mage: { id: 'mage', name: 'Undead Mage', hp: 350, damage: 18, speed: 1.2, attackCooldown: 2.2, range: 6, projectile: 'fireball', sprite: 'mage', size: 1.1 },
-  archer: { id: 'archer', name: 'Undead Archer', hp: 350, damage: 14, speed: 1.3, attackCooldown: 1.6, range: 7, projectile: 'arrow', sprite: 'archer', size: 1.1 },
-  // The Professor's guardians (Floor III).
-  g_healthy: { id: 'g_healthy', name: 'Healthy Guardian', hp: 900, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', sprite: 'guardian', size: 1.3 },
-  g_reinforced: { id: 'g_reinforced', name: 'Reinforced Guardian', hp: 550, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', armor: 0.5, sprite: 'guardian_r', size: 1.3 },
-  g_chaos: { id: 'g_chaos', name: 'Chaos Guardian', hp: 550, damage: 22, speed: 0, attackCooldown: 2.6, range: 99, projectile: 'skull', sprite: 'guardian_c', size: 1.3 },
-  g_laser: { id: 'g_laser', name: 'Laser Guardian', hp: 550, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', sprite: 'guardian_l', size: 1.3 },
-  superarcher: { id: 'superarcher', name: 'Super Archer', hp: 160, damage: 14, speed: 1.4, attackCooldown: 1.2, range: 6.5, sprite: 'superarcher', size: 0.95 },
-  assassin: { id: 'assassin', name: 'Shadow Assassin', hp: 240, damage: 26, speed: 2.2, attackCooldown: 1.1, sprite: 'assassin', size: 1 },
-  // Thorn's spirit animals (Floor IV).
-  spirit_wolf: { id: 'spirit_wolf', name: 'Spirit Wolf', hp: 260, damage: 16, speed: 2.6, attackCooldown: 0.9, sprite: 'spirit_wolf', size: 0.9 },
-  spirit_bear: { id: 'spirit_bear', name: 'Spirit Bear', hp: 700, damage: 22, speed: 1.2, attackCooldown: 1.4, armor: 0.1, sprite: 'spirit_bear', size: 1.3 },
-  // Livid and his clones (Floor V).
-  terracotta: { id: 'terracotta', name: 'Terracotta', hp: 500, damage: 20, speed: 1.6, attackCooldown: 1.1, sprite: 'terracotta', size: 1 },
-  golem: { id: 'golem', name: 'Sadan Golem', hp: 1600, damage: 30, speed: 1.1, attackCooldown: 1.6, armor: 0.2, sprite: 'golem', size: 1.4 },
-  lost_adventurer: { id: 'lost_adventurer', name: 'Lost Adventurer', hp: 600, damage: 24, speed: 1.8, attackCooldown: 0.9, armor: 0.15, sprite: 'adventurer', size: 1 },
-  wither_guard: { id: 'wither_guard', name: 'Wither Guard', hp: 420, damage: 22, speed: 1.4, attackCooldown: 1.2, armor: 0.25, sprite: 'wither_guard', size: 1.1 },
-  wither_miner: { id: 'wither_miner', name: 'Wither Miner', hp: 300, damage: 26, speed: 2, attackCooldown: 0.9, sprite: 'wither_miner', size: 1 },
-  livid: { id: 'livid', name: 'Livid', hp: 6000, damage: 18, speed: 0, attackCooldown: 2.2, range: 99, projectile: 'arrow', sprite: 'livid', size: 1.3 },
-  blaze: { id: 'blaze', name: 'Blaze', hp: 1, damage: 0, speed: 0.6, attackCooldown: 99, sprite: 'blaze', size: 0.9 },
+  skelmaster: { id: 'skelmaster', name: 'Bone Pyromancer', hp: 150, damage: 15, speed: 1.2, attackCooldown: 2, range: 5.5, projectile: 'fireball', sprite: 'skelmaster', size: 0.95 },
+  // Ossia's apprentices (Depth 2).
+  warrior: { id: 'warrior', name: 'Bone Brute', hp: 450, damage: 22, speed: 1.9, attackCooldown: 1, armor: 0.15, sprite: 'warrior', size: 1.1 },
+  priest: { id: 'priest', name: 'Bone Mender', hp: 350, damage: 0, speed: 1, attackCooldown: 99, range: 6, projectile: 'none', sprite: 'priest', size: 1.1 },
+  mage: { id: 'mage', name: 'Bone Hexer', hp: 350, damage: 18, speed: 1.2, attackCooldown: 2.2, range: 6, projectile: 'fireball', sprite: 'mage', size: 1.1 },
+  archer: { id: 'archer', name: 'Bone Sniper', hp: 350, damage: 14, speed: 1.3, attackCooldown: 1.6, range: 7, projectile: 'arrow', sprite: 'archer', size: 1.1 },
+  // Grimsby's homunculi (Depth 3).
+  g_healthy: { id: 'g_healthy', name: 'Stone Homunculus', hp: 900, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', sprite: 'guardian', size: 1.3 },
+  g_reinforced: { id: 'g_reinforced', name: 'Plated Homunculus', hp: 550, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', armor: 0.5, sprite: 'guardian_r', size: 1.3 },
+  g_chaos: { id: 'g_chaos', name: 'Toxic Homunculus', hp: 550, damage: 22, speed: 0, attackCooldown: 2.6, range: 99, projectile: 'skull', sprite: 'guardian_c', size: 1.3 },
+  g_laser: { id: 'g_laser', name: 'Prism Homunculus', hp: 550, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', sprite: 'guardian_l', size: 1.3 },
+  superarcher: { id: 'superarcher', name: 'Sharpshooter', hp: 160, damage: 14, speed: 1.4, attackCooldown: 1.2, range: 6.5, sprite: 'superarcher', size: 0.95 },
+  assassin: { id: 'assassin', name: 'Shade Stalker', hp: 240, damage: 26, speed: 2.2, attackCooldown: 1.1, sprite: 'assassin', size: 1 },
+  // Mother Bramble's grove beasts (Depth 4).
+  spirit_wolf: { id: 'spirit_wolf', name: 'Wisp Wolf', hp: 260, damage: 16, speed: 2.6, attackCooldown: 0.9, sprite: 'spirit_wolf', size: 0.9 },
+  spirit_bear: { id: 'spirit_bear', name: 'Grove Bear', hp: 700, damage: 22, speed: 1.2, attackCooldown: 1.4, armor: 0.1, sprite: 'spirit_bear', size: 1.3 },
+  // Depth 5 and 6 mobs.
+  terracotta: { id: 'terracotta', name: 'Clay Soldier', hp: 500, damage: 20, speed: 1.6, attackCooldown: 1.1, sprite: 'terracotta', size: 1 },
+  golem: { id: 'golem', name: 'Forge Golem', hp: 1600, damage: 30, speed: 1.1, attackCooldown: 1.6, armor: 0.2, sprite: 'golem', size: 1.4 },
+  lost_adventurer: { id: 'lost_adventurer', name: 'Fallen Delver', hp: 600, damage: 24, speed: 1.8, attackCooldown: 0.9, armor: 0.15, sprite: 'adventurer', size: 1 },
+  wither_guard: { id: 'wither_guard', name: 'Stage Guard', hp: 420, damage: 22, speed: 1.4, attackCooldown: 1.2, armor: 0.25, sprite: 'wither_guard', size: 1.1 },
+  wither_miner: { id: 'wither_miner', name: 'Roadie', hp: 300, damage: 26, speed: 2, attackCooldown: 0.9, sprite: 'wither_miner', size: 1 },
+  livid: { id: 'livid', name: 'Lady Facet', hp: 6000, damage: 18, speed: 0, attackCooldown: 2.2, range: 99, projectile: 'arrow', sprite: 'livid', size: 1.3 },
+  blaze: { id: 'blaze', name: 'Ember', hp: 1, damage: 0, speed: 0.6, attackCooldown: 99, sprite: 'blaze', size: 0.9 },
 };
 
-/** Names the Watcher gives to blood mobs, as in the original game. */
+/** Names the Gatekeeper gives to his summoned extras. */
 export const BLOOD_NAMES = [
-  'Revoker', 'Psycho', 'Reaper', 'Cannibal', 'Mute', 'Ooze', 'Putrid', 'Freak',
-  'Leech', 'Tear', 'Parasite', 'Flamer', 'Skull', 'Mr. Dead', 'Vader', 'Frost', 'Walker',
+  'Grumble', 'Rattles', 'Hollowjack', 'Sir Creak', 'Mopey', 'Gristle', 'Wick', 'Snarl',
+  'Bramblebones', 'Old Tom', 'Squelch', 'Cinder', 'Nibbles', 'Lady Dread', 'Clank', 'Gloom', 'Shuffles',
 ];
 
 export interface FloorDrop {
@@ -115,7 +115,7 @@ const tiers = (wood: number, gold: number, diamond: number, emerald: number, obs
 
 export const FLOORS: FloorDef[] = [
   {
-    id: 1, name: 'Floor I', boss: 'Bonzo', implemented: true, reqLevel: 0,
+    id: 1, name: 'Depth 1', boss: 'Pip the Jester', implemented: true, reqLevel: 0,
     cols: 4, rows: 4, puzzles: 2, fairyRooms: 1, witherDoors: 1, timeLimit: 540,
     mobHpMult: 1, mobDmgMult: 1, mobsPerCell: [2, 3], secretChance: 0.45, cryptChance: 0.35,
     bloodMobs: 6, mobPool: ['zombie', 'zombie', 'skeleton'], xp: 40,
@@ -126,7 +126,7 @@ export const FLOORS: FloorDef[] = [
     ],
   },
   {
-    id: 2, name: 'Floor II', boss: 'Scarf', implemented: true, reqLevel: 3,
+    id: 2, name: 'Depth 2', boss: 'Ossia the Bonecaller', implemented: true, reqLevel: 3,
     cols: 4, rows: 5, puzzles: 2, fairyRooms: 1, witherDoors: 2, timeLimit: 600,
     mobHpMult: 1.3, mobDmgMult: 1.2, mobsPerCell: [2, 3], secretChance: 0.5, cryptChance: 0.35,
     bloodMobs: 7, mobPool: ['zombie', 'zombie', 'skeleton', 'knight'], xp: 100,
@@ -136,7 +136,7 @@ export const FLOORS: FloorDef[] = [
     ],
   },
   {
-    id: 3, name: 'Floor III', boss: 'The Professor', implemented: true, reqLevel: 5,
+    id: 3, name: 'Depth 3', boss: 'Grimsby the Alchemist', implemented: true, reqLevel: 5,
     cols: 4, rows: 5, puzzles: 3, fairyRooms: 1, witherDoors: 2, timeLimit: 660,
     mobHpMult: 1.6, mobDmgMult: 1.4, mobsPerCell: [2, 3], secretChance: 0.55, cryptChance: 0.4,
     bloodMobs: 8, mobPool: ['zombie', 'skeleton', 'knight', 'skelmaster'], xp: 250,
@@ -150,7 +150,7 @@ export const FLOORS: FloorDef[] = [
     ],
   },
   {
-    id: 4, name: 'Floor IV', boss: 'Thorn', implemented: true, reqLevel: 9,
+    id: 4, name: 'Depth 4', boss: 'Mother Bramble', implemented: true, reqLevel: 9,
     cols: 5, rows: 5, puzzles: 3, fairyRooms: 1, witherDoors: 2, timeLimit: 720,
     mobHpMult: 3, mobDmgMult: 4, mobsPerCell: [2, 3], secretChance: 0.55, cryptChance: 0.4,
     bloodMobs: 8, mobPool: ['zombie', 'skeleton', 'knight', 'skelmaster', 'superarcher'], xp: 600,
@@ -161,7 +161,7 @@ export const FLOORS: FloorDef[] = [
     ],
   },
   {
-    id: 5, name: 'Floor V', boss: 'Livid', implemented: true, reqLevel: 14,
+    id: 5, name: 'Depth 5', boss: 'Lady Facet', implemented: true, reqLevel: 14,
     cols: 5, rows: 6, puzzles: 3, fairyRooms: 1, witherDoors: 3, timeLimit: 780,
     mobHpMult: 4.5, mobDmgMult: 5, mobsPerCell: [2, 3], secretChance: 0.6, cryptChance: 0.4,
     bloodMobs: 9, mobPool: ['zombie', 'skeleton', 'knight', 'skelmaster', 'superarcher', 'assassin'], xp: 1500,
@@ -176,7 +176,7 @@ export const FLOORS: FloorDef[] = [
     ],
   },
   {
-    id: 6, name: 'Floor VI', boss: 'Sadan', implemented: true, reqLevel: 19,
+    id: 6, name: 'Depth 6', boss: 'Foreman Basalt', implemented: true, reqLevel: 19,
     cols: 5, rows: 6, puzzles: 3, fairyRooms: 1, witherDoors: 3, timeLimit: 840,
     mobHpMult: 6.5, mobDmgMult: 6.5, mobsPerCell: [2, 3], secretChance: 0.6, cryptChance: 0.4,
     bloodMobs: 10, mobPool: ['zombie', 'skeleton', 'knight', 'skelmaster', 'superarcher', 'lost_adventurer'], xp: 3500,
@@ -190,7 +190,7 @@ export const FLOORS: FloorDef[] = [
     ],
   },
   {
-    id: 7, name: 'Floor VII', boss: 'The Wither Lords', implemented: true, reqLevel: 24,
+    id: 7, name: 'Depth 7', boss: 'The Headliners', implemented: true, reqLevel: 24,
     cols: 5, rows: 6, puzzles: 4, fairyRooms: 1, witherDoors: 3, timeLimit: 960,
     mobHpMult: 13, mobDmgMult: 12, mobsPerCell: [2, 3], secretChance: 0.6, cryptChance: 0.4,
     bloodMobs: 12, mobPool: ['skeleton', 'knight', 'skelmaster', 'superarcher', 'lost_adventurer', 'wither_guard', 'wither_miner'], xp: 9000,
@@ -242,7 +242,6 @@ const MASTER_TUNING = [
   { hp: 78, dmg: 60, level: 34, mastery: 46, xp: 42000 },
   { hp: 1, dmg: 50, level: 36, mastery: 50, xp: 60000 },
 ];
-const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
 
 export const MASTER_FLOORS: FloorDef[] = FLOORS.map((f, i) => {
   const t = MASTER_TUNING[i];
@@ -254,8 +253,8 @@ export const MASTER_FLOORS: FloorDef[] = FLOORS.map((f, i) => {
   return {
     ...f,
     id: MASTER_OFFSET + f.id,
-    name: `Master Floor ${ROMAN[i]}`,
-    boss: f.id === 7 ? 'The Wither Lords + Dragons' : f.boss,
+    name: `Nightmare Depth ${i + 1}`,
+    boss: f.id === 7 ? 'The Headliners + Phoenixes' : f.boss,
     master: true,
     base: f.id,
     requires: f.id === 1 ? 7 : MASTER_OFFSET + f.id - 1,
@@ -278,12 +277,12 @@ export function baseFloor(f: FloorDef): number {
   return f.base ?? f.id;
 }
 
-/** Catacombs XP for finishing the tutorial the first time. */
+/** Delve XP for finishing the tutorial the first time. */
 export const TUTORIAL_XP = 25;
 
-/** The Entrance tutorial. Not in the floor list; it starts on first launch and from Settings. */
+/** The Threshold tutorial. Not in the floor list; it starts on first launch and from Settings. */
 export const TUTORIAL_FLOOR: FloorDef = {
-  id: 0, name: 'Entrance Floor (Tutorial)', boss: 'The Watcher', implemented: true, reqLevel: 0, tutorial: true,
+  id: 0, name: 'The Threshold (Tutorial)', boss: 'The Gatekeeper', implemented: true, reqLevel: 0, tutorial: true,
   cols: 3, rows: 2, puzzles: 1, fairyRooms: 0, witherDoors: 1, timeLimit: 900,
   mobHpMult: 0.5, mobDmgMult: 0.4, mobsPerCell: [3, 3], secretChance: 1, cryptChance: 0,
   bloodMobs: 4, mobPool: ['zombie'], xp: TUTORIAL_XP,

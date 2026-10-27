@@ -2,7 +2,7 @@ import type { FloorDef } from '../data/floors';
 import { ITEMS, hyperionAbility, type AbilityDef, type ItemDef, type ItemStats, type Slot } from '../data/items';
 import type { ItemInstance, Profile } from './save';
 
-/** XP needed to go from level i to i+1 (index 0 = level 0 -> 1). Early values follow the original game. */
+/** XP needed to go from level i to i+1 (index 0 = level 0 -> 1). Steep early, then a long grind to 50. */
 const CATA_STEPS = [
   50, 75, 110, 160, 230, 330, 470, 670, 950, 1340, 1890, 2665, 3760, 5260, 7380, 10300, 14400, 20000,
   27600, 38000, 52500, 71500, 97000, 132000, 180000, 243000, 328000, 445000, 600000, 800000,

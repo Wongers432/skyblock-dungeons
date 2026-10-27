@@ -171,9 +171,9 @@ export class Run {
     if (links.some((d) => this.openDoors.has(d.id))) return { ok: true };
     const lock = links[0];
     if (lock.type === 'wither') {
-      return this.witherKeys > 0 ? { ok: true, unlock: lock } : { ok: false, reason: 'This Wither Door needs a Wither Key.' };
+      return this.witherKeys > 0 ? { ok: true, unlock: lock } : { ok: false, reason: 'This Rune Door needs a Rune Key.' };
     }
-    return this.bloodKey ? { ok: true, unlock: lock } : { ok: false, reason: 'The Blood Door needs the Blood Key.' };
+    return this.bloodKey ? { ok: true, unlock: lock } : { ok: false, reason: 'The Gate Door needs the Gate Key.' };
   }
 
   tapRoom(room: RoomRT) {
@@ -191,9 +191,9 @@ export class Run {
     this.events.sfx?.('door');
     if (d.type === 'wither') {
       this.witherKeys--;
-      this.events.toast('Opened the Wither Door!', '#aaaaaa');
+      this.events.toast('Opened the Rune Door!', '#aaaaaa');
     } else {
-      this.events.toast('The BLOOD DOOR has been opened!', '#ff5555');
+      this.events.toast('The GATE DOOR has been opened!', '#ff5555');
     }
   }
 
@@ -215,8 +215,8 @@ export class Run {
     const next = this.through(d);
     if (!next || this.view !== 'room') return;
     if (!this.openDoors.has(d.id)) {
-      if (d.type === 'wither' && this.witherKeys <= 0) return this.events.toast('This Wither Door needs a Wither Key.', '#ff5555');
-      if (d.type === 'blood' && !this.bloodKey) return this.events.toast('The Blood Door needs the Blood Key.', '#ff5555');
+      if (d.type === 'wither' && this.witherKeys <= 0) return this.events.toast('This Rune Door needs a Rune Key.', '#ff5555');
+      if (d.type === 'blood' && !this.bloodKey) return this.events.toast('The Gate Door needs the Gate Key.', '#ff5555');
       this.unlock(d);
     }
     this.enterRoom(next);
@@ -254,7 +254,7 @@ export class Run {
     switch (room.plan.type) {
       case 'entrance':
         room.cleared = true;
-        if (!this.floor.tutorial) this.events.toast(`Welcome to the Catacombs, ${this.floor.name}!`, '#55ff55');
+        if (!this.floor.tutorial) this.events.toast(`Welcome to Hollowdeep, ${this.floor.name}!`, '#55ff55');
         break;
       case 'fairy':
         room.cleared = true;
@@ -268,7 +268,7 @@ export class Run {
         break;
       case 'blood':
         room.controller = new BloodController(this, room);
-        this.events.toast('The Watcher: Things are getting exciting!', '#ff5555');
+        this.events.toast('The Gatekeeper: Places, everyone! We have a visitor!', '#ff5555');
         break;
       case 'puzzle':
         if (room.puzzle?.kind === 'blaze') room.controller = new BlazeController(this, room, makeBlaze(this.rng));
@@ -287,7 +287,7 @@ export class Run {
         room.key.x = spot.x;
         room.key.y = spot.y;
         room.key.spawned = true;
-        this.events.toast(room.plan.key === 'blood' ? 'A Blood Key appeared!' : 'A Wither Key appeared!', room.plan.key === 'blood' ? '#ff5555' : '#aaaaaa');
+        this.events.toast(room.plan.key === 'blood' ? 'A Gate Key appeared!' : 'A Rune Key appeared!', room.plan.key === 'blood' ? '#ff5555' : '#aaaaaa');
       }
     }
     this.events.changed();
@@ -543,7 +543,7 @@ export class Run {
       if (this.stats.hasBonzoMask && !this.maskUsed) {
         this.maskUsed = true;
         this.hp = this.stats.maxHp * 0.3;
-        this.events.toast("Your Bonzo's Mask saved your life!", '#ffaa00');
+        this.events.toast("Your Jester's Grin saved your life!", '#ffaa00');
         return;
       }
       this.hp = 0;
@@ -572,7 +572,7 @@ export class Run {
     this.events.sfx?.(m.boss ? 'bossDeath' : 'mobDeath');
     if (m.crypt) {
       this.crypts++;
-      if (this.crypts <= 5) this.events.toast(`Crypt cleared! (${this.crypts}/5 bonus)`, '#55ffff');
+      if (this.crypts <= 5) this.events.toast(`Tomb cleared! (${this.crypts}/5 bonus)`, '#55ffff');
     }
     this.controllerOf(f)?.onMobDeath?.(m);
   }
@@ -648,7 +648,7 @@ export class Run {
         this.conjureTime = 4;
         this.conjureTick = 0;
         this.conjureDamage = magic;
-        this.events.toast('Conjuring!', '#9fd8ff');
+        this.events.toast('Bone Ring!', '#9fd8ff');
         break;
       case 'wither_scrolls': {
         const scrolls = this.stats.weapon?.scrolls ?? [];
@@ -710,10 +710,10 @@ export class Run {
         this.events.sfx?.('key');
         if (room.plan.key === 'blood') {
           this.bloodKey = true;
-          this.events.toast('You picked up the BLOOD KEY!', '#ff5555');
+          this.events.toast('You picked up the GATE KEY!', '#ff5555');
         } else {
           this.witherKeys++;
-          this.events.toast('You picked up a WITHER KEY!', '#aaaaaa');
+          this.events.toast('You picked up a RUNE KEY!', '#aaaaaa');
         }
         this.events.changed();
       });
@@ -752,7 +752,7 @@ export class Run {
         consider(c.x, c.y, PICKUP_RADIUS * tapSize, () => {
           c.opened = true;
           f.mobs.push(makeMob(MOBS.lurker, c.x, c.y + 0.6, this.floor.mobHpMult, this.floor.mobDmgMult, { crypt: true }));
-          this.events.toast('A Crypt Lurker rises from the crypt!', '#aa55ff');
+          this.events.toast('A Crypt Lurker rises from the tomb!', '#aa55ff');
         });
       }
       if (room.plan.type === 'fairy' && !room.fairyUsed) {
@@ -760,7 +760,7 @@ export class Run {
           room.fairyUsed = true;
           this.hp = this.stats.maxHp;
           this.mana = this.stats.maxMana;
-          this.events.toast('The Fairy healed you!', '#ff77cc');
+          this.events.toast('The Wellspring healed you!', '#ff77cc');
           this.events.changed();
         });
       }
@@ -944,7 +944,7 @@ export class Run {
     saveProfile(p);
     this.ended = {
       victory,
-      reason: victory ? (this.floor.tutorial ? 'You cleared the Entrance. You are ready for Floor I!' : `${this.floor.boss} defeated!`) : 'You died. The run is over.',
+      reason: victory ? (this.floor.tutorial ? 'You cleared the Threshold. You are ready for Depth 1!' : `${this.floor.boss} defeated!`) : 'You died. The run is over.',
       score, seconds: this.time, loot, rng, secretEssence: victory ? this.secretEssence : 0, xp,
       levelBefore, levelAfter: cataLevel(p.cataXp).level, newBest,
     };
@@ -963,7 +963,7 @@ export class Run {
   adminKeys() {
     this.witherKeys += 3;
     this.bloodKey = true;
-    this.events.toast('Admin: +3 Wither Keys and the Blood Key.', '#ffaa00');
+    this.events.toast('Admin: +3 Rune Keys and the Gate Key.', '#ffaa00');
     this.events.changed();
   }
 

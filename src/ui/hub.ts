@@ -1,5 +1,5 @@
 import { ALL_FLOORS, FLOORS, MASTER_FLOORS, baseFloor, floorById, type FloorDef } from '../data/floors';
-import { HYPERION_RECIPE, ITEMS, RARITY_COLOR, SCROLLS, SLOTS, isGear, type ItemStats } from '../data/items';
+import { ESSENCE_NAME, HYPERION_RECIPE, ITEMS, RARITY_COLOR, SCROLLS, SLOTS, isGear, type ItemStats } from '../data/items';
 import {
   MAX_CATA, MAX_ITEM_LEVEL, baseHit, cataLevel, levelPower, computeStats, findItem, itemAbility, itemStats, salvageValue, upgradeCost, xpForLevel,
 } from '../game/progression';
@@ -57,28 +57,28 @@ export class Hub {
     this.el?.remove();
     const p = this.profile();
     const cata = cataLevel(p.cataXp);
-    const tabs: [Tab, string, string][] = [['dungeons', '⚔', 'Dungeons'], ['rng', '✦', 'RNG Meter'], ['gear', '⛨', 'Gear']];
+    const tabs: [Tab, string, string][] = [['dungeons', '⚔', 'Dungeons'], ['rng', '✦', 'Luck Meter'], ['gear', '⛨', 'Gear']];
     if (p.admin.enabled) tabs.push(['admin', '⚒', 'Admin']);
     const settings = this.settingsOpen ? this.settingsMenu(p) : null;
     this.el = h('div', { class: 'hub' },
       h('header', { class: 'hub-top' },
         h('div', {},
-          h('h1', {}, 'SkyBlock Dungeons'),
-          h('div', { class: 'sub' }, 'Solo Catacombs. Clear rooms, find secrets, beat the boss, grind the drops.'),
+          h('h1', {}, 'Hollowdeep'),
+          h('div', { class: 'sub' }, 'Delve the living dungeon. Clear rooms, find secrets, beat the Wardens, grind the drops.'),
         ),
         h('button', { class: 'icon-btn', title: 'Settings', 'aria-label': 'Settings', onclick: () => this.openSettings() }, '⚙'),
       ),
       h('div', { class: 'card profile-card' },
-        h('div', { class: 'cata-badge', title: 'Catacombs level' }, String(cata.level)),
+        h('div', { class: 'cata-badge', title: 'Delver Rank' }, String(cata.level)),
         h('div', { class: 'profile-main' },
           h('div', { class: 'row spread' },
-            h('b', {}, `Catacombs Level ${cata.level}`),
+            h('b', {}, `Delver Rank ${cata.level}`),
             h('span', { class: 'muted' }, cata.need ? `${cata.into.toLocaleString()} / ${cata.need.toLocaleString()} XP` : 'MAX'),
           ),
           h('div', { class: 'bar', style: { marginTop: '6px' } }, h('div', { style: { width: `${cata.need ? (100 * cata.into) / cata.need : 100}%` } })),
           h('div', { class: 'row', style: { marginTop: '8px' } },
-            h('span', { class: 'pill undead' }, `☠ ${p.essence.undead.toLocaleString()} Undead`),
-            h('span', { class: 'pill wither' }, `✪ ${p.essence.wither.toLocaleString()} Wither`),
+            h('span', { class: 'pill undead' }, `☠ ${p.essence.undead.toLocaleString()} Bone`),
+            h('span', { class: 'pill wither' }, `✪ ${p.essence.wither.toLocaleString()} Star`),
             h('span', { class: 'pill' }, `+${cata.level * 3}% dungeon stats`),
           ),
         ),
@@ -134,17 +134,17 @@ export class Hub {
   }
 
   private floorBadge(f: FloorDef) {
-    return h('div', { class: 'floor-badge' + (f.master ? ' master' : '') }, `${f.master ? 'M' : 'F'}${baseFloor(f)}`);
+    return h('div', { class: 'floor-badge' + (f.master ? ' master' : '') }, `${f.master ? 'N' : 'D'}${baseFloor(f)}`);
   }
 
   private dungeons(p: Profile, level: number) {
     const list = this.master ? MASTER_FLOORS : FLOORS;
     const toggle = h('div', { class: 'row mode-toggle' },
-      h('button', { class: this.master ? '' : 'active', onclick: () => { this.master = false; this.render(); } }, 'The Catacombs'),
-      h('button', { class: this.master ? 'active master' : 'master', onclick: () => { this.master = true; this.render(); } }, 'Master Mode'),
+      h('button', { class: this.master ? '' : 'active', onclick: () => { this.master = false; this.render(); } }, 'Depths'),
+      h('button', { class: this.master ? 'active master' : 'master', onclick: () => { this.master = true; this.render(); } }, 'Nightmare Mode'),
     );
     const intro = this.master
-      ? h('div', { class: 'card master-intro' }, h('div', {}, 'Master Mode: the same floors with far tougher mobs and bosses. M7 ends with the Wither Dragons and drops the Dark Claymore.'))
+      ? h('div', { class: 'card master-intro' }, h('div', {}, 'Nightmare Mode: the same Depths with far tougher mobs and bosses. N7 ends with the Neon Phoenixes and drops the Showstopper.'))
       : null;
     return h('div', {}, toggle, intro, list.map((f) => {
       const best = p.best[String(f.id)];
@@ -155,16 +155,16 @@ export class Hub {
         this.floorBadge(f),
         h('div', { class: 'floor-info' },
           h('h3', {}, f.boss, h('span', { class: 'muted floor-name' }, f.name)),
-          h('div', { class: 'muted' }, `Requires Catacombs ${f.reqLevel}${needFloor ? ` and a ${needFloor.name} clear` : ''}  ·  ${f.cols}x${f.rows} map  ·  ${f.xp.toLocaleString()} base XP`),
+          h('div', { class: 'muted' }, `Requires Delver Rank ${f.reqLevel}${needFloor ? ` and a ${needFloor.name} clear` : ''}  ·  ${f.cols}x${f.rows} map  ·  ${f.xp.toLocaleString()} base XP`),
           (() => {
             // Locked floors only need the requirement line above; the power warning matters once you can play.
             if (!unlocked) return null;
             const pw = levelPower(f, level);
-            if (pw.dealt >= 0.999) return f.masteryLevel ? h('div', { class: 'muted' }, `Mastered: full strength at Catacombs ${f.masteryLevel}`) : null;
+            if (pw.dealt >= 0.999) return f.masteryLevel ? h('div', { class: 'muted' }, `Mastered: full strength at Rank ${f.masteryLevel}`) : null;
             const under = level < f.reqLevel;
             return h('div', { style: { color: under ? '#ff5555' : '#ffaa00', fontSize: '0.85em' } },
-              `At Catacombs ${level}: you deal ${Math.round(pw.dealt * 1000) / 10}% damage and take ${Math.round(pw.taken * 100)}%` +
-              (f.masteryLevel ? `. Full strength at Catacombs ${f.masteryLevel}.` : '.'));
+              `At Rank ${level}: you deal ${Math.round(pw.dealt * 1000) / 10}% damage and take ${Math.round(pw.taken * 100)}%` +
+              (f.masteryLevel ? `. Full strength at Rank ${f.masteryLevel}.` : '.'));
           })(),
           best
             ? h('div', { class: 'row', style: { marginTop: '4px' } },
@@ -185,8 +185,8 @@ export class Hub {
     const pct = (x: number) => (x >= 0.01 ? `${+(x * 100).toFixed(1)}%` : `${+(x * 100).toFixed(2)}%`);
     return h('div', {},
       h('div', { class: 'card' },
-        h('h3', {}, 'RNG Meter'),
-        h('div', { class: 'muted' }, 'Pick one drop per floor. Every win adds its score to that floor\'s meter, and the fuller it is the better your odds (up to 3x). When it fills, the drop is guaranteed. If the item drops on its own, the meter resets. Wins with no drop picked still bank their score, ready for when you pick one.'),
+        h('h3', {}, 'Luck Meter'),
+        h('div', { class: 'muted' }, 'Pick one drop per Depth. Every win adds its score to that Depth\'s meter, and the fuller it is the better your odds (up to 3x). When it fills, the drop is guaranteed. If the item drops on its own, the meter resets. Wins with no drop picked still bank their score, ready for when you pick one.'),
       ),
       ALL_FLOORS.filter((f) => f.drops.length).map((f) => {
         const meter = p.rng[String(f.id)] ?? { target: null, xp: 0 };
@@ -199,7 +199,7 @@ export class Hub {
             !f.implemented ? h('span', { class: 'pill' }, 'Coming soon') : null,
           ),
           !unlocked
-            ? h('div', { class: 'rng-locked' }, '🔒 Complete this floor to unlock RNG meter')
+            ? h('div', { class: 'rng-locked' }, '🔒 Complete this Depth to unlock its Luck Meter')
             : target
             ? h('div', { style: { margin: '6px 0 10px' } },
               h('div', { class: 'row spread' },
@@ -288,11 +288,11 @@ export class Hub {
       h('div', { style: { color: have >= need ? '#55ff55' : '#ff7777' } }, `${have >= need ? '✔' : '✖'} ${name} ${Math.min(have, need).toLocaleString()}/${need.toLocaleString()}`);
     return h('div', { class: 'card' },
       h('h3', {}, 'Crafting'),
-      h('div', { class: 'row spread' }, h('b', { style: { color: RARITY_COLOR.LEGENDARY } }, 'Hyperion'), h('span', { class: 'muted' }, 'Floor VII')),
-      line(handle, 1, "Necron's Handle"),
-      line(cats, r.catalysts, 'Wither Catalysts'),
-      line(p.essence.wither, r.essence, 'Wither Essence'),
-      h('div', { class: 'muted', style: { marginTop: '4px' } }, 'Then apply the Implosion, Shadow Warp and Wither Shield scrolls to unlock Wither Impact.'),
+      h('div', { class: 'row spread' }, h('b', { style: { color: RARITY_COLOR.LEGENDARY } }, 'Crescendo'), h('span', { class: 'muted' }, 'Depth 7')),
+      line(handle, 1, "Maestro's Hilt"),
+      line(cats, r.catalysts, 'Resonance Crystals'),
+      line(p.essence.wither, r.essence, 'Star Essence'),
+      h('div', { class: 'muted', style: { marginTop: '4px' } }, 'Then apply the Big Finish, Stage Dive and Standing Ovation sheet music to unlock Encore Strike.'),
       h('button', { class: 'small primary', style: { marginTop: '6px' }, disabled: !ok, onclick: () => {
         let catLeft = r.catalysts;
         let handleLeft = 1;
@@ -303,9 +303,9 @@ export class Hub {
         });
         p.essence.wither -= r.essence;
         newItem(p, 'hyperion');
-        alert('You crafted the Hyperion!');
+        alert('You crafted the Crescendo!');
         this.commit();
-      } }, 'Craft Hyperion'),
+      } }, 'Craft Crescendo'),
     );
   }
 
@@ -349,12 +349,12 @@ export class Hub {
           class: 'small primary',
           disabled: inst.level >= MAX_ITEM_LEVEL || ess < cost,
           onclick: () => { p.essence[def.essence] -= cost; inst.level++; this.commit(); },
-        }, inst.level >= MAX_ITEM_LEVEL ? 'Max level' : `Upgrade (${cost} ${def.essence})`));
+        }, inst.level >= MAX_ITEM_LEVEL ? 'Max level' : `Upgrade (${cost} ${ESSENCE_NAME[def.essence]})`));
       }
       buttons.append(h('button', {
         class: 'small danger', disabled: equipped,
         onclick: () => {
-          if (!confirm(`Salvage ${def.name} for ${salvageValue(inst)} ${def.essence} essence?`)) return;
+          if (!confirm(`Salvage ${def.name} for ${salvageValue(inst)} ${ESSENCE_NAME[def.essence]} essence?`)) return;
           p.essence[def.essence] += salvageValue(inst);
           p.items = p.items.filter((i) => i !== inst);
           this.openItem = null;
@@ -380,16 +380,16 @@ export class Hub {
           h('button', { class: 'small', style: { color: RARITY_COLOR[d.rarity] }, onclick: () => spawn(d.id) }, d.name)))),
       h('div', { class: 'card' }, h('h3', {}, 'Resources'),
         h('div', { class: 'row' },
-          h('button', { class: 'small', onclick: () => { p.essence.undead += 1000; this.commit(); } }, '+1000 Undead Essence'),
-          h('button', { class: 'small', onclick: () => { p.essence.wither += 1000; this.commit(); } }, '+1000 Wither Essence'),
-          h('button', { class: 'small', onclick: () => { p.cataXp += 500; this.commit(); } }, '+500 Catacombs XP'),
-          h('button', { class: 'small', onclick: () => { p.cataXp = 0; this.commit(); } }, 'Reset Catacombs XP'),
+          h('button', { class: 'small', onclick: () => { p.essence.undead += 1000; this.commit(); } }, '+1000 Bone Essence'),
+          h('button', { class: 'small', onclick: () => { p.essence.wither += 1000; this.commit(); } }, '+1000 Star Essence'),
+          h('button', { class: 'small', onclick: () => { p.cataXp += 500; this.commit(); } }, '+500 Delve XP'),
+          h('button', { class: 'small', onclick: () => { p.cataXp = 0; this.commit(); } }, 'Reset Delve XP'),
         )),
       (() => {
         const cur = cataLevel(p.cataXp).level;
-        const label = h('b', {}, `Catacombs ${cur}`);
+        const label = h('b', {}, `Rank ${cur}`);
         const slider = h('input', { type: 'range', min: 0, max: MAX_CATA, step: 1, value: cur, class: 'cata-slider' }) as HTMLInputElement;
-        slider.oninput = () => { label.textContent = `Catacombs ${slider.value}`; };
+        slider.oninput = () => { label.textContent = `Rank ${slider.value}`; };
         slider.onchange = () => { p.cataXp = xpForLevel(Number(slider.value)); this.commit(); };
         return h('div', { class: 'card' },
           h('div', { class: 'row spread' }, label, h('span', { class: 'muted' }, 'Drag to set your level')),
@@ -398,7 +398,7 @@ export class Hub {
       h('div', { class: 'card' }, h('h3', {}, 'Cheats'),
         h('div', { class: 'row' },
           h('button', { class: 'small' + (p.admin.godMode ? ' primary' : ''), onclick: () => { p.admin.godMode = !p.admin.godMode; this.commit(); } }, `God mode: ${p.admin.godMode ? 'ON' : 'off'}`),
-          h('button', { class: 'small' + (p.admin.unlockAll ? ' primary' : ''), onclick: () => { p.admin.unlockAll = !p.admin.unlockAll; this.commit(); } }, `Unlock all floors: ${p.admin.unlockAll ? 'ON' : 'off'}`),
+          h('button', { class: 'small' + (p.admin.unlockAll ? ' primary' : ''), onclick: () => { p.admin.unlockAll = !p.admin.unlockAll; this.commit(); } }, `Unlock all Depths: ${p.admin.unlockAll ? 'ON' : 'off'}`),
         )),
     );
   }
@@ -427,7 +427,7 @@ export class Hub {
       ),
       h('div', { class: 'settings-section' },
         h('div', { class: 'eyebrow' }, 'Gameplay'),
-        this.toggleRow('Puzzle glow', 'Highlights the right answer in puzzles (Tic Tac Toe, Three Weirdos, Higher or Lower and more). You can also toggle it from the pause menu.',
+        this.toggleRow('Puzzle glow', 'Highlights the right answer in puzzles (Tic Tac Toe, Three Liars, Higher or Lower and more). You can also toggle it from the pause menu.',
           p.settings.puzzleGlow, () => { p.settings.puzzleGlow = !p.settings.puzzleGlow; this.commit(); }),
         this.toggleRow('Sound', 'Music while you clear the dungeon (it fades out at the boss) and quiet sound effects for hits, deaths, secrets and doors.',
           p.settings.sound, () => { p.settings.sound = !p.settings.sound; this.commit(); }),
@@ -442,7 +442,7 @@ export class Hub {
       this.actions.replayTutorial
         ? h('div', { class: 'settings-section' },
           h('div', { class: 'eyebrow' }, 'Help'),
-          this.actionRow('Tutorial', 'Replay the Entrance floor tutorial: clearing rooms, secrets, puzzles and blood doors.',
+          this.actionRow('Tutorial', 'Replay the Threshold tutorial: clearing rooms, secrets, puzzles and locked doors.',
             h('button', { class: 'small primary', onclick: () => { this.settingsOpen = false; this.actions.replayTutorial?.(); } }, 'Replay')),
         )
         : null,

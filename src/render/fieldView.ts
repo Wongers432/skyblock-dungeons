@@ -571,7 +571,7 @@ function drawDoorSign(ctx: CanvasRenderingContext2D, run: Run, room: RoomRT, d: 
   ctx.globalAlpha = 1;
   if (!open) {
     const ly = cy + (dir.y < 0 ? -ts * 0.45 : dir.y > 0 ? ts * 0.85 : ts * 0.95);
-    label(ctx, d.type === 'blood' ? (run.bloodKey ? 'OPEN' : 'BLOOD') : run.witherKeys > 0 ? 'OPEN' : 'LOCKED', cx, ly, Math.max(8, ts * 0.3), color);
+    label(ctx, d.type === 'blood' ? (run.bloodKey ? 'OPEN' : 'GATE') : run.witherKeys > 0 ? 'OPEN' : 'LOCKED', cx, ly, Math.max(8, ts * 0.3), color);
   }
 }
 
@@ -740,7 +740,7 @@ function drawWatcherHead(ctx: CanvasRenderingContext2D, room: RoomRT, ctl: Blood
     ctx.fillRect(x0 + (3 + i * 3) * u, y0 + 11 * u + k * ts * 0.9, u * 0.5, u * 0.8);
   }
   ctx.globalAlpha = 1;
-  label(ctx, 'The Watcher', cx, y0 - u * 0.5, Math.max(10, ts * 0.34), '#ff5555');
+  label(ctx, 'The Gatekeeper', cx, y0 - u * 0.5, Math.max(10, ts * 0.34), '#ff5555');
   const left = ctl.remaining;
   if (left > 0) label(ctx, `${left} mobs to come`, cx, y0 + s + ts * 0.55, Math.max(9, ts * 0.28), '#ffaaaa');
 }

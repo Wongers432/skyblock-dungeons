@@ -1,5 +1,5 @@
 import { CHEST_NAME } from '../data/floors';
-import { ITEMS, RARITY_COLOR } from '../data/items';
+import { ESSENCE_NAME, ITEMS, RARITY_COLOR } from '../data/items';
 import { aiMove, bestPlayerMoves, winner } from '../game/puzzles';
 import type { Run, RunEnd } from '../game/run';
 import { h, fmtTime } from './dom';
@@ -93,8 +93,8 @@ export class RunUi {
     const r = this.run;
     const s = r.stats;
     const score = r.scoreNow();
-    const keys = [r.witherKeys ? `🗝 Wither x${r.witherKeys}` : '', r.bloodKey ? '🩸 Blood Key' : ''].filter(Boolean).join('  ');
-    const info = `Secrets ${r.secretsFound}/${r.secretsTotal} · Crypts ${Math.min(5, r.crypts)}/5${keys ? ' · ' + keys : ''}`;
+    const keys = [r.witherKeys ? `🗝 Rune x${r.witherKeys}` : '', r.bloodKey ? '🔑 Gate Key' : ''].filter(Boolean).join('  ');
+    const info = `Secrets ${r.secretsFound}/${r.secretsTotal} · Tombs ${Math.min(5, r.crypts)}/5${keys ? ' · ' + keys : ''}`;
     const scoreText = `${r.floor.name} · ⏱ ${fmtTime(r.time)} · Score ${score.total} (${score.grade})`;
     const key = info + scoreText;
     if (key !== this.last) {
@@ -185,7 +185,7 @@ export class RunUi {
     } else {
       const d = pz.data;
       this.puzzleBox.append(h('div', { class: 'panel puzzle' },
-        h('h2', {}, 'Three Weirdos'),
+        h('h2', {}, 'Three Liars'),
         h('div', { class: 'muted' }, 'Exactly one of them is lying. Open the chest that has the reward.'),
         d.names.map((name, i) => h('div', { class: 'weirdo' + (glow && i === d.answer ? ' glow' : '') },
           h('b', { class: 'who' }, name),
@@ -223,10 +223,10 @@ export class RunUi {
     this.puzzleBox.append(h('div', { class: 'panel puzzle mc-gui' },
       h('div', { class: 'mc-title' }, `TERMINAL ${done + 1}/4`),
       h('div', { class: 'row spread' },
-        h('h2', {}, t.kind === 'order' ? 'Click in order!' : 'Correct all the panes!'),
+        h('h2', {}, t.kind === 'order' ? 'Hit the channels in order!' : 'Fix every channel!'),
         h('button', { class: 'small', onclick: () => ctl.closeTerminal() }, 'Close'),
       ),
-      h('div', { class: 'muted' }, t.kind === 'order' ? 'Tap the panes from 1 to 9. A wrong pane hurts and resets.' : 'Tap every red pane to turn it green.'),
+      h('div', { class: 'muted' }, t.kind === 'order' ? 'Tap the channels from 1 to 9. A wrong one hurts and resets.' : 'Tap every red channel to turn it green.'),
       h('div', { class: 'terminal' }, panes),
     ));
   }
@@ -275,7 +275,7 @@ export class RunUi {
         h('tr', {}, h('td', {}, 'Skill'), h('td', {}, s.skill)),
         h('tr', {}, h('td', {}, 'Exploration'), h('td', {}, s.exploration)),
         h('tr', {}, h('td', {}, `Speed (${fmtTime(end.seconds)})`), h('td', {}, s.speed)),
-        h('tr', {}, h('td', {}, 'Bonus (crypts)'), h('td', {}, s.bonus)),
+        h('tr', {}, h('td', {}, 'Bonus (tombs)'), h('td', {}, s.bonus)),
         h('tr', {}, h('td', {}, h('b', {}, 'Total')), h('td', {}, h('b', {}, s.total))),
       ),
       h('div', { style: { fontSize: '40px', textAlign: 'center', margin: '8px 0' }, class: 'grade' }, s.grade),
@@ -291,16 +291,16 @@ export class RunUi {
       const chestBtn = h('button', { class: 'chest-btn', onclick: () => {
         lootBox.replaceChildren(h('div', {},
           h('h3', {}, CHEST_NAME[loot.chest]),
-          h('div', { class: 'loot' }, `+${loot.essence} ${this.run.floor.essence.type} essence`),
+          h('div', { class: 'loot' }, `+${loot.essence} ${ESSENCE_NAME[this.run.floor.essence.type]} essence`),
           end.secretEssence ? h('div', { class: 'loot' }, `+${end.secretEssence} essence from secrets and puzzles`) : null,
-          loot.items.map((id) => h('div', { class: 'loot rare', style: { color: RARITY_COLOR[ITEMS[id].rarity] } }, `${end.rng?.paidOut === id ? 'RNG METER DROP!' : 'RARE DROP!'} ${ITEMS[id].name}`)),
+          loot.items.map((id) => h('div', { class: 'loot rare', style: { color: RARITY_COLOR[ITEMS[id].rarity] } }, `${end.rng?.paidOut === id ? 'LUCK METER DROP!' : 'RARE DROP!'} ${ITEMS[id].name}`)),
           end.rng?.target ? h('div', { class: 'rng-mini' },
-            h('div', { class: 'muted' }, `RNG Meter: ${ITEMS[end.rng.target].name}  ${end.rng.xp.toLocaleString()} / ${end.rng.required.toLocaleString()}${end.rng.gained ? `  (+${end.rng.gained})` : ''}`),
+            h('div', { class: 'muted' }, `Luck Meter: ${ITEMS[end.rng.target].name}  ${end.rng.xp.toLocaleString()} / ${end.rng.required.toLocaleString()}${end.rng.gained ? `  (+${end.rng.gained})` : ''}`),
             h('div', { class: 'bar rng' }, h('div', { style: { width: `${(100 * end.rng.xp) / end.rng.required}%` } })),
           ) : end.rng ? h('div', { class: 'muted rng-mini' },
-            `RNG Meter: no target. ${end.rng.xp.toLocaleString()} meter XP stored${end.rng.gained ? `  (+${end.rng.gained})` : ''}. Pick a drop in the hub to use it.`)
-          : h('div', { class: 'muted' }, 'Tip: the RNG Meter (in the hub) unlocks for a floor after your first clear.'),
-          h('div', { class: 'loot', style: { color: '#55ffff' } }, `+${end.xp} Catacombs XP`),
+            `Luck Meter: no target. ${end.rng.xp.toLocaleString()} meter XP stored${end.rng.gained ? `  (+${end.rng.gained})` : ''}. Pick a drop in the hub to use it.`)
+          : h('div', { class: 'muted' }, 'Tip: the Luck Meter (in the hub) unlocks for a Depth after your first clear.'),
+          h('div', { class: 'loot', style: { color: '#55ffff' } }, `+${end.xp} Delve XP`),
           end.levelAfter > end.levelBefore ? h('div', { class: 'loot rare' }, `CATACOMBS LEVEL UP! ${end.levelBefore} → ${end.levelAfter}`) : null,
         ));
         // Real rare drops (not the common Wither Catalysts) get the full celebration.
@@ -310,7 +310,7 @@ export class RunUi {
       lootBox.append(chestBtn);
     } else if (end.victory && this.run.floor.tutorial) {
       lootBox.append(h('div', { class: 'loot', style: { color: '#55ffff', textAlign: 'center' } },
-        end.xp ? `+${end.xp} Catacombs XP` : 'Tutorial XP already collected.'));
+        end.xp ? `+${end.xp} Delve XP` : 'Tutorial XP already collected.'));
     } else {
       lootBox.append(h('div', { class: 'muted', style: { textAlign: 'center' } }, 'No chest this time.'));
     }
@@ -320,7 +320,7 @@ export class RunUi {
 
   /** Full-screen rainbow celebration for a rare drop. Tap to close. */
   private rngesus(items: string[], meterItem?: string) {
-    const title = '!!!!!!RNGESUS DROP!!!!!!';
+    const title = '!!!!!! JACKPOT !!!!!!';
     const letters = title.split('').map((ch, i) => h('span', { style: { animationDelay: `${-i * 0.08}s` } }, ch));
     const confetti: HTMLElement[] = [];
     for (let i = 0; i < 60; i++) {
@@ -337,7 +337,7 @@ export class RunUi {
       h('div', { class: 'rngesus-inner' },
         h('div', { class: 'rngesus-title' }, letters),
         items.map((id) => h('div', { class: 'rngesus-item', style: { color: RARITY_COLOR[ITEMS[id].rarity] } },
-          ITEMS[id].name, meterItem === id ? h('small', {}, ' (RNG Meter)') : null)),
+          ITEMS[id].name, meterItem === id ? h('small', {}, ' (Luck Meter)') : null)),
         h('div', { class: 'muted' }, 'Tap to continue'),
       ),
     );
