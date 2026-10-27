@@ -7,6 +7,9 @@ export type PuzzleKind = 'tictactoe' | 'blaze' | 'weirdos';
 export const PUZZLE_KINDS: PuzzleKind[] = ['tictactoe', 'blaze', 'weirdos'];
 export type ShapeId = '1x1' | '1x2' | '2x1' | '2x2' | 'L-BR' | 'L-BL' | 'L-TL' | 'L-TR';
 export type DoorType = 'normal' | 'wither' | 'blood';
+/** What a normal room is furnished as, so every room in a run looks different. */
+export type RoomStyle = 'library' | 'armory' | 'ossuary' | 'storeroom' | 'chapel' | 'garden' | 'mine' | 'prison' | 'alchemy' | 'hall';
+export const ROOM_STYLES: RoomStyle[] = ['library', 'armory', 'ossuary', 'storeroom', 'chapel', 'garden', 'mine', 'prison', 'alchemy', 'hall'];
 
 export interface Cell { x: number; y: number }
 export interface Pt { x: number; y: number }
@@ -21,6 +24,7 @@ export interface RoomPlan {
   /** Final tile rows ('.', '#', 'x'), bw*CELL wide and bh*CELL tall. */
   tiles: string[];
   puzzle?: PuzzleKind;
+  style?: RoomStyle;
   key?: 'wither' | 'blood';
   mobSpawns: Pt[];
   secrets: Pt[];
@@ -267,7 +271,25 @@ function tryGenerate(floor: FloorDef, rng: Rng, seed: number): DungeonPlan | nul
   }
 
   for (const r of rooms) buildRoomTiles(r, doors, floor, rng);
+  assignStyles(rooms, neighbors, seed);
   return { cols, rows, grid, rooms, doors, entrance: entrance.id, blood: blood.id, seed };
+}
+
+/**
+ * Gives every normal room a furnishing style: each style is used once before any repeats, and
+ * rooms that touch never share one. Uses its own random stream so layouts stay seed-stable.
+ */
+export function assignStyles(rooms: RoomPlan[], neighbors: (id: number) => number[], seed: number) {
+  const rng = new Rng(seed ^ 0x2c1b3c6d);
+  const used = new Map<RoomStyle, number>(ROOM_STYLES.map((s) => [s, 0]));
+  for (const r of rng.shuffle(rooms.filter((x) => x.type === 'normal'))) {
+    const taken = new Set(neighbors(r.id).map((n) => rooms[n].style));
+    const options = rng.shuffle(ROOM_STYLES.filter((s) => !taken.has(s)));
+    const pool = options.length ? options : ROOM_STYLES.slice();
+    const least = Math.min(...pool.map((s) => used.get(s)!));
+    r.style = pool.find((s) => used.get(s) === least)!;
+    used.set(r.style, least + 1);
+  }
 }
 
 /** Tile spot just inside a door, in the room's local tile coordinates. */

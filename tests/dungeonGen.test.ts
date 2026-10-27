@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateDungeon, doorTiles } from '../src/game/dungeonGen';
+import { generateDungeon, doorTiles, ROOM_STYLES } from '../src/game/dungeonGen';
 import { FLOORS } from '../src/data/floors';
 import { CELL, LAYOUTS } from '../src/data/layouts';
 
@@ -83,5 +83,24 @@ describe('dungeon generator', () => {
     for (const l of LAYOUTS['1x1']) { expect(l.length).toBe(CELL); l.forEach((r) => expect(r.length).toBe(CELL)); }
     for (const l of LAYOUTS['1x2']) { expect(l.length).toBe(CELL * 2); l.forEach((r) => expect(r.length).toBe(CELL)); }
     for (const l of [...LAYOUTS['2x2'], ...LAYOUTS.L]) { expect(l.length).toBe(CELL * 2); l.forEach((r) => expect(r.length).toBe(CELL * 2)); }
+  });
+});
+
+describe('room styles', () => {
+  it('furnishes every normal room, spreads styles out and never repeats one next door', () => {
+    for (const floor of FLOORS) for (let seed = 1; seed <= 60; seed++) {
+      const d = generateDungeon(floor, seed);
+      const normal = d.rooms.filter((r) => r.type === 'normal');
+      for (const r of normal) expect(ROOM_STYLES).toContain(r.style);
+      const counts = ROOM_STYLES.map((s) => normal.filter((r) => r.style === s).length);
+      expect(Math.max(...counts) - Math.min(...counts)).toBeLessThanOrEqual(2);
+      for (let y = 0; y < d.rows; y++) for (let x = 0; x < d.cols; x++) {
+        for (const [nx, ny] of [[x + 1, y], [x, y + 1]]) {
+          if (nx >= d.cols || ny >= d.rows) continue;
+          const a = d.rooms[d.grid[y][x]], b = d.rooms[d.grid[ny][nx]];
+          if (a !== b && a.style && b.style) expect(a.style).not.toBe(b.style);
+        }
+      }
+    }
   });
 });

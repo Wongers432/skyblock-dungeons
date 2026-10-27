@@ -86,7 +86,9 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
         const p = secretPos(s);
         lights.push({ x: p.x, y: p.y, r: 1.4 });
         ctx.globalAlpha = 0.55 + 0.35 * Math.sin(time * 2 + s.phase);
-        drawSprite(ctx, s.kind === 'chest' ? 'chest' : s.kind === 'bat' ? 'bat' : 'essence', X(p.x), Y(p.y + 0.35), ts * 0.7);
+        // In a furnished room chests and essence sit on top of their stand.
+        const onStand = !!f.style && s.kind !== 'bat';
+        drawSprite(ctx, s.kind === 'chest' ? 'chest' : s.kind === 'bat' ? 'bat' : 'essence', X(p.x), Y(p.y + (onStand ? 0.12 : 0.35)), ts * 0.7);
         ctx.globalAlpha = 1;
       }
     }
@@ -108,6 +110,8 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
       if ((room.controller as BloodController | undefined)?.portal) lights.push({ x: 4, y: 4, r: 3 });
     }
   }
+
+  for (const gl of f.glows ?? []) lights.push(gl);
 
   // Mobs, sorted so lower ones draw in front. Bars and tags are drawn after the lighting.
   const mobs = f.aliveMobs().sort((a, b) => a.y - b.y);

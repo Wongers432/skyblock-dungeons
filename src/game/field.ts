@@ -1,5 +1,5 @@
 import type { MobDef } from '../data/floors';
-import type { Pt } from './dungeonGen';
+import type { Pt, RoomStyle } from './dungeonGen';
 
 export interface Mob {
   id: number;
@@ -118,6 +118,14 @@ export class Field {
   renderCache?: HTMLCanvasElement;
   /** Wall torch positions (tile coordinates), chosen by the renderer with the cache. */
   torches?: Pt[];
+  /** Softer coloured lights from furniture (cauldrons, ore...), chosen by the renderer with the cache. */
+  glows?: (Pt & { r: number })[];
+  /** How a normal room is furnished. */
+  style?: RoomStyle;
+  /** Secret spots, which get a stand to sit on. */
+  stands: Pt[] = [];
+  /** Spots furniture must stay off (crypts). */
+  keepClear: Pt[] = [];
 
   constructor(tiles: string[], readonly theme: 'floor' | 'blood' | 'fairy' | 'arena' = 'floor') {
     this.tiles = tiles;

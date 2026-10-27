@@ -54,6 +54,8 @@ export function tutorialDungeon(floor: FloorDef, seed: number): DungeonPlan {
   rooms[TUT.puzzle].puzzle = 'tictactoe';
   rooms[TUT.first].key = 'wither';
   rooms[TUT.keyRoom].key = 'blood';
+  rooms[TUT.first].style = 'library';
+  rooms[TUT.keyRoom].style = 'armory';
   // cellA is always in room a.
   const doors: DoorPlan[] = [
     { id: 0, a: TUT.entrance, b: TUT.first, cellA: { x: 0, y: 0 }, cellB: { x: 1, y: 0 }, type: 'normal' },

@@ -139,6 +139,9 @@ export class Run {
       secrets: plan.secrets.map((p) => ({ ...p, kind: this.rng.pick(['chest', 'essence', 'bat'] as const), found: false, phase: this.rng.next() * 6 })),
       crypts: plan.crypts.map((p) => ({ ...p, opened: false })),
     };
+    rt.field.style = plan.style;
+    rt.field.stands = plan.secrets;
+    rt.field.keepClear = plan.crypts;
     if (plan.key) rt.key = { x: plan.bw * 4, y: plan.bh * 4, spawned: false, taken: false };
     if (plan.puzzle === 'tictactoe') rt.puzzle = { kind: 'tictactoe', board: Array(9).fill(null), done: false };
     if (plan.puzzle === 'weirdos') rt.puzzle = { kind: 'weirdos', data: makeWeirdos(this.rng), done: false };
