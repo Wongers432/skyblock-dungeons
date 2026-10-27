@@ -5,7 +5,7 @@ import { makeMob, type Field, type Mob } from './field';
 import type { Run } from './run';
 
 /**
- * M7 finale: the Wither King's five dragons. They take off one after another until three are in
+ * N7 finale: the Maestro's five Neon Phoenixes. They take off one after another until three are in
  * the air at once, and every one keeps sweeping the arena at full speed, raining fire, until it
  * dies. They can be hit anywhere, but each one takes double damage while it crosses its own statue,
  * and every so often it dives to its statue to charge a huge breath that only heavy damage interrupts.
@@ -13,11 +13,11 @@ import type { Run } from './run';
 type DragonKind = 'red' | 'orange' | 'green' | 'blue' | 'purple';
 
 const DRAGONS: Record<DragonKind, { name: string; color: string; statue: { x: number; y: number } }> = {
-  red: { name: 'Red Dragon', color: '#e8403a', statue: { x: 2.6, y: 3.4 } },
-  orange: { name: 'Orange Dragon', color: '#ff9a2e', statue: { x: 11.4, y: 3.4 } },
-  green: { name: 'Apex Dragon', color: '#56d35a', statue: { x: 7, y: 6.2 } },
-  blue: { name: 'Ice Dragon', color: '#5ab8ff', statue: { x: 2.4, y: 9 } },
-  purple: { name: 'Soul Dragon', color: '#b25cff', statue: { x: 11.6, y: 9 } },
+  red: { name: 'Red Phoenix', color: '#e8403a', statue: { x: 2.6, y: 3.4 } },
+  orange: { name: 'Orange Phoenix', color: '#ff9a2e', statue: { x: 11.4, y: 3.4 } },
+  green: { name: 'Green Phoenix', color: '#56d35a', statue: { x: 7, y: 6.2 } },
+  blue: { name: 'Blue Phoenix', color: '#5ab8ff', statue: { x: 2.4, y: 9 } },
+  purple: { name: 'Purple Phoenix', color: '#b25cff', statue: { x: 11.6, y: 9 } },
 };
 
 /** Inside this range of its own statue a dragon takes double damage. */
@@ -60,8 +60,8 @@ export class DragonController implements Controller {
 
   constructor(private run: Run, private field: Field) {
     this.queue = run.rng.shuffle(['red', 'orange', 'green', 'blue', 'purple'] as DragonKind[]);
-    run.events.toast('The Wither King: You... again? Then face my dragons!', '#b25cff');
-    run.events.toast('Dragons take double damage over their own statue. Tap their fireballs, and hit a charging dragon hard to stop its breath!', '#ffcc55');
+    run.events.toast('The Maestro: An encore? Then meet my phoenixes!', '#b25cff');
+    run.events.toast('Phoenixes take double damage over their own statue. Tap their fireballs, and hit a charging phoenix hard to stop its blast!', '#ffcc55');
   }
 
   get total(): number {
@@ -127,7 +127,7 @@ export class DragonController implements Controller {
           d.dive = DIVE_EVERY;
           this.nextWaypoint(d);
         } else if (d.charging <= 0) {
-          this.run.events.toast(`The ${DRAGONS[d.kind].name} breathes fire!`, DRAGONS[d.kind].color);
+          this.run.events.toast(`The ${DRAGONS[d.kind].name} blasts fire!`, DRAGONS[d.kind].color);
           for (let i = -3; i <= 3; i++) this.run.shoot(f, m.x, m.y - 0.4, d.kind === 'blue' ? 'skull' : 'fireball', fire, i * 0.16);
           this.run.damagePlayer(this.trueDamage(BREATH_HIT), true);
           this.run.shake = 0.5;
@@ -153,7 +153,7 @@ export class DragonController implements Controller {
         if (d.dive === Infinity) {
           d.charging = 2.6;
           d.hpAtCharge = m.hp;
-          f.text(m.x, m.y - 1.8, 'CHARGING BREATH!', '#ff5555');
+          f.text(m.x, m.y - 1.8, 'CHARGING BLAST!', '#ff5555');
         } else this.nextWaypoint(d);
       } else {
         m.x += (dx / dist) * step;
@@ -185,14 +185,14 @@ export class DragonController implements Controller {
     if (this.slain >= this.total) {
       this.run.wipe(this.field);
       this.field.projectiles = [];
-      this.run.events.toast('The Wither King: My dragons... it is over.', '#b25cff');
+      this.run.events.toast("The Maestro: My phoenixes... that's the final curtain.", '#b25cff');
       this.run.winSoon();
     }
   }
 
   bar(): BossBar {
     const left = this.total - this.slain;
-    return { name: `Wither Dragons (${this.slain}/5 slain)`, hp: left, max: this.total, color: '#b25cff' };
+    return { name: `Neon Phoenixes (${this.slain}/5 slain)`, hp: left, max: this.total, color: '#b25cff' };
   }
 
   draw(ctx: CanvasRenderingContext2D, X: ToScreen, Y: ToScreen, ts: number, time: number) {
@@ -255,9 +255,9 @@ export class DragonController implements Controller {
   }
 
   private bannerText(): [string, string] | null {
-    if (this.intro > 0) return ['THE WITHER DRAGONS ARE COMING', '#b25cff'];
+    if (this.intro > 0) return ['THE NEON PHOENIXES ARE COMING', '#b25cff'];
     const charge = this.active.find((d) => d.charging > 0 && !d.mob.dead);
-    if (charge) return [`STOP THE ${DRAGONS[charge.kind].name.toUpperCase()}'S BREATH!`, '#ff5555'];
+    if (charge) return [`STOP THE ${DRAGONS[charge.kind].name.toUpperCase()}'S BLAST!`, '#ff5555'];
     const at = this.active.find((d) => d.mob.armor < 0 && !d.mob.dead);
     if (at) return [`${DRAGONS[at.kind].name.toUpperCase()} OVER ITS STATUE: DOUBLE DAMAGE!`, DRAGONS[at.kind].color];
     return [`DRAGONS SLAIN ${this.slain}/5`, '#ffffff'];

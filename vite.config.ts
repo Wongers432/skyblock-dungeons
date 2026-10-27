@@ -8,8 +8,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon-180.png'],
       manifest: {
-        name: 'SkyBlock Dungeons',
-        short_name: 'Dungeons',
+        name: 'Hollowdeep',
+        short_name: 'Hollowdeep',
         description: 'Solo 2D dungeon crawler',
         start_url: './',
         scope: './',

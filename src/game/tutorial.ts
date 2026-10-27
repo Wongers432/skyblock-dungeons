@@ -95,28 +95,28 @@ export function tutorialTip(run: Run): TutorialTip | null {
 
   if (blood.cleared) {
     return here === blood
-      ? { title: 'Blood Room cleared!', text: 'The Watcher lets you pass. Tap the portal in the middle to finish. On real floors it leads to the boss.' }
-      : { title: 'Blood Room cleared!', text: 'Head back to the Blood Room and tap the portal to finish.' };
+      ? { title: 'Summoning Hall cleared!', text: 'The Gatekeeper lets you pass. Tap the portal in the middle to finish. On real Depths it leads to the boss.' }
+      : { title: 'Summoning Hall cleared!', text: 'Head back to the Summoning Hall and tap the portal to finish.' };
   }
   if (here === blood) {
-    return { title: 'The Blood Room', text: 'The Watcher spawns blood mobs a few at a time. Kill them all to open the portal. He keeps spawning while you are away, so you can grab secrets meanwhile.' };
+    return { title: 'The Summoning Hall', text: 'The Gatekeeper sends in his extras a few at a time. Kill them all to open the portal. He keeps spawning while you are away, so you can grab secrets meanwhile.' };
   }
   if (run.bloodKey) {
-    return { title: 'The Blood Door', text: 'You have the Blood Key! Only it opens the red Blood Door. Tap the red door (or the room behind it on the map) to go in.' };
+    return { title: 'The Gate Door', text: 'You have the Gate Key! Only it opens the red Gate Door. Tap the red door (or the room behind it on the map) to go in.' };
   }
   if (here === keyRoom) {
-    if (!keyRoom.cleared) return { title: 'The Blood Key', text: 'The room right before the Blood Door holds the Blood Key. Clear the mobs and it drops.' };
-    if (keyRoom.key?.spawned && !keyRoom.key.taken) return { title: 'The Blood Key', text: 'There it is, the red key. Tap it to pick it up.' };
+    if (!keyRoom.cleared) return { title: 'The Gate Key', text: 'The room right before the Gate Door holds the Gate Key. Clear the mobs and it drops.' };
+    if (keyRoom.key?.spawned && !keyRoom.key.taken) return { title: 'The Gate Key', text: 'There it is, the red key. Tap it to pick it up.' };
     if (keyRoom.secrets.some((s) => !s.found)) return { title: 'Secrets', text: 'This room has a secret too. Find it before you move on.' };
   }
   if (keyRoom.visited) {
-    return { title: 'The Blood Key', text: 'The Blood Key is in the room just before the red Blood Door. Go back there and clear it.' };
+    return { title: 'The Gate Key', text: 'The Gate Key is in the room just before the red Gate Door. Go back there and clear it.' };
   }
 
   if (!first.visited) {
     return onMap
-      ? { title: 'Welcome to the Catacombs!', text: 'This is the map. Green is the Entrance; grey ? rooms are unexplored. Tap the ? room to walk in.' }
-      : { title: 'Welcome to the Catacombs!', text: 'Tap the glowing arrow in the doorway to walk into the next room, or open the Map.' };
+      ? { title: 'Welcome to Hollowdeep!', text: 'This is the map. Green is the Threshold; grey ? rooms are unexplored. Tap the ? room to walk in.' }
+      : { title: 'Welcome to Hollowdeep!', text: 'Tap the glowing arrow in the doorway to walk into the next room, or open the Map.' };
   }
   if (!first.cleared) {
     return here === first
@@ -129,8 +129,8 @@ export function tutorialTip(run: Run): TutorialTip | null {
   }
   if (first.key?.spawned && !first.key.taken) {
     return here === first
-      ? { title: 'Wither Key', text: 'Clearing this room dropped a Wither Key. Tap it to pick it up.' }
-      : { title: 'Wither Key', text: 'You left the Wither Key behind in the first room. Go back and tap it.' };
+      ? { title: 'Rune Key', text: 'Clearing this room dropped a Rune Key. Tap it to pick it up.' }
+      : { title: 'Rune Key', text: 'You left the Rune Key behind in the first room. Go back and tap it.' };
   }
   if (!puzzle.cleared) {
     if (here === puzzle) {
@@ -138,10 +138,10 @@ export function tutorialTip(run: Run): TutorialTip | null {
         ? { title: 'Puzzles', text: 'Win or tie this Tic Tac Toe. Puzzle glow is on, so the best moves light up.' }
         : { title: 'Puzzles', text: 'Win or tie this Tic Tac Toe. Failing costs score. Puzzle glow highlights the right answer in every puzzle (also in Settings and the pause menu).', glowButton: true };
     }
-    return { title: 'Puzzles', text: 'A puzzle room is next door, opposite the Entrance. Tap that doorway arrow or the room on the map.' };
+    return { title: 'Puzzles', text: 'A puzzle room is next door, opposite the Threshold. Tap that doorway arrow or the room on the map.' };
   }
   if (run.witherKeys <= 0 && !run.openDoors.has(2)) {
-    return { title: 'Wither Doors', text: 'The black door needs a Wither Key. Pick up the key in the first room.' };
+    return { title: 'Rune Doors', text: 'The black door needs a Rune Key. Pick up the key in the first room.' };
   }
-  return { title: 'Wither Doors', text: 'Black doors are Wither Doors and each takes a Wither Key. The key drops in the room right before its door. Tap the black door (or the room past it on the map).' };
+  return { title: 'Rune Doors', text: 'Black doors are Rune Doors and each takes a Rune Key. The key drops in the room right before its door. Tap the black door (or the room past it on the map).' };
 }

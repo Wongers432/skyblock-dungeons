@@ -66,7 +66,7 @@ describe('Entrance tutorial', () => {
     const profile = freshProfile();
     const run = new Run(profile, TUTORIAL_FLOOR.id, quiet, 2);
     const titles = playThrough(run);
-    for (const t of ['Welcome to the Catacombs!', 'Killing mobs', 'Finding secrets', 'Puzzles', 'Wither Doors', 'The Blood Key', 'The Blood Door', 'The Blood Room', 'Blood Room cleared!']) {
+    for (const t of ['Welcome to Hollowdeep!', 'Killing mobs', 'Finding secrets', 'Puzzles', 'Rune Doors', 'The Gate Key', 'The Gate Door', 'The Summoning Hall', 'Summoning Hall cleared!']) {
       expect(titles).toContain(t);
     }
     expect(run.ended?.victory).toBe(true);

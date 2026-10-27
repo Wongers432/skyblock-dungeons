@@ -93,7 +93,7 @@ const POTS = [
   { x: 3, y: 10.5 }, { x: 11, y: 10.5 }, { x: 5, y: 2 }, { x: 9, y: 2 },
 ];
 
-/** Floor VI: Terracottas, then Sadan's four Giants, then Sadan himself. */
+/** Depth 6: Clay Soldiers, then Foreman Basalt's four Titans, then Basalt himself. */
 export class SadanController implements Controller {
   phase: 'terracotta' | 'giants' | 'sadan' = 'terracotta';
   sadan: Mob;
@@ -108,10 +108,10 @@ export class SadanController implements Controller {
   private boulderTimer = 5;
 
   constructor(private run: Run, private field: Field) {
-    this.sadan = makeMob(bossDef('sadan', 'Sadan', 9000, 'sadan', 2.1, { damage: 40, speed: 0.8, attackCooldown: 1.6 }), 7, 1.8, run.floor.mobHpMult, run.floor.mobDmgMult, { boss: true, invuln: Infinity });
+    this.sadan = makeMob(bossDef('sadan', 'Foreman Basalt', 9000, 'sadan', 2.1, { damage: 40, speed: 0.8, attackCooldown: 1.6 }), 7, 1.8, run.floor.mobHpMult, run.floor.mobDmgMult, { boss: true, invuln: Infinity });
     field.mobs.push(this.sadan);
-    run.events.toast('Sadan: So you made it all the way here... Now you wish to defy me? Sadan?!', '#ffaa00');
-    run.events.toast(`Kill ${this.need} Terracottas to wake the Giants.`, '#ffaa00');
+    run.events.toast('Basalt: Another worker for the forge? No... a trespasser.', '#ffaa00');
+    run.events.toast(`Kill ${this.need} Clay Soldiers to wake the Titans.`, '#ffaa00');
   }
 
   update(dt: number) {
@@ -148,7 +148,7 @@ export class SadanController implements Controller {
         this.laser = null;
         f.projectiles = [];
         this.sadan.invuln = 2;
-        this.run.events.toast('Sadan: ENOUGH! My Giants are useless... I will crush you myself!', '#ffaa00');
+        this.run.events.toast("Basalt: ENOUGH! My Titans have failed. I'll forge you into scrap myself!", '#ffaa00');
       }
       return;
     }
@@ -176,11 +176,11 @@ export class SadanController implements Controller {
     if (this.summonTimer <= 0) {
       this.summonTimer = 18;
       for (const side of [-2.5, 2.5]) f.mobs.push(makeMob(MOBS.golem, Math.max(1.5, Math.min(12.5, s.x + side)), s.y, hpm, dm));
-      this.run.events.toast('Sadan summons his Golems!', '#ffaa00');
+      this.run.events.toast('Basalt summons his Forge Golems!', '#ffaa00');
     }
     if (!this.charges.has(s) && s.hp < s.maxHp * 0.5 && this.run.rng.chance(dt / 7)) {
       this.charges.set(s, {
-        from: s, t: 2.2, total: 2.2, hpAtStart: s.hp, cancelAt: 0.06, label: 'GIANT SMASH', color: '#ffaa00',
+        from: s, t: 2.2, total: 2.2, hpAtStart: s.hp, cancelAt: 0.06, label: 'ANVIL SMASH', color: '#ffaa00',
         hit: () => { this.run.damagePlayer(90 * dm); this.run.shake = 0.4; f.ring(f.player.x, f.player.y, 2.5, '#ffaa00'); },
       });
     }
@@ -200,7 +200,7 @@ export class SadanController implements Controller {
         break;
       case 'diamond':
         this.charges.set(g, {
-          from: g, t: 2.8, total: 2.8, hpAtStart: g.hp, cancelAt: 0.06, label: 'DIAMOND SWORD', color: '#55ffff',
+          from: g, t: 2.8, total: 2.8, hpAtStart: g.hp, cancelAt: 0.06, label: 'BLADE SWING', color: '#55ffff',
           hit: () => { this.run.damagePlayer(90 * dm); f.ring(f.player.x, f.player.y, 1.5, '#55ffff'); },
         });
         break;
@@ -220,34 +220,34 @@ export class SadanController implements Controller {
         const giant = (id: string, name: string, sprite: string, x: number, y: number, armor = 0) =>
           makeMob(bossDef(id, name, 3200, sprite, 1.9, { armor }), x, y, hpm, dm, { boss: true });
         this.giants = [
-          giant('bigfoot', 'Bigfoot', 'giant:#7a4a22', 2.6, 4),
-          giant('lasr', 'L.A.S.R.', 'giant:#c62828', 11.4, 4),
-          giant('diamond', 'Diamond Giant', 'giant:#5ef2e6', 3.2, 8.5, 0.4),
-          giant('jolly', 'Jolly Pink Giant', 'giant:#ff8fc8', 10.8, 8.5),
+          giant('bigfoot', 'Stomper', 'giant:#7a4a22', 2.6, 4),
+          giant('lasr', 'Lens Titan', 'giant:#c62828', 11.4, 4),
+          giant('diamond', 'Blade Titan', 'giant:#5ef2e6', 3.2, 8.5, 0.4),
+          giant('jolly', 'Rose Titan', 'giant:#ff8fc8', 10.8, 8.5),
         ];
         this.giants.forEach((g, i) => this.specialTimers.set(g, 2 + i * 1.5));
         f.mobs.push(...this.giants);
         this.phase = 'giants';
-        this.run.events.toast('Sadan: My Giants! Unleashed!', '#ffaa00');
-        this.run.events.toast('Giants charge big attacks. Hit the one charging to interrupt it!', '#ffaa00');
+        this.run.events.toast('Basalt: Titans! To work!', '#ffaa00');
+        this.run.events.toast('Titans charge big attacks. Hit the one charging to interrupt it!', '#ffaa00');
       }
       return;
     }
     if (m === this.sadan) {
       clearArena(this.run, f);
       this.charges.clear();
-      this.run.events.toast('Sadan: NOOOOOOOOO!!! THIS IS IMPOSSIBLE!!', '#ffaa00');
+      this.run.events.toast('Basalt: The forge... goes cold...', '#ffaa00');
       this.run.winSoon();
     }
   }
 
   bar(): BossBar {
-    if (this.phase === 'terracotta') return { name: `Terracottas (${this.killed}/${this.need})`, hp: this.need - this.killed, max: this.need, color: '#c46a3a' };
+    if (this.phase === 'terracotta') return { name: `Clay Soldiers (${this.killed}/${this.need})`, hp: this.need - this.killed, max: this.need, color: '#c46a3a' };
     if (this.phase === 'giants') {
       const alive = this.giants.filter((g) => !g.dead);
-      return { name: `Giants (${alive.length} left)`, hp: alive.reduce((a, g) => a + g.hp, 0), max: this.giants.reduce((a, g) => a + g.maxHp, 0), color: '#8a6aff' };
+      return { name: `Titans (${alive.length} left)`, hp: alive.reduce((a, g) => a + g.hp, 0), max: this.giants.reduce((a, g) => a + g.maxHp, 0), color: '#8a6aff' };
     }
-    return { name: 'Sadan', hp: this.sadan.hp, max: this.sadan.maxHp, color: '#ffaa00' };
+    return { name: 'Foreman Basalt', hp: this.sadan.hp, max: this.sadan.maxHp, color: '#ffaa00' };
   }
 
   draw(ctx: CanvasRenderingContext2D, X: ToScreen, Y: ToScreen, ts: number, time: number) {
@@ -263,9 +263,9 @@ export class SadanController implements Controller {
     for (const c of this.charges.values()) drawCharge(ctx, this.field, c, X, Y, ts, time);
     drawLaser(ctx, this.field, this.laser, X, Y, ts);
     const charging = [...this.charges.keys()][0];
-    const banner: [string, string] = this.phase === 'terracotta' ? [`KILL THE TERRACOTTAS ${this.killed}/${this.need}`, '#e08a5a']
-      : this.phase === 'giants' ? (charging ? [`INTERRUPT ${charging.name.toUpperCase()}!`, '#ff5555'] : [`KILL THE GIANTS ${this.giants.filter((g) => g.dead).length}/4`, '#b89aff'])
-      : this.sadan.dead ? ['', ''] : ['DAMAGE SADAN!', '#ffaa00'];
+    const banner: [string, string] = this.phase === 'terracotta' ? [`KILL THE CLAY SOLDIERS ${this.killed}/${this.need}`, '#e08a5a']
+      : this.phase === 'giants' ? (charging ? [`INTERRUPT ${charging.name.toUpperCase()}!`, '#ff5555'] : [`KILL THE TITANS ${this.giants.filter((g) => g.dead).length}/4`, '#b89aff'])
+      : this.sadan.dead ? ['', ''] : ['DAMAGE BASALT!', '#ffaa00'];
     if (banner[0]) arenaBanner(ctx, X, Y, this.field.w, ts, time, banner[0], banner[1]);
   }
 }
@@ -300,7 +300,7 @@ interface Crystal {
 
 type Lord = 'maxor' | 'storm' | 'goldor' | 'necron';
 
-/** Floor VII: Maxor, Storm, Goldor and Necron, one after another. */
+/** Depth 7, The Last Encore: Boom, Strobe, Riff and the Maestro, one after another. */
 export class WitherLordsController implements Controller {
   phase: Lord = 'maxor';
   lord: Mob;
@@ -326,18 +326,18 @@ export class WitherLordsController implements Controller {
 
   constructor(private run: Run, private field: Field) {
     this.lord = this.spawnLord('maxor');
-    run.events.toast('Maxor: WELL WELL WELL LOOK WHO\'S HERE!', '#ff55ff');
-    run.events.toast('Maxor is immune. Slide each Energy Crystal from its platform into a laser power cell!', '#ff55ff');
+    run.events.toast("Boom: Ladies and gents, LET'S GET LOUD!", '#ff55ff');
+    run.events.toast('Boom is behind a sound shield. Slide each Spark Core from its platform into an amp!', '#ff55ff');
     this.spawnCrystals();
   }
 
   private spawnLord(kind: Lord): Mob {
     const { mobHpMult: hpm, mobDmgMult: dm } = this.run.floor;
     const defs: Record<Lord, MobDef> = {
-      maxor: bossDef('maxor', 'Maxor', 5000, 'wither:#c070ff', 1.9, { damage: 40, speed: 2.2, attackCooldown: 1.2 }),
-      storm: bossDef('storm', 'Storm', 6000, 'wither:#4f8fff', 1.9, { damage: 40, speed: 1.6, attackCooldown: 1.4 }),
-      goldor: bossDef('goldor', 'Goldor', 6000, 'wither:#ffcc33', 2, { damage: 80, speed: 0.38, attackCooldown: 1 }),
-      necron: bossDef('necron', 'Necron', 9000, 'wither:#ff3030', 2, { damage: 50, speed: 2, attackCooldown: 1.4 }),
+      maxor: bossDef('maxor', 'Boom', 5000, 'wither:#c070ff', 1.9, { damage: 40, speed: 2.2, attackCooldown: 1.2 }),
+      storm: bossDef('storm', 'Strobe', 6000, 'wither:#4f8fff', 1.9, { damage: 40, speed: 1.6, attackCooldown: 1.4 }),
+      goldor: bossDef('goldor', 'Riff', 6000, 'wither:#ffcc33', 2, { damage: 80, speed: 0.38, attackCooldown: 1 }),
+      necron: bossDef('necron', 'The Maestro', 9000, 'wither:#ff3030', 2, { damage: 50, speed: 2, attackCooldown: 1.4 }),
     };
     const m = makeMob(defs[kind], 7, 2.5, hpm, dm, { boss: true, invuln: kind === 'necron' ? 1.5 : Infinity });
     if (kind === 'storm') { m.invuln = 0; m.armor = 0.9; }
@@ -392,7 +392,7 @@ export class WitherLordsController implements Controller {
     c.y = cell.y;
     this.held = null;
     f.ring(cell.x, cell.y, 1.2, '#ff77ff');
-    f.text(cell.x, cell.y - 0.9, `${this.crystalsPlaced}/2 CRYSTALS ACTIVATED`, '#ff77ff');
+    f.text(cell.x, cell.y - 0.9, `${this.crystalsPlaced}/2 CORES PLUGGED IN`, '#ff77ff');
     if (this.crystalsPlaced < 2) return;
     this.vulnerable = 7;
     this.laserGlow = 0;
@@ -400,7 +400,7 @@ export class WitherLordsController implements Controller {
     this.lord.stun = 7;
     this.run.flash = 0.2;
     this.run.shake = 0.25;
-    this.run.events.toast('The Energy Lasers hit Maxor! DAMAGE HIM NOW!', '#ff77ff');
+    this.run.events.toast('The amps blast Boom! DAMAGE HIM NOW!', '#ff77ff');
   }
 
   /** The terminal currently open on screen, if any. Read by the HUD. */
@@ -441,7 +441,7 @@ export class WitherLordsController implements Controller {
         if (this.vulnerable <= 0) {
           L.invuln = Infinity;
           this.spawnCrystals();
-          this.run.events.toast('Maxor: THAT BEAM! IT HURTS! IT HURTS!! ...Not anymore.', '#ff55ff');
+          this.run.events.toast("Boom: MY EARS! MY EARS!! ...I'm fine.", '#ff55ff');
         }
         return;
       }
@@ -468,7 +468,7 @@ export class WitherLordsController implements Controller {
       if (this.specialTimer <= 0 && !this.charge) {
         this.specialTimer = 5;
         this.charge = {
-          from: L, t: 1.6, total: 1.6, hpAtStart: L.hp, cancelAt: 1, label: 'LIGHTNING', color: '#77bbff',
+          from: L, t: 1.6, total: 1.6, hpAtStart: L.hp, cancelAt: 1, label: 'STROBE FLASH', color: '#77bbff',
           hit: () => { this.run.damagePlayer(45 * dm); f.ring(f.player.x, f.player.y, 1.2, '#77bbff'); this.run.flash = 0.12; },
         };
       }
@@ -494,7 +494,7 @@ export class WitherLordsController implements Controller {
     if (this.immuneStage && f.aliveMobs().filter((m) => m !== L).length === 0) {
       this.immuneStage = 0;
       L.invuln = 0;
-      this.run.events.toast('Necron: You... you are stronger than I thought.', '#ff3333');
+      this.run.events.toast('The Maestro: Bravo... you play better than I thought.', '#ff3333');
     }
     if (L.invuln === Infinity) return;
     if (Math.hypot(this.wander.x - L.x, this.wander.y - L.y) < 0.3) this.wander = { x: 2 + this.run.rng.next() * 10, y: 1.5 + this.run.rng.next() * 6 };
@@ -509,7 +509,7 @@ export class WitherLordsController implements Controller {
       this.specialTimer = 7;
       if (this.run.rng.chance(0.5)) this.laser = { from: L, charge: 1.6, fire: 0, damage: 60 * dm };
       else this.charge = {
-        from: L, t: 2.4, total: 2.4, hpAtStart: L.hp, cancelAt: 0.05, label: 'FLAMETHROWER', color: '#ff5522',
+        from: L, t: 2.4, total: 2.4, hpAtStart: L.hp, cancelAt: 0.05, label: 'CRESCENDO', color: '#ff5522',
         hit: () => { this.run.damagePlayer(100 * dm); this.run.shake = 0.35; f.ring(f.player.x, f.player.y, 2, '#ff5522'); },
       };
     }
@@ -524,7 +524,7 @@ export class WitherLordsController implements Controller {
         const p = f.randomFloor(() => this.run.rng.next(), f.player, 3);
         f.mobs.push(makeMob(MOBS.wither_guard, p.x, p.y, hpm * 1.3, dm));
       }
-      this.run.events.toast('Necron: Guards! Protect me! (Kill the Wither Guards to break his shield)', '#ff3333');
+      this.run.events.toast('The Maestro: Guards! Protect me! (Kill the Stage Guards to break his shield)', '#ff3333');
     }
   }
 
@@ -540,9 +540,9 @@ export class WitherLordsController implements Controller {
     this.summonTimer = 8;
     const toasts: Record<Lord, string[]> = {
       maxor: [],
-      storm: ["Storm: Pathetic Maxor, just like expected. I'll take it from here!", 'Storm shrugs off most damage. Tap a glowing crusher when he stands under it!'],
-      goldor: ['Goldor: Who dares trespass into my domain?', 'Goldor is immune. Tap the 4 terminals and solve them before he reaches you!'],
-      necron: ['Necron: Finally, I heard so much about you. The Eye likes you very much.', 'Kill Necron! At 66% and 33% he hides behind Wither Guards.'],
+      storm: ['Strobe: Boom, you were always too loud. Lights, please!', 'Strobe shrugs off most damage. Tap a glowing lighting rig when he stands under it!'],
+      goldor: ['Riff: Time for my solo. Nobody leaves until it ends!', 'Riff is immune. Tap the 4 mixing desks and solve them before he reaches you!'],
+      necron: ['The Maestro: At last, the headliner arrives. Shall we begin the finale?', 'Kill the Maestro! At 66% and 33% he hides behind Stage Guards.'],
     };
     for (const t of toasts[this.phase]) this.run.events.toast(t, '#ff55ff');
     this.run.events.changed();
@@ -556,16 +556,16 @@ export class WitherLordsController implements Controller {
     this.laser = null;
     this.run.terminal = null;
     if (this.phase === 'necron') {
-      this.run.events.toast('Necron: All this, for nothing...', '#ff3333');
+      this.run.events.toast('The Maestro: The show... is over...', '#ff3333');
       // Master Mode VII carries on into the Wither King's dragons.
       if (this.run.floor.master) this.run.startDragons();
       else this.run.winSoon();
       return;
     }
     const last: Record<Lord, string> = {
-      maxor: 'Maxor: I\'M TOO YOUNG TO DIE AGAIN!',
-      storm: 'Storm: I should have known that I stood no chance.',
-      goldor: 'Goldor: ...the Wither Lords are falling one by one.',
+      maxor: 'Boom: Encore... encore...',
+      storm: 'Strobe: Lights... out.',
+      goldor: 'Riff: ...the band is falling apart.',
       necron: '',
     };
     this.run.events.toast(last[this.phase], '#ff55ff');
@@ -600,13 +600,13 @@ export class WitherLordsController implements Controller {
           L.stun = 3;
           L.flash = 0.3;
           f.ring(p.x, p.y, 2, '#77bbff');
-          f.text(L.x, L.y - 1.8, `CRUSHED! ${dmg.toLocaleString()}`, '#77bbff');
+          f.text(L.x, L.y - 1.8, `SPOTLIT! ${dmg.toLocaleString()}`, '#77bbff');
           this.run.shake = 0.3;
           p.cd = 10;
           if (L.hp <= 0) this.run.hitMob(f, L, 1e9, false);
         } else {
           p.cd = 3;
-          f.text(p.x, p.y - 0.6, 'Missed! Wait for Storm', '#aaaaaa');
+          f.text(p.x, p.y - 0.6, 'Missed! Wait for Strobe', '#aaaaaa');
         }
         return true;
       }
@@ -632,7 +632,7 @@ export class WitherLordsController implements Controller {
       } else {
         this.run.damagePlayer(this.run.stats.maxHp * 0.08 * (100 + this.run.stats.defense) / 100);
         t.next = 1;
-        this.run.events.toast('Wrong pane! Start again from 1.', '#ff5555');
+        this.run.events.toast('Wrong channel! Start again from 1.', '#ff5555');
       }
       if (t.next > t.cells.length) this.finishTerminal(t);
     } else {
@@ -652,12 +652,12 @@ export class WitherLordsController implements Controller {
     term.done = true;
     this.run.terminal = null;
     const done = this.terminals.filter((x) => x.done).length;
-    this.field.text(term.x, term.y - 0.8, `Terminal ${done}/4`, '#55ff55');
+    this.field.text(term.x, term.y - 0.8, `Mixing desk ${done}/4`, '#55ff55');
     if (done === this.terminals.length) {
       this.lord.invuln = 0;
-      this.run.events.toast("Goldor's shield is down! Kill him!", '#ffcc33');
+      this.run.events.toast("Riff's amp is fried! Kill him!", '#ffcc33');
     } else {
-      this.run.events.toast(`Terminal complete (${done}/4)`, '#55ff55');
+      this.run.events.toast(`Mixing desk done (${done}/4)`, '#55ff55');
     }
   }
 
@@ -689,7 +689,7 @@ export class WitherLordsController implements Controller {
           ctx.font = `bold ${Math.max(10, ts * 0.32)}px ui-monospace, monospace`;
           ctx.textAlign = 'center';
           ctx.fillStyle = '#ffffff';
-          ctx.fillText('TAP TO CRUSH!', X(p.x), Y(p.y) + s / 2 + ts * 0.4);
+          ctx.fillText('TAP TO DROP!', X(p.x), Y(p.y) + s / 2 + ts * 0.4);
         }
       }
     }
@@ -749,7 +749,7 @@ export class WitherLordsController implements Controller {
         ctx.strokeStyle = `rgba(255,211,74,${0.5 + 0.5 * Math.sin(time * 8)})`;
         ctx.strokeRect(cx - ts * 0.55, cy - ts * 0.73, ts * 1.1, ts * 1.2);
       }
-      label(ctx, cell.filled ? 'POWERED' : 'POWER CELL', cx, cy + ts * 0.95, Math.max(9, ts * 0.26), cell.filled ? '#ff9aff' : '#9aa0c0');
+      label(ctx, cell.filled ? 'PLUGGED IN' : 'AMP', cx, cy + ts * 0.95, Math.max(9, ts * 0.26), cell.filled ? '#ff9aff' : '#9aa0c0');
       if (firing) {
         // The beam: a hot core inside a wide flickering glow, from the barrel tip to Maxor.
         const tipX = m.dir > 0 ? bx + ts * 0.9 : bx - ts * 0.9;
@@ -789,17 +789,17 @@ export class WitherLordsController implements Controller {
     if (this.transition > 0 || L.dead) return null;
     switch (this.phase) {
       case 'maxor':
-        return this.vulnerable > 0 ? [`DAMAGE MAXOR! ${Math.ceil(this.vulnerable)}s`, '#ff77ff'] : [`${this.crystalsPlaced}/2 CRYSTALS ACTIVATED`, '#c070ff'];
+        return this.vulnerable > 0 ? [`DAMAGE BOOM! ${Math.ceil(this.vulnerable)}s`, '#ff77ff'] : [`${this.crystalsPlaced}/2 CORES PLUGGED IN`, '#c070ff'];
       case 'storm': {
         const under = this.pads.some((p) => p.cd <= 0 && Math.hypot(L.x - p.x, L.y - p.y) < 1.6);
-        return under ? ['CRUSH STORM NOW!', '#77bbff'] : ['WAIT FOR STORM TO STAND ON A CRUSHER', '#4f8fff'];
+        return under ? ['DROP THE RIG ON STROBE!', '#77bbff'] : ['WAIT FOR STROBE TO STAND UNDER A RIG', '#4f8fff'];
       }
       case 'goldor': {
         const done = this.terminals.filter((t) => t.done).length;
-        return done < 4 ? [`TERMINALS ${done}/4`, '#ffcc33'] : ['DAMAGE GOLDOR!', '#ffcc33'];
+        return done < 4 ? [`MIXING DESKS ${done}/4`, '#ffcc33'] : ['DAMAGE RIFF!', '#ffcc33'];
       }
       default:
-        return L.invuln === Infinity ? ['KILL THE WITHER GUARDS!', '#ff5555'] : ['DAMAGE NECRON!', '#ff3333'];
+        return L.invuln === Infinity ? ['KILL THE STAGE GUARDS!', '#ff5555'] : ['DAMAGE THE MAESTRO!', '#ff3333'];
     }
   }
 
@@ -849,7 +849,7 @@ function drawTerminal(ctx: CanvasRenderingContext2D, x: number, y: number, ts: n
     ctx.lineWidth = 3;
     ctx.strokeRect(x - w / 2 - 4, y - h / 2 - 4, w + 8, h + 8);
   }
-  label(ctx, done ? 'DONE' : 'TERMINAL', x, y + h / 2 + ts * 0.42, Math.max(9, ts * 0.3), done ? '#55ff55' : '#ff7777');
+  label(ctx, done ? 'DONE' : 'MIXING DESK', x, y + h / 2 + ts * 0.42, Math.max(9, ts * 0.3), done ? '#55ff55' : '#ff7777');
 }
 
 function drawCrystal(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, time: number) {

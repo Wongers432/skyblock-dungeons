@@ -74,12 +74,12 @@ export class BloodController implements Controller {
     }
     if (this.spawned >= total && !this.toldDone) {
       this.toldDone = true;
-      this.run.events.toast('The Watcher: That will be enough for now. Come and kill them!', '#ff5555');
+      this.run.events.toast("The Gatekeeper: That's enough extras for now. Go on, take them out!", '#ff5555');
     }
     if (this.spawned >= total && f.aliveMobs().length === 0) {
       this.done = true;
       this.portal = true;
-      this.run.events.toast('The Watcher: You have proven yourself. You may pass.', '#ff5555');
+      this.run.events.toast('The Gatekeeper: Bravo. You may pass to the stage.', '#ff5555');
       this.run.clearRoom(this.room);
     }
   }
@@ -110,7 +110,7 @@ export class BlazeController implements Controller {
       const p = f.randomFloor(() => run.rng.next(), f.player, 2);
       f.mobs.push(makeMob(MOBS.blaze, p.x, p.y, 1, 0, { puzzle: true, blazeValue: v, name: `${v} HP` }));
     }
-    run.events.toast(puzzle.ascending ? 'Higher or Lower: shoot the blazes from LOWEST to HIGHEST health.' : 'Higher or Lower: shoot the blazes from HIGHEST to LOWEST health.', '#ffaa00');
+    run.events.toast(puzzle.ascending ? 'Higher or Lower: hit the embers from LOWEST to HIGHEST health.' : 'Higher or Lower: hit the embers from HIGHEST to LOWEST health.', '#ffaa00');
   }
 
   update(dt: number) {
@@ -166,10 +166,10 @@ export class BonzoController implements Controller {
   private wander = { x: 7, y: 3 };
 
   constructor(private run: Run, private field: Field) {
-    run.events.toast("Bonzo: Gratz for making it this far, but I'm basically unbeatable.", '#ff5555');
+    run.events.toast("Pip: Ooh, an audience! Nobody's made it past the opening act in ages.", '#ff5555');
     const hpMult = run.floor.mobHpMult;
     this.bonzo = makeMob(
-      { id: 'bonzo', name: 'Bonzo', hp: 2200, damage: 0, speed: 3, attackCooldown: 99, sprite: 'bonzo', size: 1.6 },
+      { id: 'bonzo', name: 'Pip the Jester', hp: 2200, damage: 0, speed: 3, attackCooldown: 99, sprite: 'bonzo', size: 1.6 },
       7, 3, hpMult, run.floor.mobDmgMult, { boss: true },
     );
     field.mobs.push(this.bonzo);
@@ -270,14 +270,14 @@ export class BonzoController implements Controller {
     if (this.summonTimer <= 0) {
       this.summonTimer = this.phase === 1 ? 13 : 10;
       for (let i = 0; i < 2; i++) {
-        f.mobs.push(makeMob(MOBS.zombie, b.x + (i ? 1 : -1), b.y + 0.5, this.run.floor.mobHpMult, this.run.floor.mobDmgMult, { name: 'Undead' }));
+        f.mobs.push(makeMob(MOBS.zombie, b.x + (i ? 1 : -1), b.y + 0.5, this.run.floor.mobHpMult, this.run.floor.mobDmgMult, { name: 'Stagehand' }));
       }
-      this.run.events.toast('Bonzo summons his undead friends!', '#ff5555');
+      this.run.events.toast('Pip calls in some stagehands!', '#ff5555');
     }
   }
 
   bar(): BossBar {
-    return { name: this.phase === 2 ? 'Bonzo (enraged)' : 'Bonzo', hp: this.bonzo.hp, max: this.bonzo.maxHp, color: this.phase === 2 ? '#ff5522' : '#cc2222' };
+    return { name: this.phase === 2 ? 'Pip (on a unicycle!)' : 'Pip the Jester', hp: this.bonzo.hp, max: this.bonzo.maxHp, color: this.phase === 2 ? '#ff5522' : '#cc2222' };
   }
 
   onMobDeath(m: Mob) {
@@ -290,12 +290,12 @@ export class BonzoController implements Controller {
       this.attack = null;
       this.attackTimer = 0.6;
       this.field.projectiles = [];
-      this.run.events.toast("Bonzo: Oh, I'm not done yet!", '#ff5555');
+      this.run.events.toast("Pip: Wait, wait! One more trick!", '#ff5555');
       return;
     }
     this.run.wipe(this.field);
     this.field.projectiles = [];
-    this.run.events.toast("Bonzo: Alright, maybe I'm just weak after all...", '#ff5555');
+    this.run.events.toast("Pip: Tough crowd... See you at the finale.", '#ff5555');
     this.run.winSoon();
   }
 }
@@ -359,7 +359,7 @@ export class ScarfController implements Controller {
   constructor(private run: Run, private field: Field) {
     const { mobHpMult: hpm, mobDmgMult: dm } = run.floor;
     this.scarf = makeMob(
-      { id: 'scarf', name: 'Scarf', hp: 2200, damage: 0, speed: 0, attackCooldown: 99, sprite: 'scarf', size: 1.5 },
+      { id: 'scarf', name: 'Ossia', hp: 2200, damage: 0, speed: 0, attackCooldown: 99, sprite: 'scarf', size: 1.5 },
       7, 2.6, hpm, dm, { boss: true, invuln: Infinity },
     );
     this.minions = [
@@ -369,8 +369,8 @@ export class ScarfController implements Controller {
       makeMob(MOBS.archer, 10, 5, hpm, dm),
     ];
     field.mobs.push(this.scarf, ...this.minions);
-    run.events.toast('Scarf: This is where the journey ends for you, Adventurers.', '#ff5555');
-    run.events.toast('Scarf: Kill my minions first... if you can. My Priest will bring them back!', '#ff5555');
+    run.events.toast('Ossia: Another delver for my collection. How delightful.', '#ff5555');
+    run.events.toast('Ossia: Get past my apprentices first. My Mender just stitches them back together!', '#ff5555');
   }
 
   update(dt: number) {
@@ -397,14 +397,14 @@ export class ScarfController implements Controller {
             m.dead = false;
             m.hp = Math.round(m.maxHp * 0.5);
             m.deadFor = 0;
-            this.run.events.toast(`The Undead Priest revived the ${m.name}!`, '#55ff55');
+            this.run.events.toast(`The Bone Mender revived the ${m.name}!`, '#55ff55');
           }
         }
       }
       if (this.minions.every((m) => m.dead)) {
         this.phase = 2;
         s.invuln = 0;
-        this.run.events.toast("Scarf: Those toys were useless! Fine, I'll do it myself.", '#ff5555');
+        this.run.events.toast("Ossia: Useless, all of them. Very well, I'll do it myself.", '#ff5555');
       }
       return;
     }
@@ -432,9 +432,9 @@ export class ScarfController implements Controller {
     if (this.summonTimer <= 0) {
       this.summonTimer = 14;
       for (let i = 0; i < 2; i++) {
-        f.mobs.push(makeMob(MOBS.zombie, s.x + (i ? 1 : -1), s.y + 0.8, this.run.floor.mobHpMult, this.run.floor.mobDmgMult, { name: 'Undead' }));
+        f.mobs.push(makeMob(MOBS.zombie, s.x + (i ? 1 : -1), s.y + 0.8, this.run.floor.mobHpMult, this.run.floor.mobDmgMult, { name: 'Risen Bones' }));
       }
-      this.run.events.toast('Scarf summons more undead!', '#ff5555');
+      this.run.events.toast('Ossia raises more bones!', '#ff5555');
     }
   }
 
@@ -446,7 +446,7 @@ export class ScarfController implements Controller {
     if (m !== this.scarf) return;
     this.run.wipe(this.field);
     this.field.projectiles = [];
-    this.run.events.toast("Scarf: Whatever... I'll be back. Probably.", '#ff5555');
+    this.run.events.toast('Ossia: My bones... scattered... again.', '#ff5555');
     this.run.winSoon();
   }
 
@@ -455,9 +455,9 @@ export class ScarfController implements Controller {
       const alive = this.minions.filter((m) => !m.dead);
       const hp = alive.reduce((a, m) => a + m.hp, 0);
       const max = this.minions.reduce((a, m) => a + m.maxHp, 0);
-      return { name: `Scarf's minions (${alive.length} left)`, hp, max, color: '#7a55cc' };
+      return { name: `Ossia's apprentices (${alive.length} left)`, hp, max, color: '#7a55cc' };
     }
-    return { name: 'Scarf', hp: this.scarf.hp, max: this.scarf.maxHp, color: '#cc2222' };
+    return { name: 'Ossia', hp: this.scarf.hp, max: this.scarf.maxHp, color: '#cc2222' };
   }
 
   draw(ctx: CanvasRenderingContext2D, X: ToScreen, Y: ToScreen, ts: number, time: number) {
@@ -485,7 +485,7 @@ export class ProfessorController implements Controller {
   constructor(private run: Run, private field: Field) {
     const { mobHpMult: hpm, mobDmgMult: dm } = run.floor;
     this.prof = makeMob(
-      { id: 'professor', name: 'The Professor', hp: 1800, damage: 22, speed: 1.4, attackCooldown: 1.6, sprite: 'professor', size: 1.3 },
+      { id: 'professor', name: 'Grimsby', hp: 1800, damage: 22, speed: 1.4, attackCooldown: 1.6, sprite: 'professor', size: 1.3 },
       7, 2.2, hpm, dm, { boss: true, invuln: Infinity },
     );
     this.guardians = [
@@ -495,8 +495,8 @@ export class ProfessorController implements Controller {
       makeMob(MOBS.g_laser, 10.5, 7.5, hpm, dm),
     ];
     field.mobs.push(this.prof, ...this.guardians);
-    run.events.toast("The Professor: I was burdened with terrible news recently... you've made it this far.", '#ff5555');
-    run.events.toast('The Professor: My Guardians will deal with you. Reinforced takes half damage; Laser never misses!', '#ff5555');
+    run.events.toast("Grimsby: Ah, a test subject! You've wandered right into my laboratory.", '#ff5555');
+    run.events.toast('Grimsby: My Homunculi will handle you. Plated takes half damage; Prism never misses!', '#ff5555');
   }
 
   update(dt: number) {
@@ -517,7 +517,7 @@ export class ProfessorController implements Controller {
       if (this.guardians.every((g) => g.dead)) {
         this.phase = 2;
         p.invuln = 0;
-        this.run.events.toast('The Professor: How?! You killed my Guardians?! I will deal with you myself!', '#ff5555');
+        this.run.events.toast("Grimsby: You broke my Homunculi?! Fine. I'll handle you personally!", '#ff5555');
       }
       return;
     }
@@ -567,7 +567,7 @@ export class ProfessorController implements Controller {
     if (this.summonTimer <= 0) {
       this.summonTimer = 15;
       for (let i = 0; i < 2; i++) f.mobs.push(makeMob(MOBS.skelmaster, p.x + (i ? 2 : -2), p.y + 1.5, this.run.floor.mobHpMult, dm));
-      this.run.events.toast('The Professor calls in Skeleton Masters!', '#ff5555');
+      this.run.events.toast('Grimsby calls in Bone Pyromancers!', '#ff5555');
     }
   }
 
@@ -578,20 +578,20 @@ export class ProfessorController implements Controller {
       m.dead = false;
       m.sprite = 'guardian_big';
       m.scale = 2.2;
-      m.name = "The Professor's Guardian";
+      m.name = 'Grimsby, Transformed';
       m.maxHp = Math.round(m.maxHp * 1.4);
       m.hp = m.maxHp;
       m.invuln = 2.5;
       this.laserTimer = 3;
       this.skullTimer = 2.5;
       this.field.projectiles = [];
-      this.run.events.toast("The Professor: I'm not done yet! Behold my ultimate creation!", '#ff5555');
+      this.run.events.toast('Grimsby: One sip of my elixir and... BEHOLD!', '#ff5555');
       return;
     }
     this.run.wipe(this.field);
     this.field.projectiles = [];
     this.laser = null;
-    this.run.events.toast('The Professor: What?! My Guardian power is unbeatable!', '#ff5555');
+    this.run.events.toast('Grimsby: Impossible! My formula was perfect!', '#ff5555');
     this.run.winSoon();
   }
 
@@ -599,7 +599,7 @@ export class ProfessorController implements Controller {
     if (this.phase === 1) {
       const alive = this.guardians.filter((g) => !g.dead);
       return {
-        name: `Guardians (${alive.length} left)`,
+        name: `Homunculi (${alive.length} left)`,
         hp: alive.reduce((a, g) => a + g.hp, 0),
         max: this.guardians.reduce((a, g) => a + g.maxHp, 0),
         color: '#2aa68a',
@@ -635,14 +635,14 @@ export class ThornController implements Controller {
 
   constructor(private run: Run, private field: Field) {
     this.thorn = makeMob(
-      { id: 'thorn', name: 'Thorn', hp: 4, damage: 0, speed: 1.6, attackCooldown: 99, sprite: 'thorn', size: 1.6 },
+      { id: 'thorn', name: 'Mother Bramble', hp: 4, damage: 0, speed: 1.6, attackCooldown: 99, sprite: 'thorn', size: 1.6 },
       7, 2.8, 1, run.floor.mobDmgMult, { boss: true, invuln: Infinity },
     );
     this.thorn.hp = 4;
     this.thorn.maxHp = 4;
     field.mobs.push(this.thorn);
-    run.events.toast('Thorn: Welcome Adventurers! I am Thorn, the Spirit! And host of the Vegan Trials.', '#55ff55');
-    run.events.toast('Kill a Spirit Bear, grab its Spirit Bow and tap Thorn to shoot him. Only the bow can hurt him!', '#ffaa00');
+    run.events.toast('Mother Bramble: Welcome to my grove, little delver. Mind the wolves.', '#55ff55');
+    run.events.toast('Kill a Grove Bear, grab its Moonbow and tap Mother Bramble to shoot her. Only the bow can hurt her!', '#ffaa00');
   }
 
   update(dt: number) {
@@ -691,13 +691,13 @@ export class ThornController implements Controller {
             Math.hypot(b.x - f.player.x, b.y - f.player.y) > Math.hypot(a.x - f.player.x, a.y - f.player.y) ? b : a);
           this.bear = makeMob(MOBS.spirit_bear, p.x, p.y, hpm, dm);
           f.mobs.push(this.bear);
-          this.run.events.toast('A Spirit Bear appeared! Kill it for the Spirit Bow.', '#9fffd0');
+          this.run.events.toast('A Grove Bear appeared! Kill it for the Moonbow.', '#9fffd0');
         }
       }
     }
     if (this.bowHeld > 0) {
       this.bowHeld -= dt;
-      if (this.bowHeld <= 0) this.run.events.toast('The Spirit Bow crumbled away...', '#aaaaaa');
+      if (this.bowHeld <= 0) this.run.events.toast('The Moonbow faded away...', '#aaaaaa');
     }
     if (this.arrow) {
       const dx = t.x - this.arrow.x, dy = t.y - 0.4 - this.arrow.y;
@@ -709,16 +709,16 @@ export class ThornController implements Controller {
         t.stun = 2;
         t.flash = 0.3;
         f.ring(t.x, t.y, 2, '#9fffd0');
-        f.text(t.x, t.y - 1.4, 'SPIRIT HIT!', '#9fffd0');
+        f.text(t.x, t.y - 1.4, 'MOON HIT!', '#9fffd0');
         if (this.hitsLeft <= 0) {
           t.dead = true;
           this.run.deathFx(f, t);
           this.run.wipe(f);
           f.projectiles = [];
-          this.run.events.toast('Thorn: Ahh, but the spirits will always remain...', '#55ff55');
+          this.run.events.toast('Mother Bramble: The grove... will grow back...', '#55ff55');
           this.run.winSoon();
         } else {
-          this.run.events.toast(`Thorn: Ouch! (${this.hitsLeft} hits left)`, '#55ff55');
+          this.run.events.toast(`Mother Bramble: Ouch! (${this.hitsLeft} hits left)`, '#55ff55');
         }
       } else {
         this.arrow.x += (dx / d) * 14 * dt;
@@ -730,7 +730,7 @@ export class ThornController implements Controller {
   onMobDeath(m: Mob) {
     if (m === this.bear) {
       this.bowDrop = { x: m.x, y: m.y };
-      this.run.events.toast('The Spirit Bear dropped a Spirit Bow! Tap it to pick it up.', '#9fffd0');
+      this.run.events.toast('The Grove Bear dropped a Moonbow! Tap it to pick it up.', '#9fffd0');
     }
   }
 
@@ -738,7 +738,7 @@ export class ThornController implements Controller {
     if (this.bowDrop && Math.hypot(this.bowDrop.x - x, this.bowDrop.y - y) < 1.3) {
       this.bowDrop = null;
       this.bowHeld = 20;
-      this.run.events.toast('You picked up the Spirit Bow! Tap Thorn to shoot.', '#9fffd0');
+      this.run.events.toast('You picked up the Moonbow! Tap Mother Bramble to shoot.', '#9fffd0');
       return true;
     }
     const t = this.thorn;
@@ -751,7 +751,7 @@ export class ThornController implements Controller {
   }
 
   bar(): BossBar {
-    return { name: `Thorn (${this.hitsLeft} Spirit Bow hits left)`, hp: this.hitsLeft, max: 4, color: '#2fbf71' };
+    return { name: `Mother Bramble (${this.hitsLeft} Moonbow hits left)`, hp: this.hitsLeft, max: 4, color: '#2fbf71' };
   }
 
   draw(ctx: CanvasRenderingContext2D, X: ToScreen, Y: ToScreen, ts: number, time: number) {
@@ -782,7 +782,7 @@ export class ThornController implements Controller {
       ctx.font = `bold ${Math.max(11, ts * 0.4)}px ui-monospace, monospace`;
       ctx.textAlign = 'center';
       ctx.fillStyle = '#9fffd0';
-      ctx.fillText(`Spirit Bow ready (${Math.ceil(this.bowHeld)}s): tap Thorn!`, X(this.field.player.x), Y(this.field.player.y) - ts * 1.3);
+      ctx.fillText(`Moonbow ready (${Math.ceil(this.bowHeld)}s): tap Bramble!`, X(this.field.player.x), Y(this.field.player.y) - ts * 1.3);
     }
     if (this.arrow) {
       ctx.fillStyle = '#d8fff0';
@@ -816,15 +816,15 @@ export class LividController implements Controller {
     picks.forEach(([name, color], i) => {
       const real = i === realIndex;
       const m = makeMob(MOBS.livid, spots[i].x, spots[i].y, real ? run.floor.mobHpMult : 1, run.floor.mobDmgMult, {
-        name: `${name} Livid`, sprite: 'livid:' + color, boss: real, puzzle: !real,
+        name: `${name} Facet`, sprite: 'livid:' + color, boss: real, puzzle: !real,
       });
       this.livids.push(m);
     });
     this.real = this.livids[realIndex];
     this.realColor = picks[realIndex][1];
     field.mobs.push(...this.livids);
-    run.events.toast("Livid: Welcome, you've arrived right on time. I am Livid, the Master of Shadows.", '#ff55ff');
-    run.events.toast('Only one Livid is real: the one whose colour matches the block at the top. Hitting a fake blinds you!', '#ffaa00');
+    run.events.toast('Lady Facet: Welcome to my masquerade. Can you tell which of us is real?', '#ff55ff');
+    run.events.toast('Only one Lady Facet is real: the one whose colour matches the block at the top. Hitting a fake blinds you!', '#ffaa00');
   }
 
   update(dt: number) {
@@ -834,7 +834,7 @@ export class LividController implements Controller {
     const dm = this.run.floor.mobDmgMult;
     if (!this.enraged && this.real.hp < this.real.maxHp * 0.5) {
       this.enraged = true;
-      this.run.events.toast('Livid: I respect you for making it this far, but I will be your undoing.', '#ff55ff');
+      this.run.events.toast("Lady Facet: Clever. But the dance isn't over yet.", '#ff55ff');
       for (let i = 0; i < 2; i++) {
         const p = f.randomFloor(() => rng.next(), f.player, 3);
         f.mobs.push(makeMob(MOBS.assassin, p.x, p.y, this.run.floor.mobHpMult, dm));
@@ -856,7 +856,7 @@ export class LividController implements Controller {
         m.x = spots[i].x;
         m.y = spots[i].y;
       });
-      this.run.events.toast('The Livids teleport around!', '#ff55ff');
+      this.run.events.toast('The Facets swap places!', '#ff55ff');
     }
   }
 
@@ -870,8 +870,8 @@ export class LividController implements Controller {
     if (!best || best === this.real) return false;
     this.run.blind = 2;
     this.run.damagePlayer(this.run.stats.maxHp * 0.15 * (100 + this.run.stats.defense) / 100);
-    this.field.text(best.x, best.y - 1.2, 'WRONG LIVID!', '#ff5555');
-    this.run.events.toast(`${best.name}: Hehe, wrong one! You've been blinded.`, '#ff55ff');
+    this.field.text(best.x, best.y - 1.2, 'WRONG FACET!', '#ff5555');
+    this.run.events.toast(`${best.name}: Wrong partner! You've been blinded.`, '#ff55ff');
     return true;
   }
 
@@ -879,12 +879,12 @@ export class LividController implements Controller {
     if (m !== this.real) return;
     this.run.wipe(this.field);
     this.field.projectiles = [];
-    this.run.events.toast('Livid: Impossible! How did you figure out which one I was?!', '#ff55ff');
+    this.run.events.toast('Lady Facet: You saw through my mask... Bravo.', '#ff55ff');
     this.run.winSoon();
   }
 
   bar(): BossBar {
-    return { name: 'Livid', hp: this.real.hp, max: this.real.maxHp, color: '#8e44d6' };
+    return { name: 'Lady Facet', hp: this.real.hp, max: this.real.maxHp, color: '#8e44d6' };
   }
 
   draw(ctx: CanvasRenderingContext2D, X: ToScreen, _Y: ToScreen, ts: number, time: number) {
