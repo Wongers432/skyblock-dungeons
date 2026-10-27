@@ -140,6 +140,15 @@ const SPRITES: Record<string, string[]> = {
 
 const cache = new Map<string, HTMLCanvasElement>();
 
+/** Adds more sprites (room furniture lives in its own file). Rows are padded to the widest one. */
+export function defineSprites(defs: Record<string, string[]>) {
+  for (const [name, rows] of Object.entries(defs)) {
+    const w = Math.max(...rows.map((r) => r.length));
+    SPRITES[name] = rows.map((r) => r.padEnd(w, '.'));
+    STATIC.add(name);
+  }
+}
+
 /** Sprites that never animate their legs. */
 const STATIC = new Set(['none', 'blaze', 'fairy', 'chest', 'essence', 'bat', 'witherkey', 'bloodkey', 'grave', 'wither', 'guardian', 'guardian_r', 'guardian_c', 'guardian_l', 'guardian_big', 'spiritbow']);
 

@@ -6,6 +6,7 @@
 import type { Field } from '../game/field';
 import { Rng } from '../game/rng';
 import { sprite, texture, type TileTex } from './sprites';
+import { cobweb, decorateStyled } from './roomDecor';
 
 export const TEX_PX = 16;
 
@@ -43,7 +44,7 @@ export function buildFieldCache(f: Field, floorId: number): HTMLCanvasElement {
   c.height = (f.h + 2) * P;
   const g = c.getContext('2d')!;
   g.imageSmoothingEnabled = false;
-  const rng = new Rng(hashTiles(f) + floorId * 7919);
+  const rng = new Rng(hashTiles(f) + floorId * 7919 + (f.style?.length ?? 0) * 104729);
   const floorTex: TileTex = f.theme === 'floor' ? 'floor' : f.theme;
   const at = (x: number, y: number) => (x >= 0 && y >= 0 && x < f.w && y < f.h ? kindAt(f, x, y) : 'wall');
   const isFloor = (x: number, y: number) => at(x, y) === 'floor';
@@ -103,6 +104,15 @@ export function buildFieldCache(f: Field, floorId: number): HTMLCanvasElement {
     shade(0, 1, X0, Y0 + P - d * 0.6, P, d * 0.6, false);
     shade(-1, 0, X0, Y0, d * 0.8, P, true);
     shade(1, 0, X0 + P - d * 0.8, Y0, d * 0.8, P, true);
+  }
+
+  // Furnished rooms do their own decorating.
+  if (f.style) {
+    const out = decorateStyled(g, f, rng, f.style);
+    f.torches = out.torches;
+    f.glows = out.glows;
+    grade(g, c, floorId);
+    return c;
   }
 
   // Decorations.
@@ -179,37 +189,17 @@ export function buildFieldCache(f: Field, floorId: number): HTMLCanvasElement {
     } else if (r < 0.32) puddle(g, rng, px(x), px(y));
   }
 
-  // Colour grade for this floor.
-  g.globalCompositeOperation = 'source-atop';
-  g.fillStyle = FLOOR_TINT[floorId] ?? FLOOR_TINT[1];
-  g.fillRect(0, 0, c.width, c.height);
-  g.globalCompositeOperation = 'source-over';
-
+  grade(g, c, floorId);
   f.torches = torches;
   return c;
 }
 
-function cobweb(g: CanvasRenderingContext2D, x: number, y: number, dir: number) {
-  const ox = dir > 0 ? x : x + TEX_PX;
-  g.strokeStyle = 'rgba(230,230,230,0.45)';
-  g.lineWidth = 1;
-  for (let i = 0; i < 4; i++) {
-    const a = (i / 3) * (Math.PI / 2);
-    g.beginPath();
-    g.moveTo(ox, y);
-    g.lineTo(ox + dir * Math.cos(a) * 14, y + Math.sin(a) * 14);
-    g.stroke();
-  }
-  for (const r of [5, 9, 13]) {
-    g.beginPath();
-    for (let i = 0; i <= 3; i++) {
-      const a = (i / 3) * (Math.PI / 2);
-      const px = ox + dir * Math.cos(a) * r, py = y + Math.sin(a) * r;
-      if (i) g.lineTo(px, py);
-      else g.moveTo(px, py);
-    }
-    g.stroke();
-  }
+/** Colour grade for this floor. */
+function grade(g: CanvasRenderingContext2D, c: HTMLCanvasElement, floorId: number) {
+  g.globalCompositeOperation = 'source-atop';
+  g.fillStyle = FLOOR_TINT[floorId] ?? FLOOR_TINT[1];
+  g.fillRect(0, 0, c.width, c.height);
+  g.globalCompositeOperation = 'source-over';
 }
 
 function cracks(g: CanvasRenderingContext2D, rng: Rng, x: number, y: number) {
