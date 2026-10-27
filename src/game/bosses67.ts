@@ -3,6 +3,7 @@ import { drawLaser, shield, updateLaser, type BossBar, type Controller, type Las
 import { Field, makeMob, type Mob } from './field';
 import type { Run } from './run';
 import { label } from '../render/fieldView';
+import type { Sfx } from '../audio/sound';
 
 /**
  * A charged special attack that the player can cancel by hurting the caster enough while it charges.
@@ -285,18 +286,19 @@ export interface Terminal {
 const PADS = [{ x: 2.5, y: 4 }, { x: 11.5, y: 4 }, { x: 7, y: 8.5 }];
 const TERMINAL_SPOTS = [{ x: 1.6, y: 3.2 }, { x: 12.4, y: 3.2 }, { x: 1.6, y: 9.6 }, { x: 12.4, y: 9.6 }];
 
-/** Maxor's laser machines (on the side walls) and the power cells the crystals slide into. */
+/** Boom's amps on the side walls. They blast him once you play his drum pattern back. */
 const MACHINES = [{ x: 0.7, y: 6.2, dir: 1 }, { x: 13.3, y: 6.2, dir: -1 }];
-const CELLS = [{ x: 2.1, y: 7.9 }, { x: 11.9, y: 7.9 }];
-
-interface Crystal {
-  /** The platform it rests on. */
-  px: number;
-  py: number;
-  x: number;
-  y: number;
-  placed: boolean;
-}
+/** Boom's four drums, each with the colour it flashes. */
+const DRUMS = [
+  { x: 2.6, y: 9.2, color: '#ff5555' },
+  { x: 5.4, y: 10.4, color: '#ffd34a' },
+  { x: 8.6, y: 10.4, color: '#55ff77' },
+  { x: 11.4, y: 9.2, color: '#55aaff' },
+];
+/** Seconds per beat while the drums play the pattern. */
+const DRUM_BEAT = 0.62;
+/** Where Strobe's fuse box shows up when he tries a blackout. */
+const FUSES = [{ x: 1.6, y: 10.6 }, { x: 12.4, y: 10.6 }, { x: 7, y: 11.2 }];
 
 type Lord = 'maxor' | 'storm' | 'goldor' | 'necron';
 
@@ -304,14 +306,27 @@ type Lord = 'maxor' | 'storm' | 'goldor' | 'necron';
 export class WitherLordsController implements Controller {
   phase: Lord = 'maxor';
   lord: Mob;
-  // Maxor: energy crystals sit on platforms; slide them into the laser machines' power cells.
-  crystals: Crystal[] = [];
-  readonly cells = CELLS.map((c) => ({ ...c, filled: false }));
-  private held: Crystal | null = null;
+  // Boom: the drums flash a pattern; tap it back and the amps blast him.
+  pattern: number[] = [];
+  /** 'show' while the drums play the pattern, 'play' while you tap it back. */
+  drumMode: 'show' | 'play' = 'show';
+  /** Time into the pattern while it plays (starts negative for a count-in). */
+  private showT = 0;
+  /** Drums of the pattern you have hit so far. */
+  hits = 0;
+  /** Patterns played back; each one adds a beat to the next. */
+  private rounds = 0;
+  /** How brightly each drum is lit (fades out after a hit). */
+  private drumGlow = [0, 0, 0, 0];
   vulnerable = 0;
   private laserGlow = 0;
-  // Storm: crushers flatten him when he walks under one.
+  // Strobe: lighting rigs drop on him when he walks under one.
   pads = PADS.map((p) => ({ ...p, cd: 0 }));
+  /** Strobe's blackout: the fuse box blinks for `fuseT` seconds, then the lights go out for `dark` seconds. */
+  fuse: { x: number; y: number } | null = null;
+  private fuseT = 0;
+  dark = 0;
+  private blackoutTimer = 9;
   // Goldor: terminals.
   terminals = TERMINAL_SPOTS.map((p, i) => ({ ...p, id: i, done: false }));
   // Necron.
@@ -327,8 +342,8 @@ export class WitherLordsController implements Controller {
   constructor(private run: Run, private field: Field) {
     this.lord = this.spawnLord('maxor');
     run.events.toast("Boom: Ladies and gents, LET'S GET LOUD!", '#ff55ff');
-    run.events.toast('Boom is behind a sound shield. Slide each Spark Core from its platform into an amp!', '#ff55ff');
-    this.spawnCrystals();
+    run.events.toast('Boom is behind a sound shield. Watch his drums, then tap the same pattern back to fire the amps!', '#ff55ff');
+    this.newPattern();
   }
 
   private spawnLord(kind: Lord): Mob {
@@ -345,55 +360,42 @@ export class WitherLordsController implements Controller {
     return m;
   }
 
-  private spawnCrystals() {
+  /** Deals a fresh drum pattern, one beat longer for every pattern already played back. */
+  private newPattern() {
+    const len = Math.min(7, 3 + this.rounds);
     const r = this.run.rng;
-    const spot = (x0: number) => ({ x: x0 + r.next() * 2, y: 9.6 + r.next() * 1.6 });
-    this.crystals = [spot(3.2), spot(8.8)].map((p) => ({ px: p.x, py: p.y, x: p.x, y: p.y, placed: false }));
-    for (const c of this.cells) c.filled = false;
-    this.held = null;
+    this.pattern = [];
+    for (let i = 0; i < len; i++) {
+      let d = r.int(0, 3);
+      // No drum twice in a row, so every beat is easy to see.
+      if (d === this.pattern[i - 1]) d = (d + 1 + r.int(0, 2)) % 4;
+      this.pattern.push(d);
+    }
+    this.drumMode = 'show';
+    this.showT = -1.2;
+    this.hits = 0;
   }
 
-  get crystalsPlaced(): number {
-    return this.crystals.filter((c) => c.placed).length;
+  private hitDrum(i: number) {
+    this.drumGlow[i] = 1;
+    this.run.events.sfx?.(`drum${i}` as Sfx);
   }
 
-  /** Dragging a crystal across the arena. */
-  onDrag(x: number, y: number): boolean {
-    if (!this.held) return false;
-    this.held.x = x;
-    this.held.y = y;
-    return true;
-  }
-
-  onRelease(x: number, y: number) {
-    const c = this.held;
-    if (!c) return;
-    // A plain tap (no slide) keeps the crystal picked up, so tapping a cell next also works.
-    if (Math.hypot(x - c.px, y - c.py) < 0.8) {
-      c.x = c.px;
-      c.y = c.py;
+  private tapDrum(i: number) {
+    const f = this.field;
+    const d = DRUMS[i];
+    this.hitDrum(i);
+    if (this.pattern[this.hits] !== i) {
+      f.text(d.x, d.y - 1, 'OFF BEAT!', '#ff5555');
+      this.run.damagePlayer(this.run.stats.maxHp * 0.1 * (100 + this.run.stats.defense) / 100);
+      this.run.events.toast('Off beat! Watch the drums again.', '#ff5555');
+      this.newPattern();
       return;
     }
-    this.held = null;
-    const cell = this.cells.find((k) => !k.filled && Math.hypot(k.x - x, k.y - y) < 1.4);
-    if (cell) this.placeCrystal(c, cell);
-    else {
-      // Slides back onto its platform.
-      c.x = c.px;
-      c.y = c.py;
-    }
-  }
-
-  private placeCrystal(c: Crystal, cell: { x: number; y: number; filled: boolean }) {
-    const f = this.field;
-    cell.filled = true;
-    c.placed = true;
-    c.x = cell.x;
-    c.y = cell.y;
-    this.held = null;
-    f.ring(cell.x, cell.y, 1.2, '#ff77ff');
-    f.text(cell.x, cell.y - 0.9, `${this.crystalsPlaced}/2 CORES PLUGGED IN`, '#ff77ff');
-    if (this.crystalsPlaced < 2) return;
+    this.hits++;
+    f.ring(d.x, d.y, 0.9, d.color);
+    if (this.hits < this.pattern.length) return;
+    this.rounds++;
     this.vulnerable = 7;
     this.laserGlow = 0;
     this.lord.invuln = 0;
@@ -433,6 +435,7 @@ export class WitherLordsController implements Controller {
     }
 
     if (this.phase === 'maxor') {
+      for (let i = 0; i < 4; i++) this.drumGlow[i] = Math.max(0, this.drumGlow[i] - dt * 2.6);
       if (this.vulnerable > 0) {
         this.laserGlow += dt;
         // The beams pull Maxor to the middle of the arena.
@@ -440,15 +443,23 @@ export class WitherLordsController implements Controller {
         this.vulnerable -= dt;
         if (this.vulnerable <= 0) {
           L.invuln = Infinity;
-          this.spawnCrystals();
+          this.newPattern();
           this.run.events.toast("Boom: MY EARS! MY EARS!! ...I'm fine.", '#ff55ff');
         }
         return;
       }
+      if (this.drumMode === 'show') {
+        const beat = Math.floor(this.showT / DRUM_BEAT);
+        this.showT += dt;
+        const next = Math.floor(this.showT / DRUM_BEAT);
+        if (next !== beat && next >= 0 && next < this.pattern.length) this.hitDrum(this.pattern[next]);
+        if (this.showT >= this.pattern.length * DRUM_BEAT) this.drumMode = 'play';
+      }
       if (Math.hypot(this.wander.x - L.x, this.wander.y - L.y) < 0.3) this.wander = { x: 2 + this.run.rng.next() * 10, y: 1.5 + this.run.rng.next() * 5 };
       walkToward(f, L, this.wander.x, this.wander.y, L.def.speed, dt);
       this.shotTimer -= dt;
-      if (this.shotTimer <= 0) {
+      // He holds his drumsticks while the pattern plays, so you can watch it.
+      if (this.shotTimer <= 0 && this.drumMode === 'play') {
         this.shotTimer = 2.2;
         for (const a of [-0.25, 0.25]) this.run.shoot(f, L.x, L.y, 'skull', 30 * dm, a);
       }
@@ -457,6 +468,7 @@ export class WitherLordsController implements Controller {
 
     if (this.phase === 'storm') {
       for (const p of this.pads) p.cd = Math.max(0, p.cd - dt);
+      this.updateBlackout(dt);
       if (L.stun > 0) return;
       // Storm drifts from crusher to crusher, raining lightning on you.
       if (Math.hypot(this.wander.x - L.x, this.wander.y - L.y) < 0.3) {
@@ -530,6 +542,27 @@ export class WitherLordsController implements Controller {
 
   private immuneStageDone = 0;
 
+  /** Strobe tries to kill the lights every so often; tap the blinking fuse box in time to stop him. */
+  private updateBlackout(dt: number) {
+    this.dark = Math.max(0, this.dark - dt);
+    if (this.fuse) {
+      this.fuseT -= dt;
+      if (this.fuseT <= 0) {
+        this.fuse = null;
+        this.dark = 3.5;
+        this.run.events.toast('Strobe: Lights OUT!', '#77bbff');
+      }
+      return;
+    }
+    if (this.dark > 0) return;
+    this.blackoutTimer -= dt;
+    if (this.blackoutTimer > 0) return;
+    this.blackoutTimer = 13;
+    this.fuse = { ...FUSES[this.run.rng.int(0, FUSES.length - 1)] };
+    this.fuseT = 2.6;
+    this.run.events.toast('Strobe is going for the lights! Tap the fuse box!', '#ffd34a');
+  }
+
   private nextLord() {
     const order: Lord[] = ['maxor', 'storm', 'goldor', 'necron'];
     this.phase = order[order.indexOf(this.phase) + 1];
@@ -554,6 +587,8 @@ export class WitherLordsController implements Controller {
     clearArena(this.run, f);
     this.charge = null;
     this.laser = null;
+    this.fuse = null;
+    this.dark = 0;
     this.run.terminal = null;
     if (this.phase === 'necron') {
       this.run.events.toast('The Maestro: The show... is over...', '#ff3333');
@@ -579,16 +614,19 @@ export class WitherLordsController implements Controller {
     const f = this.field;
     if (this.transition > 0) return false;
     if (this.phase === 'maxor' && this.vulnerable <= 0) {
-      // Tapping an empty cell while carrying a crystal also slots it in.
-      if (this.held) {
-        const cell = this.cells.find((k) => !k.filled && near(k.x, k.y, 1.4));
-        if (cell) { this.placeCrystal(this.held, cell); return true; }
-      }
-      for (const c of this.crystals) {
-        if (c.placed || !near(c.x, c.y, 1.2)) continue;
-        this.held = c;
+      const i = DRUMS.findIndex((d) => near(d.x, d.y, 1.25));
+      if (i >= 0) {
+        // Taps during the count-in and the pattern itself just play the drum.
+        if (this.drumMode === 'play') this.tapDrum(i);
+        else this.hitDrum(i);
         return true;
       }
+    }
+    if (this.phase === 'storm' && this.fuse && near(this.fuse.x, this.fuse.y, 1.3)) {
+      f.ring(this.fuse.x, this.fuse.y, 1, '#ffd34a');
+      f.text(this.fuse.x, this.fuse.y - 0.9, 'LIGHTS SAVED!', '#ffd34a');
+      this.fuse = null;
+      return true;
     }
     if (this.phase === 'storm') {
       for (const p of this.pads) {
@@ -700,25 +738,52 @@ export class WitherLordsController implements Controller {
     if (this.phase === 'necron' && L.invuln === Infinity && !L.dead) shield(ctx, L, X, Y, ts, time, '#ff3333');
     drawCharge(ctx, this.field, this.charge, X, Y, ts, time);
     drawLaser(ctx, this.field, this.laser, X, Y, ts);
+    if (this.phase === 'storm') this.drawBlackout(ctx, X, Y, ts, time);
     const b = this.bannerText();
     if (b) arenaBanner(ctx, X, Y, this.field.w, ts, time, b[0], b[1]);
+  }
+
+  private drawBlackout(ctx: CanvasRenderingContext2D, X: ToScreen, Y: ToScreen, ts: number, time: number) {
+    const f = this.field;
+    if (this.dark > 0) {
+      // Everything goes black except a small pool of light around you; it fades back in at the end.
+      const a = Math.min(1, this.dark / 0.6) * 0.93;
+      const px = X(f.player.x), py = Y(f.player.y);
+      const g = ctx.createRadialGradient(px, py, ts * 1.2, px, py, ts * 3.4);
+      g.addColorStop(0, 'rgba(0,0,8,0)');
+      g.addColorStop(1, `rgba(0,0,8,${a})`);
+      ctx.fillStyle = g;
+      ctx.fillRect(X(0), Y(0), X(f.w) - X(0), Y(f.h) - Y(0));
+    }
+    if (this.fuse) {
+      const cx = X(this.fuse.x), cy = Y(this.fuse.y), s = ts * 0.9;
+      const blink = Math.sin(time * 16) > 0;
+      ctx.fillStyle = '#4a4a52';
+      ctx.fillRect(cx - s / 2, cy - s / 2, s, s);
+      ctx.strokeStyle = blink ? '#ffd34a' : '#8a7a3a';
+      ctx.lineWidth = Math.max(2, ts * 0.1);
+      ctx.strokeRect(cx - s / 2, cy - s / 2, s, s);
+      ctx.fillStyle = blink ? '#ffd34a' : '#5a5030';
+      ctx.beginPath();
+      ctx.moveTo(cx + s * 0.08, cy - s * 0.38);
+      ctx.lineTo(cx - s * 0.2, cy + s * 0.05);
+      ctx.lineTo(cx, cy + s * 0.05);
+      ctx.lineTo(cx - s * 0.08, cy + s * 0.38);
+      ctx.lineTo(cx + s * 0.2, cy - s * 0.05);
+      ctx.lineTo(cx, cy - s * 0.05);
+      ctx.closePath();
+      ctx.fill();
+      label(ctx, `FUSE ${Math.ceil(this.fuseT)}s`, cx, cy + s / 2 + ts * 0.4, Math.max(9, ts * 0.3), '#ffd34a');
+    }
   }
 
   private drawMaxor(ctx: CanvasRenderingContext2D, X: ToScreen, Y: ToScreen, ts: number, time: number) {
     const L = this.lord;
     const firing = this.vulnerable > 0 && !L.dead;
     // Laser machines on the side walls, each fed by a power cell.
+    const ready = this.drumMode === 'play' ? this.hits / this.pattern.length : 0;
     MACHINES.forEach((m, i) => {
-      const cell = this.cells[i];
       const mx = X(m.x), my = Y(m.y);
-      // Power cable from the cell to the machine.
-      ctx.strokeStyle = cell.filled ? `rgba(255,119,255,${0.7 + 0.3 * Math.sin(time * 10)})` : '#2a2a30';
-      ctx.lineWidth = Math.max(3, ts * 0.14);
-      ctx.beginPath();
-      ctx.moveTo(X(cell.x), Y(cell.y));
-      ctx.lineTo(X(cell.x), Y(m.y + 0.6));
-      ctx.lineTo(mx, Y(m.y + 0.6));
-      ctx.stroke();
       // Machine body.
       const bw = ts * 1.1, bh = ts * 1.5;
       ctx.fillStyle = '#3a3a44';
@@ -734,22 +799,8 @@ export class WitherLordsController implements Controller {
       ctx.fillStyle = '#2a2a30';
       ctx.fillRect(m.dir > 0 ? bx + ts * 0.75 : bx - ts * 0.9, my - ts * 0.28, ts * 0.15, ts * 0.56);
       // Status light.
-      ctx.fillStyle = cell.filled ? '#ff77ff' : '#552255';
+      ctx.fillStyle = firing || ready > 0 ? `rgba(255,119,255,${firing ? 1 : 0.3 + 0.7 * ready})` : '#552255';
       ctx.fillRect(mx - ts * 0.15, my - ts * 0.1, ts * 0.3, ts * 0.3);
-      // Power cell: a glass container on a stand.
-      const cx = X(cell.x), cy = Y(cell.y);
-      ctx.fillStyle = '#2a2a30';
-      ctx.fillRect(cx - ts * 0.55, cy + ts * 0.35, ts * 1.1, ts * 0.25);
-      ctx.fillStyle = cell.filled ? 'rgba(255,119,255,0.35)' : 'rgba(180,200,255,0.12)';
-      ctx.fillRect(cx - ts * 0.42, cy - ts * 0.6, ts * 0.84, ts * 0.95);
-      ctx.strokeStyle = cell.filled ? '#ff9aff' : '#9aa0c0';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(cx - ts * 0.42, cy - ts * 0.6, ts * 0.84, ts * 0.95);
-      if (!cell.filled && this.held) {
-        ctx.strokeStyle = `rgba(255,211,74,${0.5 + 0.5 * Math.sin(time * 8)})`;
-        ctx.strokeRect(cx - ts * 0.55, cy - ts * 0.73, ts * 1.1, ts * 1.2);
-      }
-      label(ctx, cell.filled ? 'PLUGGED IN' : 'AMP', cx, cy + ts * 0.95, Math.max(9, ts * 0.26), cell.filled ? '#ff9aff' : '#9aa0c0');
       if (firing) {
         // The beam: a hot core inside a wide flickering glow, from the barrel tip to Maxor.
         const tipX = m.dir > 0 ? bx + ts * 0.9 : bx - ts * 0.9;
@@ -766,20 +817,34 @@ export class WitherLordsController implements Controller {
         ctx.globalCompositeOperation = 'source-over';
       }
     });
-    // Crystal platforms and the crystals themselves.
-    for (const c of this.crystals) {
-      const px = X(c.px), py = Y(c.py);
-      ctx.fillStyle = '#4a3a5a';
-      ctx.fillRect(px - ts * 0.6, py + ts * 0.2, ts * 1.2, ts * 0.3);
-      ctx.fillStyle = '#6a5a7a';
-      ctx.fillRect(px - ts * 0.6, py + ts * 0.2, ts * 1.2, ts * 0.08);
-      if (c.placed) continue;
-      const lifted = this.held === c;
-      const bob = lifted ? 0 : Math.sin(time * 3 + c.px) * ts * 0.1;
-      drawCrystal(ctx, X(c.x), Y(c.y) + bob, ts * (lifted ? 1.15 : 1), time);
-      if (!lifted && !this.held) label(ctx, 'SLIDE ME', X(c.x), Y(c.y) - ts * 0.75, Math.max(9, ts * 0.26), '#ff9aff');
+    // The drums: a shell and a skin that lights up in its colour when it's hit.
+    for (const [i, d] of DRUMS.entries()) {
+      const cx = X(d.x), cy = Y(d.y), r = ts * 0.75;
+      const glow = this.drumGlow[i];
+      ctx.fillStyle = '#3a2a22';
+      ctx.fillRect(cx - r, cy, r * 2, ts * 0.5);
+      ctx.fillStyle = '#c9a25a';
+      for (let k = 0; k < 5; k++) ctx.fillRect(cx - r + (k * r * 2) / 4 - 1, cy, 2, ts * 0.5);
+      ctx.fillStyle = glow > 0 ? d.color : '#d8d0c0';
+      ctx.globalAlpha = glow > 0 ? 0.55 + 0.45 * glow : 1;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, r, r * 0.45, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = d.color;
+      ctx.lineWidth = Math.max(2, ts * 0.08);
+      ctx.stroke();
+      if (glow > 0) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.fillStyle = d.color;
+        ctx.globalAlpha = 0.35 * glow;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * (1.3 + 0.5 * (1 - glow)), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.globalCompositeOperation = 'source-over';
+      }
     }
-    for (const [i, cell] of this.cells.entries()) if (cell.filled) drawCrystal(ctx, X(cell.x), Y(cell.y) - ts * 0.12, ts * 0.8, time + i);
     if (!firing && !L.dead) shield(ctx, L, X, Y, ts, time, '#c070ff');
   }
 
@@ -789,8 +854,10 @@ export class WitherLordsController implements Controller {
     if (this.transition > 0 || L.dead) return null;
     switch (this.phase) {
       case 'maxor':
-        return this.vulnerable > 0 ? [`DAMAGE BOOM! ${Math.ceil(this.vulnerable)}s`, '#ff77ff'] : [`${this.crystalsPlaced}/2 CORES PLUGGED IN`, '#c070ff'];
+        if (this.vulnerable > 0) return [`DAMAGE BOOM! ${Math.ceil(this.vulnerable)}s`, '#ff77ff'];
+        return this.drumMode === 'show' ? ['WATCH THE DRUMS...', '#c070ff'] : [`PLAY IT BACK! ${this.hits}/${this.pattern.length}`, '#ff77ff'];
       case 'storm': {
+        if (this.fuse) return ['TAP THE FUSE BOX!', '#ffd34a'];
         const under = this.pads.some((p) => p.cd <= 0 && Math.hypot(L.x - p.x, L.y - p.y) < 1.6);
         return under ? ['DROP THE RIG ON STROBE!', '#77bbff'] : ['WAIT FOR STROBE TO STAND UNDER A RIG', '#4f8fff'];
       }
@@ -850,30 +917,6 @@ function drawTerminal(ctx: CanvasRenderingContext2D, x: number, y: number, ts: n
     ctx.strokeRect(x - w / 2 - 4, y - h / 2 - 4, w + 8, h + 8);
   }
   label(ctx, done ? 'DONE' : 'MIXING DESK', x, y + h / 2 + ts * 0.42, Math.max(9, ts * 0.3), done ? '#55ff55' : '#ff7777');
-}
-
-function drawCrystal(ctx: CanvasRenderingContext2D, cx: number, cy: number, s: number, time: number) {
-  ctx.fillStyle = 'rgba(255,119,255,0.28)';
-  ctx.beginPath();
-  ctx.arc(cx, cy, s * 0.6, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#ff77ff';
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - s * 0.42);
-  ctx.lineTo(cx + s * 0.26, cy);
-  ctx.lineTo(cx, cy + s * 0.42);
-  ctx.lineTo(cx - s * 0.26, cy);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = '#c040c0';
-  ctx.beginPath();
-  ctx.moveTo(cx, cy);
-  ctx.lineTo(cx + s * 0.26, cy);
-  ctx.lineTo(cx, cy + s * 0.42);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = `rgba(255,255,255,${0.6 + 0.4 * Math.sin(time * 6)})`;
-  ctx.fillRect(cx - s * 0.06, cy - s * 0.24, s * 0.09, s * 0.18);
 }
 
 /** Large pulsing instruction text drawn at the top of a boss arena. */

@@ -9,7 +9,7 @@ import lavaKraken from '../assets/lava-kraken.mp3';
 const TRACKS = [dungeonTheme, witherKing, dramaLefidoot, dramaNetcavy, necronsDoom, lavaKraken];
 
 /** Short sound effects, all synthesized with Web Audio so they need no extra files. */
-export type Sfx = 'hit' | 'crit' | 'mobDeath' | 'bossDeath' | 'hurt' | 'secret' | 'key' | 'door' | 'roomClear' | 'pop';
+export type Sfx = 'hit' | 'crit' | 'mobDeath' | 'bossDeath' | 'hurt' | 'secret' | 'key' | 'door' | 'roomClear' | 'pop' | 'drum0' | 'drum1' | 'drum2' | 'drum3';
 
 const MUSIC_VOLUME = 0.35;
 const SFX_VOLUME = 0.18;
@@ -28,6 +28,7 @@ const lastPlayed = new Map<Sfx, number>();
 const COOLDOWN: Record<Sfx, number> = {
   hit: 0.07, crit: 0.07, mobDeath: 0.05, bossDeath: 0.5, hurt: 0.25,
   secret: 0.1, key: 0.1, door: 0.2, roomClear: 0.3, pop: 0.05,
+  drum0: 0.05, drum1: 0.05, drum2: 0.05, drum3: 0.05,
 };
 
 function audio(): AudioContext | null {
@@ -181,5 +182,15 @@ export function sfx(kind: Sfx) {
     case 'pop':
       tone(c, { type: 'sine', from: 600 * j, to: 1400 * j, dur: 0.07, vol: 0.3 });
       break;
+    case 'drum0':
+    case 'drum1':
+    case 'drum2':
+    case 'drum3': {
+      // Boom's drums: each one a little higher, so the pattern can be learned by ear too.
+      const pitch = [110, 150, 200, 270][Number(kind[4])];
+      tone(c, { type: 'sine', from: pitch * 2, to: pitch * 0.6, dur: 0.22, vol: 0.5 });
+      noise(c, { dur: 0.08, vol: 0.25, freq: pitch * 12 });
+      break;
+    }
   }
 }
