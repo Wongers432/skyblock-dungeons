@@ -111,7 +111,7 @@ export class SadanController implements Controller {
   troughs: { x: number; y: number; cd: number }[] = [];
 
   constructor(private run: Run, private field: Field) {
-    this.sadan = makeMob(bossDef('sadan', 'Foreman Basalt', 9000, 'sadan', 2.1, { damage: 40, speed: 0.8, attackCooldown: 1.6 }), 7, 1.8, run.floor.mobHpMult, run.floor.mobDmgMult, { boss: true, invuln: Infinity });
+    this.sadan = makeMob(bossDef('sadan', 'Foreman Basalt', 9000, 'basalt', 2.1, { damage: 40, speed: 0.8, attackCooldown: 1.6 }), 7, 1.8, run.floor.mobHpMult, run.floor.mobDmgMult, { boss: true, invuln: Infinity });
     field.mobs.push(this.sadan);
     run.events.toast('Basalt: Another worker for the forge? No... a trespasser.', '#ffaa00');
     run.events.toast(`Kill ${this.need} Clay Soldiers to wake the Titans.`, '#ffaa00');
@@ -224,10 +224,10 @@ export class SadanController implements Controller {
         const giant = (id: string, name: string, sprite: string, x: number, y: number, armor = 0) =>
           makeMob(bossDef(id, name, 3200, sprite, 1.9, { armor }), x, y, hpm, dm, { boss: true });
         this.giants = [
-          giant('bigfoot', 'Stomper', 'giant:#7a4a22', 2.6, 4),
-          giant('lasr', 'Lens Titan', 'giant:#c62828', 11.4, 4),
-          giant('diamond', 'Blade Titan', 'giant:#5ef2e6', 3.2, 8.5, 0.4),
-          giant('jolly', 'Rose Titan', 'giant:#ff8fc8', 10.8, 8.5),
+          giant('bigfoot', 'Stomper', 'titan:#7a4a22', 2.6, 4),
+          giant('lasr', 'Lens Titan', 'titan:#c62828', 11.4, 4),
+          giant('diamond', 'Blade Titan', 'titan:#5ef2e6', 3.2, 8.5, 0.4),
+          giant('jolly', 'Rose Titan', 'titan:#ff8fc8', 10.8, 8.5),
         ];
         this.giants.forEach((g, i) => this.specialTimers.set(g, 2 + i * 1.5));
         // Troughs sit on the inner side of each Titan, toward the middle of the forge.
@@ -390,10 +390,10 @@ export class WitherLordsController implements Controller {
   private spawnLord(kind: Lord): Mob {
     const { mobHpMult: hpm, mobDmgMult: dm } = this.run.floor;
     const defs: Record<Lord, MobDef> = {
-      maxor: bossDef('maxor', 'Boom', 5000, 'wither:#c070ff', 1.9, { damage: 40, speed: 2.2, attackCooldown: 1.2 }),
-      storm: bossDef('storm', 'Strobe', 6000, 'wither:#4f8fff', 1.9, { damage: 40, speed: 1.6, attackCooldown: 1.4 }),
-      goldor: bossDef('goldor', 'Riff', 6000, 'wither:#ffcc33', 2, { damage: 80, speed: 0.38, attackCooldown: 1 }),
-      necron: bossDef('necron', 'The Maestro', 9000, 'wither:#ff3030', 2, { damage: 50, speed: 2, attackCooldown: 1.4 }),
+      maxor: bossDef('maxor', 'Boom', 5000, 'boom', 1.9, { damage: 40, speed: 2.2, attackCooldown: 1.2 }),
+      storm: bossDef('storm', 'Strobe', 6000, 'strobe', 1.9, { damage: 40, speed: 1.6, attackCooldown: 1.4 }),
+      goldor: bossDef('goldor', 'Riff', 6000, 'riff', 2, { damage: 80, speed: 0.38, attackCooldown: 1 }),
+      necron: bossDef('necron', 'The Maestro', 9000, 'maestro', 2, { damage: 50, speed: 2, attackCooldown: 1.4 }),
     };
     const m = makeMob(defs[kind], 7, 2.5, hpm, dm, { boss: true, invuln: kind === 'necron' ? 1.5 : Infinity });
     if (kind === 'storm') { m.invuln = 0; m.armor = 0.9; }

@@ -4,6 +4,7 @@ import type { BloodController } from '../game/controllers';
 import { secretPos, type RoomRT, type Run } from '../game/run';
 import { drawSprite, spriteColors, texture } from './sprites';
 import { buildFieldCache } from './decor';
+import './bossSprites';
 
 export interface Rect { x: number; y: number; w: number; h: number }
 export interface Xform { ts: number; ox: number; oy: number }
@@ -152,7 +153,7 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
         });
       }
       overlays.push(() => label(ctx, `${m.blazeValue}❤`, X(m.x), top, Math.max(10, ts * 0.38), '#ffcc33'));
-    } else if (m.boss && !m.sprite.startsWith('livid')) {
+    } else if (m.boss && !m.sprite.startsWith('facet')) {
       overlays.push(() => label(ctx, m.name, X(m.x), top - 2, Math.max(10, ts * 0.36), '#ffcc55'));
     } else if (!m.boss && !m.puzzle) {
       overlays.push(() => {

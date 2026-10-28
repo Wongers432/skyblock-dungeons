@@ -171,7 +171,7 @@ export class BonzoController implements Controller {
     run.events.toast("Pip: Ooh, an audience! Nobody's made it past the opening act in ages.", '#ff5555');
     const hpMult = run.floor.mobHpMult;
     this.bonzo = makeMob(
-      { id: 'bonzo', name: 'Pip the Jester', hp: 2200, damage: 0, speed: 3, attackCooldown: 99, sprite: 'bonzo', size: 1.6 },
+      { id: 'bonzo', name: 'Pip the Jester', hp: 2200, damage: 0, speed: 3, attackCooldown: 99, sprite: 'pip', size: 1.6 },
       7, 3, hpMult, run.floor.mobDmgMult, { boss: true },
     );
     field.mobs.push(this.bonzo);
@@ -313,6 +313,7 @@ export class BonzoController implements Controller {
     if (this.phase === 1) {
       this.phase = 2;
       m.dead = false;
+      m.sprite = 'pip_unicycle';
       m.hp = Math.round(m.maxHp * 0.6);
       m.invuln = 2;
       this.attack = null;
@@ -397,7 +398,7 @@ export class ScarfController implements Controller {
   constructor(private run: Run, private field: Field) {
     const { mobHpMult: hpm, mobDmgMult: dm } = run.floor;
     this.scarf = makeMob(
-      { id: 'scarf', name: 'Ossia', hp: 2200, damage: 0, speed: 0, attackCooldown: 99, sprite: 'scarf', size: 1.5 },
+      { id: 'scarf', name: 'Ossia', hp: 2200, damage: 0, speed: 0, attackCooldown: 99, sprite: 'ossia', size: 1.5 },
       7, 2.6, hpm, dm, { boss: true, invuln: Infinity },
     );
     this.minions = [
@@ -556,7 +557,7 @@ export class ProfessorController implements Controller {
   constructor(private run: Run, private field: Field) {
     const { mobHpMult: hpm, mobDmgMult: dm } = run.floor;
     this.prof = makeMob(
-      { id: 'professor', name: 'Grimsby', hp: 1800, damage: 22, speed: 1.4, attackCooldown: 1.6, sprite: 'professor', size: 1.3 },
+      { id: 'professor', name: 'Grimsby', hp: 1800, damage: 22, speed: 1.4, attackCooldown: 1.6, sprite: 'grimsby', size: 1.3 },
       7, 2.2, hpm, dm, { boss: true, invuln: Infinity },
     );
     this.guardians = [
@@ -681,7 +682,7 @@ export class ProfessorController implements Controller {
     if (this.phase === 2) {
       this.phase = 3;
       m.dead = false;
-      m.sprite = 'guardian_big';
+      m.sprite = 'grimsby_beast';
       m.scale = 2.2;
       m.name = 'Grimsby, Transformed';
       m.maxHp = Math.round(m.maxHp * 1.4);
@@ -767,7 +768,7 @@ export class ThornController implements Controller {
 
   constructor(private run: Run, private field: Field) {
     this.thorn = makeMob(
-      { id: 'thorn', name: 'Mother Bramble', hp: 4, damage: 0, speed: 1.6, attackCooldown: 99, sprite: 'thorn', size: 1.6 },
+      { id: 'thorn', name: 'Mother Bramble', hp: 4, damage: 0, speed: 1.6, attackCooldown: 99, sprite: 'bramble', size: 1.6 },
       7, 2.8, 1, run.floor.mobDmgMult, { boss: true, invuln: Infinity },
     );
     this.thorn.hp = 4;
@@ -987,7 +988,7 @@ export class LividController implements Controller {
     picks.forEach(([name, color], i) => {
       const real = i === realIndex;
       const m = makeMob(MOBS.livid, spots[i].x, spots[i].y, real ? run.floor.mobHpMult : 1, run.floor.mobDmgMult, {
-        name: `${name} Facet`, sprite: 'livid:' + color, boss: real, puzzle: !real,
+        name: `${name} Facet`, sprite: 'facet:' + color, boss: real, puzzle: !real,
       });
       this.livids.push(m);
       this.colors.set(m, color);
