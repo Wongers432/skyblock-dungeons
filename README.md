@@ -27,6 +27,7 @@ A solo, offline 2D dungeon crawler for iPhone, built as an installable web app (
 - **Crescendo** crafting: Maestro's Hilt + 8 Resonance Crystals + 2,000 Star Essence, then the Big Finish, Stage Dive and Standing Ovation sheet music unlock Encore Strike.
 - Delve XP and Delver Rank (+3% health, defense and damage per rank). Bone and Star essence upgrade every item from level 1 to 50.
 - **Calibrate taps** in Settings, **Puzzle glow**, music and sound effects.
+- An original soundtrack, written as data in `src/audio/tracks/` and synthesized live with Web Audio (no audio files): *Lantern Square* in the hub, then *Jester's Gambit* (Depth 1), *Rattle and Hum* (2), *Bubble and Brew* (3), *Bramble Jig* (4), *Prism Runner* (5), *Hammer and Anvil* (6) and *The Last Encore* (7). Nightmare Depths reuse their Depth's track.
 - Temporary **Admin** tab to spawn items, essence and XP, a rank slider (0 to 50) and god mode. Turn it off under Save.
 - Save backup: copy/paste a save code under Save.
 

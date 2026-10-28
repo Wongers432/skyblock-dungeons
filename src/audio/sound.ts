@@ -1,27 +1,18 @@
-import dungeonTheme from '../assets/dungeon-theme.mp3';
-import witherKing from '../assets/wither-king.mp3';
-import dramaLefidoot from '../assets/dungeon-drama-lefidoot.mp3';
-import dramaNetcavy from '../assets/dungeon-drama-netcavy.mp3';
-import necronsDoom from '../assets/necrons-doom.mp3';
-import lavaKraken from '../assets/lava-kraken.mp3';
-
-/** Each run plays one of these, picked at random. */
-const TRACKS = [dungeonTheme, witherKing, dramaLefidoot, dramaNetcavy, necronsDoom, lavaKraken];
+import { MusicPlayer } from './music';
+import type { TrackKey } from './tracks';
 
 /** Short sound effects, all synthesized with Web Audio so they need no extra files. */
 export type Sfx = 'hit' | 'crit' | 'mobDeath' | 'bossDeath' | 'hurt' | 'secret' | 'key' | 'door' | 'roomClear' | 'pop' | 'drum0' | 'drum1' | 'drum2' | 'drum3';
 
-const MUSIC_VOLUME = 0.35;
+const MUSIC_VOLUME = 0.45;
 const SFX_VOLUME = 0.18;
 const FADE_SECONDS = 1.5;
 
 let enabled = true;
 let ctx: AudioContext | null = null;
 let sfxOut: GainNode | null = null;
-let music: HTMLAudioElement | null = null;
-let musicWanted = false;
-let lastTrack = -1;
-let fadeTimer = 0;
+let music: MusicPlayer | null = null;
+let musicHeld = false;
 const lastPlayed = new Map<Sfx, number>();
 
 /** Minimum gap between two of the same sound, so a cleave through ten mobs isn't ten clicks. */
@@ -47,7 +38,7 @@ function audio(): AudioContext | null {
 
 export function setSoundEnabled(on: boolean) {
   enabled = on;
-  if (!on && music) { music.pause(); musicWanted = false; }
+  if (!on) setMusic(null);
 }
 
 /** Call from a tap so mobile browsers allow audio to start. */
@@ -57,51 +48,30 @@ export function unlockAudio() {
 
 // ---------- Music ----------
 
-function fadeTo(target: number, then?: () => void) {
-  if (!music) return;
-  clearInterval(fadeTimer);
-  const m = music;
-  const start = m.volume;
-  const steps = 30;
-  let i = 0;
-  fadeTimer = window.setInterval(() => {
-    i++;
-    m.volume = Math.max(0, Math.min(1, start + (target - start) * (i / steps)));
-    if (i >= steps) { clearInterval(fadeTimer); then?.(); }
-  }, (FADE_SECONDS * 1000) / steps);
+/**
+ * Plays a soundtrack track (the original music in tracks/, synthesized live), or fades it out with null.
+ * Asking for the track that's already playing changes nothing, so this can be called every frame.
+ */
+export function setMusic(key: TrackKey | null) {
+  if ((music?.key ?? null) === key) return;
+  music?.stop(FADE_SECONDS);
+  music = null;
+  if (!key || !enabled) return;
+  const c = audio();
+  if (!c) return;
+  music = new MusicPlayer(c, c.destination, key, MUSIC_VOLUME);
+  if (musicHeld || document.hidden) music.hold(true);
 }
 
-/** Picks a random track, never the same one twice in a row. */
-function pickTrack(): number {
-  let i = Math.floor(Math.random() * TRACKS.length);
-  if (i === lastTrack && TRACKS.length > 1) i = (i + 1 + Math.floor(Math.random() * (TRACKS.length - 1))) % TRACKS.length;
-  return (lastTrack = i);
-}
-
-/** Starts a random dungeon track from the top (a new clear). */
-export function startMusic() {
-  if (typeof window === 'undefined' || !enabled) return;
-  clearInterval(fadeTimer);
-  music?.pause();
-  music = Object.assign(new Audio(TRACKS[pickTrack()]), { loop: true, preload: 'auto' });
-  music.currentTime = 0;
-  music.volume = MUSIC_VOLUME;
-  musicWanted = true;
-  void music.play().catch(() => { /* Blocked until the next tap; resumeMusic retries. */ });
-}
-
-/** Fades the theme out (entering the boss, run over, back to the hub). */
-export function stopMusic() {
-  if (!music || !musicWanted) return;
-  musicWanted = false;
-  fadeTo(0, () => music?.pause());
-}
-
-/** Pauses or resumes without restarting, for the pause menu and backgrounding the app. */
+/** Pauses or resumes without restarting, for the pause menu. */
 export function holdMusic(hold: boolean) {
-  if (!music || !musicWanted || !enabled) return;
-  if (hold) { clearInterval(fadeTimer); music.pause(); }
-  else if (music.paused) { music.volume = MUSIC_VOLUME; void music.play().catch(() => {}); }
+  musicHeld = hold;
+  music?.hold(hold || document.hidden);
+}
+
+if (typeof document !== 'undefined') {
+  // Timers slow to a crawl in the background, so the music waits there rather than stutter.
+  document.addEventListener('visibilitychange', () => music?.hold(musicHeld || document.hidden));
 }
 
 // ---------- Effects ----------
