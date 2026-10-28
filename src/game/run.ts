@@ -816,7 +816,7 @@ export class Run {
     });
   }
 
-  /** Finger drag for controllers (sliding Maxor's crystals). Returns true when it was used. */
+  /** Finger drag for controllers. Returns true when it was used. */
   drag(x: number, y: number): boolean {
     if (!this.field || this.ended) return false;
     return this.controller?.onDrag?.(x, y) ?? false;
