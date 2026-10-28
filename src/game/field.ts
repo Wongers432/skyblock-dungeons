@@ -40,7 +40,7 @@ export interface Projectile {
   vx: number;
   vy: number;
   damage: number;
-  kind: 'arrow' | 'balloon' | 'fireball' | 'skull' | 'boulder' | 'lightning' | 'rocket' | 'note';
+  kind: 'arrow' | 'balloon' | 'fireball' | 'skull' | 'boulder' | 'lightning' | 'rocket' | 'note' | 'bomb';
   /** Goes straight through Wither Shield (dragon fire). */
   pierce?: boolean;
   tappable: boolean;
@@ -50,6 +50,8 @@ export interface Projectile {
   ty?: number;
   boom?: number;
   color?: string;
+  /** Runs when the player taps this projectile out of the air. */
+  onPop?: () => void;
 }
 
 export interface Shot {

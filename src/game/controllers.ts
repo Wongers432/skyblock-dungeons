@@ -1,7 +1,8 @@
 import { BLOOD_NAMES, MOBS } from '../data/floors';
-import { Field, makeMob, type Mob } from './field';
+import { Field, makeMob, type Mob, type Projectile } from './field';
 import type { BlazePuzzle } from './puzzles';
 import type { RoomRT, Run } from './run';
+import { label } from '../render/fieldView';
 
 export interface BossBar {
   name: string;
@@ -163,6 +164,7 @@ export class BonzoController implements Controller {
   private attack: { kind: BonzoAttack; left: number; tick: number; ang: number } | null = null;
   private lastAttack: BonzoAttack | null = null;
   private summonTimer = 9;
+  private bombTimer = 4;
   private wander = { x: 7, y: 3 };
 
   constructor(private run: Run, private field: Field) {
@@ -192,6 +194,25 @@ export class BonzoController implements Controller {
       x: b.x, y: b.y - 0.4, vx: ((tx - b.x) / d) * speed, vy: ((ty - b.y) / d) * speed, damage: 26 * this.run.floor.mobDmgMult,
       kind: 'rocket', tappable: true, life: d / speed, tx, ty, boom: 1.3, color: rng.pick(BALLOON_COLORS),
     });
+  }
+
+  /** Second act: Pip juggles bombs at you. Tap one and it flies back and blows up on him. */
+  private juggle() {
+    const f = this.field, b = this.bonzo, p = f.player;
+    for (let i = 0; i < 3; i++) {
+      const ang = Math.atan2(p.y - b.y, p.x - b.x) + (i - 1) * 0.5;
+      const bomb: Projectile = {
+        x: b.x, y: b.y - 0.4, vx: Math.cos(ang) * 2.2, vy: Math.sin(ang) * 2.2, damage: 30 * this.run.floor.mobDmgMult,
+        kind: 'bomb', tappable: true, life: 6,
+        onPop: () => {
+          f.text(bomb.x, bomb.y - 0.4, 'RIGHT BACK AT YOU!', '#ffd34a');
+          // The bomb flies straight back to Pip and goes off on him.
+          f.shots.push({ kind: 'firework', x: bomb.x, y: bomb.y, target: null, tx: b.x, ty: b.y, damage: b.maxHp * 0.05, radius: 1, life: 2, color: '#ffd34a' });
+        },
+      };
+      f.projectiles.push(bomb);
+    }
+    f.text(b.x, b.y - 2, 'Juggling act!', '#ffdd55');
   }
 
   private startAttack() {
@@ -266,6 +287,13 @@ export class BonzoController implements Controller {
       this.attackTimer -= dt;
       if (this.attackTimer <= 0) this.startAttack();
     }
+    if (this.phase === 2) {
+      this.bombTimer -= dt;
+      if (this.bombTimer <= 0) {
+        this.bombTimer = 5.5;
+        this.juggle();
+      }
+    }
     this.summonTimer -= dt;
     if (this.summonTimer <= 0) {
       this.summonTimer = this.phase === 1 ? 13 : 10;
@@ -290,7 +318,9 @@ export class BonzoController implements Controller {
       this.attack = null;
       this.attackTimer = 0.6;
       this.field.projectiles = [];
+      this.bombTimer = 3;
       this.run.events.toast("Pip: Wait, wait! One more trick!", '#ff5555');
+      this.run.events.toast('Pip is juggling bombs! Tap a bomb to throw it back at him.', '#ffd34a');
       return;
     }
     this.run.wipe(this.field);
@@ -355,6 +385,14 @@ export class ScarfController implements Controller {
   private teleportTimer = 3.5;
   private summonTimer = 12;
   private heals: { m: Mob; t: number }[] = [];
+  /** Apprentices whose bone chain has been broken: the Mender can't bring them back. */
+  readonly broken = new Set<Mob>();
+
+  /** Apprentices are chained in pairs across the room (Brute with Sniper, Mender with Hexer). */
+  partner(m: Mob): Mob {
+    const i = this.minions.indexOf(m);
+    return this.minions[[3, 2, 1, 0][i]];
+  }
 
   constructor(private run: Run, private field: Field) {
     const { mobHpMult: hpm, mobDmgMult: dm } = run.floor;
@@ -371,6 +409,7 @@ export class ScarfController implements Controller {
     field.mobs.push(this.scarf, ...this.minions);
     run.events.toast('Ossia: Another delver for my collection. How delightful.', '#ff5555');
     run.events.toast('Ossia: Get past my apprentices first. My Mender just stitches them back together!', '#ff5555');
+    run.events.toast('Apprentices are chained in pairs. Kill both of a pair within 3 seconds to break the chain!', '#ffaa00');
   }
 
   update(dt: number) {
@@ -393,7 +432,7 @@ export class ScarfController implements Controller {
           }
         }
         for (const m of this.minions) {
-          if (m.dead && m !== priest && (m.deadFor ?? 0) > 15) {
+          if (m.dead && m !== priest && !this.broken.has(m) && (m.deadFor ?? 0) > 15) {
             m.dead = false;
             m.hp = Math.round(m.maxHp * 0.5);
             m.deadFor = 0;
@@ -441,6 +480,18 @@ export class ScarfController implements Controller {
   onMobDeath(m: Mob) {
     if (this.minions.includes(m)) {
       m.deadFor = 0;
+      const p = this.partner(m);
+      if (p.dead && (p.deadFor ?? 0) <= 3 && !this.broken.has(m)) {
+        // Both ends of a chain fell together: it snaps, they stay down and the backlash hurts Ossia.
+        this.broken.add(m);
+        this.broken.add(p);
+        const s = this.scarf;
+        s.hp = Math.max(1, s.hp - Math.round(s.maxHp * 0.15));
+        s.flash = 0.3;
+        this.field.ring((m.x + p.x) / 2, (m.y + p.y) / 2, 1.6, '#c58aff');
+        this.field.text(s.x, s.y - 1.8, 'CHAIN BROKEN!', '#c58aff');
+        this.run.events.toast("Ossia: My chain! You'll pay for that.", '#ff5555');
+      }
       return;
     }
     if (m !== this.scarf) return;
@@ -462,6 +513,21 @@ export class ScarfController implements Controller {
 
   draw(ctx: CanvasRenderingContext2D, X: ToScreen, Y: ToScreen, ts: number, time: number) {
     if (this.phase === 1 && !this.scarf.dead) shield(ctx, this.scarf, X, Y, ts, time, '#aa77ff');
+    if (this.phase === 1) {
+      // The bone chains between each pair of apprentices.
+      for (const m of [this.minions[0], this.minions[1]]) {
+        const p = this.partner(m);
+        if (m.dead || p.dead) continue;
+        ctx.strokeStyle = `rgba(197,138,255,${0.45 + 0.25 * Math.sin(time * 5)})`;
+        ctx.lineWidth = Math.max(2, ts * 0.08);
+        ctx.setLineDash([ts * 0.22, ts * 0.12]);
+        ctx.beginPath();
+        ctx.moveTo(X(m.x), Y(m.y - 0.4));
+        ctx.lineTo(X(p.x), Y(p.y - 0.4));
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
     for (const h of this.heals) {
       ctx.strokeStyle = `rgba(85,255,85,${h.t / 0.6})`;
       ctx.lineWidth = 2;
@@ -481,6 +547,11 @@ export class ProfessorController implements Controller {
   private laserTimer = 4;
   private skullTimer = 5;
   private summonTimer = 14;
+  /** Antidote vats for his transformed form. One bubbles over now and then; tap it to shrink him. */
+  readonly vats = [{ x: 2.2, y: 9.4, ready: 0 }, { x: 11.8, y: 9.4, ready: 0 }];
+  private vatTimer = 5;
+  /** Seconds left of the antidote: he is shrunk, stunned at first, and takes double damage. */
+  shrunk = 0;
 
   constructor(private run: Run, private field: Field) {
     const { mobHpMult: hpm, mobDmgMult: dm } = run.floor;
@@ -544,7 +615,23 @@ export class ProfessorController implements Controller {
       }
       return;
     }
-    // Phase 3: the Professor's Guardian. Big, slow, lasers and skull volleys.
+    // Phase 3: Grimsby, transformed. Big, slow, lasers and skull volleys, until you dose him.
+    for (const v of this.vats) v.ready = Math.max(0, v.ready - dt);
+    if (this.shrunk > 0) {
+      this.shrunk -= dt;
+      if (this.shrunk <= 0) {
+        p.scale = 2.2;
+        p.armor = 0;
+        this.run.events.toast('Grimsby: The elixir... it is working again!', '#ff5555');
+      }
+    } else {
+      this.vatTimer -= dt;
+      if (this.vatTimer <= 0 && this.vats.every((v) => v.ready <= 0)) {
+        this.vatTimer = 9;
+        this.run.rng.pick(this.vats).ready = 4;
+        this.run.events.toast('A vat of antidote is bubbling over! Tap it!', '#7dff9a');
+      }
+    }
     const target = { x: 7, y: 3 };
     const d = Math.hypot(target.x - p.x, target.y - p.y);
     if (d > 0.1) {
@@ -571,6 +658,24 @@ export class ProfessorController implements Controller {
     }
   }
 
+  onTap(x: number, y: number): boolean {
+    if (this.phase !== 3 || this.prof.dead) return false;
+    const v = this.vats.find((k) => k.ready > 0 && Math.hypot(k.x - x, k.y - y) < 1.3);
+    if (!v) return false;
+    const p = this.prof;
+    v.ready = 0;
+    this.shrunk = 6;
+    p.scale = 1.4;
+    p.stun = 2.5;
+    // Negative armor: he takes double damage while shrunk.
+    p.armor = -1;
+    this.laser = null;
+    this.field.ring(p.x, p.y, 2, '#7dff9a');
+    this.field.text(p.x, p.y - 1.6, 'SHRUNK! DOUBLE DAMAGE', '#7dff9a');
+    this.run.events.toast('Grimsby: NO! Not the antidote!', '#ff5555');
+    return true;
+  }
+
   onMobDeath(m: Mob) {
     if (m !== this.prof) return;
     if (this.phase === 2) {
@@ -586,6 +691,7 @@ export class ProfessorController implements Controller {
       this.skullTimer = 2.5;
       this.field.projectiles = [];
       this.run.events.toast('Grimsby: One sip of my elixir and... BEHOLD!', '#ff5555');
+      this.run.events.toast('When a vat of antidote bubbles over, tap it to shrink him!', '#7dff9a');
       return;
     }
     this.run.wipe(this.field);
@@ -612,6 +718,29 @@ export class ProfessorController implements Controller {
     if (this.phase === 1 && !this.prof.dead) shield(ctx, this.prof, X, Y, ts, time, '#55ddcc');
     const reinforced = this.guardians[1];
     if (this.phase === 1 && !reinforced.dead) shield(ctx, reinforced, X, Y, ts, time, '#bbbbbb');
+    if (this.phase === 3 && !this.prof.dead) {
+      for (const v of this.vats) {
+        const cx = X(v.x), cy = Y(v.y), w = ts * 1.1, hgt = ts * 1.2;
+        const hot = v.ready > 0;
+        ctx.fillStyle = '#4a4a52';
+        ctx.fillRect(cx - w / 2, cy - hgt / 2, w, hgt);
+        ctx.fillStyle = hot ? `rgba(125,255,154,${0.7 + 0.3 * Math.sin(time * 12)})` : '#2e6a3a';
+        ctx.fillRect(cx - w / 2 + 3, cy - hgt / 2 + 3, w - 6, hgt * 0.45);
+        ctx.fillStyle = '#6a6a74';
+        ctx.fillRect(cx - w / 2 - 2, cy - hgt / 2 - 3, w + 4, 4);
+        if (hot) {
+          // Bubbles rising off the top.
+          ctx.fillStyle = '#b8ffc8';
+          for (let i = 0; i < 4; i++) {
+            const k = (time * 1.6 + i / 4) % 1;
+            ctx.beginPath();
+            ctx.arc(cx + Math.sin(i * 2.3 + time * 3) * w * 0.3, cy - hgt / 2 - k * ts * 0.9, ts * 0.08 * (1 - k * 0.5), 0, Math.PI * 2);
+            ctx.fill();
+          }
+          label(ctx, `TAP! ${Math.ceil(v.ready)}s`, cx, cy + hgt / 2 + ts * 0.4, Math.max(9, ts * 0.3), '#7dff9a');
+        } else label(ctx, 'ANTIDOTE', cx, cy + hgt / 2 + ts * 0.4, Math.max(8, ts * 0.26), '#6a9a72');
+      }
+    }
     drawLaser(ctx, this.field, this.laser, X, Y, ts);
   }
 }
@@ -632,6 +761,9 @@ export class ThornController implements Controller {
   bowDrop: { x: number; y: number } | null = null;
   bowHeld = 0;
   private arrow: { x: number; y: number } | null = null;
+  /** The moon goes behind cloud now and then; the Moonbow does nothing until it clears. */
+  clouded = 0;
+  private cloudTimer = 16;
 
   constructor(private run: Run, private field: Field) {
     this.thorn = makeMob(
@@ -695,7 +827,19 @@ export class ThornController implements Controller {
         }
       }
     }
-    if (this.bowHeld > 0) {
+    if (this.clouded > 0) {
+      this.clouded -= dt;
+      if (this.clouded <= 0) this.run.events.toast('The moon is back out! Shoot!', '#d8fff0');
+    } else {
+      this.cloudTimer -= dt;
+      if (this.cloudTimer <= 0) {
+        this.cloudTimer = 20;
+        this.clouded = 5;
+        this.run.events.toast('Clouds cover the moon! The Moonbow is useless until they pass.', '#8aa0c8');
+      }
+    }
+    // A held bow keeps while the moon is hidden, so the clouds never waste it.
+    if (this.bowHeld > 0 && this.clouded <= 0) {
       this.bowHeld -= dt;
       if (this.bowHeld <= 0) this.run.events.toast('The Moonbow faded away...', '#aaaaaa');
     }
@@ -743,6 +887,10 @@ export class ThornController implements Controller {
     }
     const t = this.thorn;
     if (this.bowHeld > 0 && !this.arrow && Math.hypot(t.x - x, t.y - 0.5 - y) < 1.8) {
+      if (this.clouded > 0) {
+        this.field.text(t.x, t.y - 1.4, 'NO MOONLIGHT!', '#8aa0c8');
+        return true;
+      }
       this.bowHeld = 0;
       this.arrow = { x: this.field.player.x, y: this.field.player.y };
       return true;
@@ -788,12 +936,30 @@ export class ThornController implements Controller {
       ctx.fillStyle = '#d8fff0';
       ctx.fillRect(X(this.arrow.x) - 3, Y(this.arrow.y) - 3, 6, 6);
     }
+    // The moon over the grove, and a dim blue cast while clouds cover it.
+    const f = this.field;
+    const mx = X(f.w / 2), my = Y(0.1), r = ts * 0.55;
+    ctx.fillStyle = this.clouded > 0 ? '#5a6478' : '#f4f8ff';
+    ctx.beginPath();
+    ctx.arc(mx, my, r, 0, Math.PI * 2);
+    ctx.fill();
+    if (this.clouded > 0) {
+      ctx.fillStyle = '#3a4252';
+      for (const [dx, dy, k] of [[-0.6, 0.15, 0.5], [0, 0.25, 0.6], [0.6, 0.1, 0.45]]) {
+        ctx.beginPath();
+        ctx.arc(mx + dx * r * 1.6 + Math.sin(time) * 3, my + dy * r, r * k * 1.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = `rgba(10,20,50,${0.35 * Math.min(1, this.clouded)})`;
+      ctx.fillRect(X(0), Y(0), X(f.w) - X(0), Y(f.h) - Y(0));
+      label(ctx, `MOON HIDDEN ${Math.ceil(this.clouded)}s`, mx, my + r + ts * 0.5, Math.max(10, ts * 0.34), '#a8b8e0');
+    }
   }
 }
 
 const LIVID_COLORS: [string, string][] = [
-  ['Arcade', '#ffdd33'], ['Crossed', '#ff55ff'], ['Doctor', '#aaaaaa'], ['Frog', '#2e9e2e'],
-  ['Hockey', '#e53935'], ['Purple', '#8e44d6'], ['Scream', '#3f6fff'], ['Smile', '#7dff5a'], ['Vendetta', '#ffffff'],
+  ['Golden', '#ffdd33'], ['Rose', '#ff55ff'], ['Silver', '#aaaaaa'], ['Jade', '#2e9e2e'],
+  ['Ruby', '#e53935'], ['Violet', '#8e44d6'], ['Sapphire', '#3f6fff'], ['Lime', '#7dff5a'], ['Pearl', '#ffffff'],
 ];
 
 /** Floor V: several Livids, only one is real. Its colour matches the block above the arena. */
@@ -804,6 +970,11 @@ export class LividController implements Controller {
   private daggerTimer = 2;
   private shuffleTimer = 9;
   private enraged = false;
+  /** Every so often the window changes colour and a different Facet becomes the real one. */
+  private shiftTimer = 16;
+  /** Seconds the window flickers before it changes. */
+  shifting = 0;
+  private colors = new Map<Mob, string>();
 
   constructor(private run: Run, private field: Field) {
     const rng = run.rng;
@@ -819,6 +990,7 @@ export class LividController implements Controller {
         name: `${name} Facet`, sprite: 'livid:' + color, boss: real, puzzle: !real,
       });
       this.livids.push(m);
+      this.colors.set(m, color);
     });
     this.real = this.livids[realIndex];
     this.realColor = picks[realIndex][1];
@@ -847,6 +1019,17 @@ export class LividController implements Controller {
         if (!(m.stun > 0)) this.run.shoot(f, m.x, m.y, 'arrow', 16 * dm);
       }
     }
+    if (this.shifting > 0) {
+      this.shifting -= dt;
+      if (this.shifting <= 0) this.shiftReal();
+    } else {
+      this.shiftTimer -= dt;
+      if (this.shiftTimer <= 0) {
+        this.shiftTimer = this.enraged ? 13 : 16;
+        this.shifting = 2;
+        this.run.events.toast('The window is changing colour! Watch which Facet it picks.', '#ffaa00');
+      }
+    }
     this.shuffleTimer -= dt;
     if (this.shuffleTimer <= 0) {
       this.shuffleTimer = this.enraged ? 7 : 9;
@@ -858,6 +1041,20 @@ export class LividController implements Controller {
       });
       this.run.events.toast('The Facets swap places!', '#ff55ff');
     }
+  }
+
+  /** The real Facet hides behind another mask: her health, her boss status and the window colour move to it. */
+  private shiftReal() {
+    const old = this.real;
+    const next = this.run.rng.pick(this.livids.filter((m) => m !== old));
+    for (const k of ['hp', 'maxHp'] as const) [next[k], old[k]] = [old[k], next[k]];
+    next.boss = true;
+    next.puzzle = false;
+    old.boss = false;
+    old.puzzle = true;
+    this.real = next;
+    this.realColor = this.colors.get(next)!;
+    this.field.fx.push({ kind: 'puff', x: next.x, y: next.y, t: 0, life: 0.4, color: this.realColor });
   }
 
   onTap(x: number, y: number): boolean {
@@ -893,7 +1090,9 @@ export class LividController implements Controller {
     const cx = X(this.field.w / 2), cy = _Y(0.1) + Math.sin(time * 2) * 2;
     ctx.fillStyle = '#000';
     ctx.fillRect(cx - s / 2 - 2, cy - s / 2 - 2, s + 4, s + 4);
-    ctx.fillStyle = this.realColor;
+    // While it is about to change, the window flickers through the masks' colours.
+    const flicker = this.shifting > 0 ? [...this.colors.values()][Math.floor(time * 10) % this.colors.size] : this.realColor;
+    ctx.fillStyle = flicker;
     ctx.fillRect(cx - s / 2, cy - s / 2, s, s);
     ctx.fillStyle = 'rgba(0,0,0,0.15)';
     for (let i = 0; i < 4; i++) ctx.fillRect(cx - s / 2 + (i * s) / 4, cy - s / 2, 1, s);

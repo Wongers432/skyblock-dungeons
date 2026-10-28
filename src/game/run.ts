@@ -696,7 +696,8 @@ export class Run {
       if (!pr.tappable) continue;
       consider(pr.x, pr.y, 1.0 * tapSize, () => {
         pr.life = 0;
-        if (pr.kind === 'balloon' || pr.kind === 'rocket' || pr.kind === 'note') {
+        if (pr.onPop) pr.onPop();
+        else if (pr.kind === 'balloon' || pr.kind === 'rocket' || pr.kind === 'note') {
           this.fireworkFx(f, pr.x, pr.y, pr.color ?? '#ff8888', 0.7);
           f.text(pr.x, pr.y - 0.4, 'POP!', '#ffffff');
           this.events.sfx?.('pop');
