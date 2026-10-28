@@ -232,6 +232,20 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
       ctx.fillRect(X(p.x) - r * 0.5, Y(p.y) - r * 0.6, r * 0.6, r * 0.4);
       ctx.fillStyle = '#4a433b';
       ctx.fillRect(X(p.x), Y(p.y) + r * 0.1, r * 0.5, r * 0.35);
+    } else if (p.kind === 'note') {
+      // The Maestro's notes: a bobbing eighth note with a soft glow.
+      const s = ts * 0.55, nx = X(p.x), ny = Y(p.y) + Math.sin(p.life * 9) * ts * 0.06;
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.beginPath();
+      ctx.arc(nx, ny, s * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = p.color ?? '#ff77ff';
+      ctx.beginPath();
+      ctx.ellipse(nx - s * 0.15, ny + s * 0.3, s * 0.26, s * 0.19, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(nx + s * 0.06, ny - s * 0.5, s * 0.1, s * 0.82);
+      ctx.fillRect(nx + s * 0.06, ny - s * 0.5, s * 0.34, s * 0.12);
+      ctx.fillRect(nx + s * 0.3, ny - s * 0.5, s * 0.1, s * 0.3);
     } else if (p.kind === 'skull') {
       const sz = ts * 0.5;
       ctx.fillStyle = '#2b2b2b';

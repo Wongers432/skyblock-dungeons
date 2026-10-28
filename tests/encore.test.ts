@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WitherLordsController } from '../src/game/bosses67';
+import { FADER_STEPS, WitherLordsController, makeTerminal } from '../src/game/bosses67';
 import { Run } from '../src/game/run';
 import { freshProfile } from '../src/game/save';
 
@@ -73,5 +73,47 @@ describe('The Last Encore: Strobe', () => {
     expect(ctl.fuse).not.toBeNull();
     for (let i = 0; i < 60 && ctl.fuse; i++) ctl.update(0.05);
     expect(ctl.dark).toBeGreaterThan(0);
+  });
+});
+
+/** Kills the current act and waits out the break before the next one. */
+function skipAct(run: Run, ctl: WitherLordsController) {
+  ctl.lord.invuln = 0;
+  run.hitMob(run.bossField!, ctl.lord, 1e9, false);
+  for (let i = 0; i < 60; i++) ctl.update(0.05);
+}
+
+describe('The Last Encore: Riff and the Maestro', () => {
+  it('a fader mixing desk is solved by tapping each fader up to its mark', () => {
+    const { run, ctl } = encore();
+    skipAct(run, ctl);
+    skipAct(run, ctl);
+    expect(ctl.phase).toBe('goldor');
+    let seed = 7;
+    const t = makeTerminal(0, 'faders', () => ((seed = (seed * 9301 + 49297) % 233280) / 233280));
+    expect(t.cells.filter((c, i) => c !== t.target![i]).length).toBeGreaterThanOrEqual(3);
+    run.terminal = t;
+    for (let i = 0; i < 5; i++) {
+      for (let k = 0; k < FADER_STEPS && run.terminal && t.cells[i] !== t.target![i]; k++) ctl.pressPane(i);
+    }
+    expect(run.terminal).toBeNull();
+    expect(ctl.terminals[0].done).toBe(true);
+  });
+
+  it('the Maestro throws notes you can tap away, and ends with fireworks', () => {
+    const { run, ctl } = encore();
+    run.profile.admin.godMode = true;
+    skipAct(run, ctl);
+    skipAct(run, ctl);
+    skipAct(run, ctl);
+    expect(ctl.phase).toBe('necron');
+    const f = run.bossField!;
+    for (let i = 0; i < 2000 && !f.projectiles.some((p) => p.kind === 'note'); i++) run.update(0.02);
+    const note = f.projectiles.find((p) => p.kind === 'note')!;
+    expect(note.tappable).toBe(true);
+    run.tap(note.x, note.y);
+    expect(note.life).toBeLessThanOrEqual(0);
+    skipAct(run, ctl);
+    expect(f.fx.some((x) => x.kind === 'firework')).toBe(true);
   });
 });
