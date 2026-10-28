@@ -41,10 +41,10 @@ export const MOBS: Record<string, MobDef> = {
   mage: { id: 'mage', name: 'Bone Hexer', hp: 350, damage: 18, speed: 1.2, attackCooldown: 2.2, range: 6, projectile: 'fireball', sprite: 'mage', size: 1.1 },
   archer: { id: 'archer', name: 'Bone Sniper', hp: 350, damage: 14, speed: 1.3, attackCooldown: 1.6, range: 7, projectile: 'arrow', sprite: 'archer', size: 1.1 },
   // Grimsby's homunculi (Depth 3).
-  g_healthy: { id: 'g_healthy', name: 'Stone Homunculus', hp: 900, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', sprite: 'guardian', size: 1.3 },
-  g_reinforced: { id: 'g_reinforced', name: 'Plated Homunculus', hp: 550, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', armor: 0.5, sprite: 'guardian_r', size: 1.3 },
-  g_chaos: { id: 'g_chaos', name: 'Toxic Homunculus', hp: 550, damage: 22, speed: 0, attackCooldown: 2.6, range: 99, projectile: 'skull', sprite: 'guardian_c', size: 1.3 },
-  g_laser: { id: 'g_laser', name: 'Prism Homunculus', hp: 550, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', sprite: 'guardian_l', size: 1.3 },
+  g_healthy: { id: 'g_healthy', name: 'Stone Homunculus', hp: 900, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', sprite: 'homunculus', size: 1.3 },
+  g_reinforced: { id: 'g_reinforced', name: 'Plated Homunculus', hp: 550, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', armor: 0.5, sprite: 'homunculus_r', size: 1.3 },
+  g_chaos: { id: 'g_chaos', name: 'Toxic Homunculus', hp: 550, damage: 22, speed: 0, attackCooldown: 2.6, range: 99, projectile: 'skull', sprite: 'homunculus_c', size: 1.3 },
+  g_laser: { id: 'g_laser', name: 'Prism Homunculus', hp: 550, damage: 0, speed: 0, attackCooldown: 99, range: 99, projectile: 'none', sprite: 'homunculus_l', size: 1.3 },
   superarcher: { id: 'superarcher', name: 'Sharpshooter', hp: 160, damage: 14, speed: 1.4, attackCooldown: 1.2, range: 6.5, sprite: 'superarcher', size: 0.95 },
   assassin: { id: 'assassin', name: 'Shade Stalker', hp: 240, damage: 26, speed: 2.2, attackCooldown: 1.1, sprite: 'assassin', size: 1 },
   // Mother Bramble's grove beasts (Depth 4).
@@ -56,7 +56,7 @@ export const MOBS: Record<string, MobDef> = {
   lost_adventurer: { id: 'lost_adventurer', name: 'Fallen Delver', hp: 600, damage: 24, speed: 1.8, attackCooldown: 0.9, armor: 0.15, sprite: 'adventurer', size: 1 },
   wither_guard: { id: 'wither_guard', name: 'Stage Guard', hp: 420, damage: 22, speed: 1.4, attackCooldown: 1.2, armor: 0.25, sprite: 'wither_guard', size: 1.1 },
   wither_miner: { id: 'wither_miner', name: 'Roadie', hp: 300, damage: 26, speed: 2, attackCooldown: 0.9, sprite: 'wither_miner', size: 1 },
-  livid: { id: 'livid', name: 'Lady Facet', hp: 6000, damage: 18, speed: 0, attackCooldown: 2.2, range: 99, projectile: 'arrow', sprite: 'livid', size: 1.3 },
+  livid: { id: 'livid', name: 'Lady Facet', hp: 6000, damage: 18, speed: 0, attackCooldown: 2.2, range: 99, projectile: 'arrow', sprite: 'facet', size: 1.3 },
   blaze: { id: 'blaze', name: 'Ember', hp: 1, damage: 0, speed: 0.6, attackCooldown: 99, sprite: 'blaze', size: 0.9 },
 };
 

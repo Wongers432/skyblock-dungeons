@@ -11,6 +11,9 @@ const PALETTE: Record<string, string> = {
   l: '#8a5a2b', T: '#7a7a7a', t: '#5a5a5a', N: '#1c1c22', n: '#2e2e38', M: '#6e4ccf', m: '#a98bff',
   Q: '#bfe9ff', q: '#7fc4e8', c: '#c46a3a', e: '#8a4423', D: '#5ef2e6', p: '#ff8fc8', S: '#4f8fff', y: '#c99a1e',
   k: '#2a2a2e', a: '#3a3a40', Z: '#8c6a3d', z: '#5e4426', I: '#e8e2cf', i: '#b8b09a', J: '#ffe37a', j: '#ff8a1c',
+  // Mostly for the bosses (see bossSprites.ts).
+  o: '#1e3b3a', u: '#2f6460', v: '#7dffb0', h: '#6fae4a', f: '#c8ff5a', '0': '#16161c', '2': '#d43aa0', '3': '#5a2a8a',
+  '5': '#1b2a6a', '6': '#b8bcc6', '7': '#3a2418', '8': '#fff0a0', '9': '#34343c', '+': '#ff6a00', '*': '#fff6c0',
 };
 
 const SPRITES: Record<string, string[]> = {
@@ -40,10 +43,6 @@ const SPRITES: Record<string, string[]> = {
     '..YYYY..', '..KYYK..', '..YYYY..', '..YOOY..', 'O..OO..O', '...OO...',
     '.O....O.', '...OO...', 'O..OO..O', '........', '.O....O.', '........',
   ],
-  bonzo: [
-    '..WWWW..', '.RKWWKR.', 'RRWRRWRR', '..WrrW..', 'YYUUUUYY', 'WYUUUUYW',
-    'W.UYYU.W', '..UUUU..', '.GGGGGG.', '.GG..GG.', '.GG..GG.', '.RR..RR.',
-  ],
   weirdo: [
     '..HHHH..', '..ssss..', '..KssK..', '..ssss..', 'llllllll', 'sllllllS',
     'sllllllS', '.llllll.', '.LLLLLL.', '.LL..LL.', '.LL..LL.', '.KK..KK.',
@@ -72,19 +71,6 @@ const SPRITES: Record<string, string[]> = {
     '..GGGG..', '..KGGK..', '..GGGG..', '..GddG..', 'LGGGGGGL', 'LllllllL',
     'L.llll.L', '..llll..', '..BBBB..', '..BB.BB.', '..BB.BB.', '..KK.KK.',
   ],
-  scarf: [
-    '..UUUU..', '.UUUUUU.', '..sKKs..', '..ssss..', 'RRRRRRRR', 'UURRRRUU',
-    'sUUUUUUs', '.UUUUUU.', '.UUUUUU.', '.UUUUUU.', '.UU..UU.', '.KK..KK.',
-  ],
-  professor: [
-    '..TTTT..', '..ssss..', '.TKssKT.', '..ssss..', 'EEEEEEEE', 'sEEllEEs',
-    'sEEllEEs', '.EEEEEE.', '.tttttt.', '.tt..tt.', '.tt..tt.', '.KK..KK.',
-  ],
-  guardian: ['O..OO..O', '.CCCCCC.', 'OCCCCCCO', '.CEEKCC.', '.CEEKCC.', 'OCCCCCCO', '.CCCCCC.', 'O..OO..O'],
-  guardian_r: ['T..TT..T', '.tttttt.', 'TttttttT', '.tEEKtt.', '.tEEKtt.', 'TttttttT', '.tttttt.', 'T..TT..T'],
-  guardian_c: ['O..OO..O', '.UUUUUU.', 'OUUUUUUO', '.UEEKUU.', '.UEEKUU.', 'OUUUUUUO', '.UUUUUU.', 'O..OO..O'],
-  guardian_l: ['O..OO..O', '.RRRRRR.', 'ORRRRRRO', '.REEKRR.', '.REEKRR.', 'ORRRRRRO', '.RRRRRR.', 'O..OO..O'],
-  guardian_big: ['Y..YY..Y', '.OOOOOO.', 'YOCCCCOY', '.OCEEKO.', '.OCEEKO.', 'YOCCCCOY', '.OOOOOO.', 'Y..YY..Y'],
   fairy: ['...EE...', '..FEEF..', '.FFEEFF.', 'FFFEEFFF', '.FFEEFF.', '..FEEF..', '...EE...', '........'],
   chest: ['........', '.LLLLLL.', 'LllllllL', 'LllAAllL', 'LLLAALLL', 'LllllllL', 'LllllllL', '.LLLLLL.'],
   essence: ['...EE...', '..EFFE..', '.EFWWFE.', 'EFWEEWFE', '.EFWWFE.', '..EFFE..', '...EE...', '........'],
@@ -107,22 +93,11 @@ const SPRITES: Record<string, string[]> = {
     '.QQ....QQ.', '.QQQQQQQQ.', 'QQKQQQQKQQ', 'QQQQqqQQQQ', 'QQQQKKQQQQ', 'qQQQQQQQQq',
     'QQQQQQQQQQ', 'QQQQQQQQQQ', 'qQQQQQQQQq', '.QQQ..QQQ.', '.QQQ..QQQ.', '.qqq..qqq.',
   ],
-  thorn: [
-    'Z.Z....Z.Z', '.ZZ....ZZ.', '..Z.ZZ.Z..', '...ZZZZ...', '...KGGK...', '...GGGG...', '...GrrG...',
-    '.GGddddGG.', 'GGdGGGGdGG', 'G.dGGGGd.G', '..dddddd..', '..dd..dd..', '..dd..dd..', '..zz..zz..',
-  ],
-  livid: [
-    '..XXXX..', '..KssK..', '..ssss..', '..sKKs..', 'XXXXXXXX', 'sXXNNXXs',
-    'sXXNNXXs', '.XXXXXX.', '.NNNNNN.', '.NN..NN.', '.NN..NN.', '.KK..KK.',
-  ],
   terracotta: ['..cccc..', '..KccK..', '..cccc..', '..ceec..', 'cccccccc', 'ecccccce', 'ecccccce', '.cccccc.', '.eeeeee.', '.ee..ee.', '.ee..ee.', '.ee..ee.'],
   golem: ['...wwwwww...', '...wKwwKw...', '...wwwwww...', '...wwrrww...', '.wwwwwwwwww.', 'wwwwwGwwwwww', 'wwwwwwwGwwww', 'ww.wwwwww.ww', 'ww.wwwwww.ww', '...www.www..', '...www.www..', '...ttt.ttt..'],
   adventurer: ['..AAAA..', '..KssK..', '..ssss..', '..sHHs..', 'AAAAAAAA', 'sAyyyyAs', 'sAAAAAAs', '.AAAAAA.', '.BBBBBB.', '.BB..BB.', '.BB..BB.', '.KK..KK.'],
   wither_guard: ['..kkkk..', '..KrrK..', '..kkkk..', '..kKKk..', '.TkkkkT.', 'T.kkkk.T', 'k..kk..k', '...kk...', '..k..k..', '..k..k..', '..k..k..', '..K..K..'],
   wither_miner: ['..kkkk..', '..KrrK..', '..kkkk..', '..kKKk..', 'LTkkkk..', 'L.kkkk.k', 'L..kk..k', '...kk...', '..k..k..', '..k..k..', '..k..k..', '..K..K..'],
-  sadan: ['...A.AA.A...', '...AAAAAA...', '...ssssss...', '...sKssKs...', '...ssssss...', '...sHHHHs...', '.UUUUUUUUUU.', 'sUUUAUUAUUUs', 'sUUUUAAUUUUs', 'sUUUUUUUUUUs', '..UUUUUUUU..', '..UUUUUUUU..', '..UUU..UUU..', '..KKK..KKK..'],
-  giant: ['..ssssss..', '..ssssss..', '..sKssKs..', '..ssssss..', '..ssrrss..', 'XXXXXXXXXX', 'sXXXXXXXXs', 'sXXXXXXXXs', 'sXXXXXXXXs', '..XXXXXX..', '..BBBBBB..', '..BB..BB..', '..BB..BB..', '..PP..PP..'],
-  wither: ['kkk.kkkk.kkk', 'kXk.kXXk.kXk', 'kkk.kkkk.kkk', '.k..kkkk..k.', '.kXXkkkkXXk.', '....kaak....', '...kXkkXk...', '....kaak....', '...kakkak...', '....kaak....', '.....kk.....', '......k.....'],
   spiritbow: ['......Q.', '.....Qq.', '....Q.q.', '...Q..q.', '..Q...q.', '.Q...q..', 'Q...q...', 'qqqq....'],
   none: ['.'],
   grave: ['..TTTT..', '.TTttTT.', '.TtTTtT.', '.TTttTT.', '.TTTTTT.', '.TTTTTT.', 'tttttttt', 'gggggggg'],
@@ -140,17 +115,20 @@ const SPRITES: Record<string, string[]> = {
 
 const cache = new Map<string, HTMLCanvasElement>();
 
-/** Adds more sprites (room furniture lives in its own file). Rows are padded to the widest one. */
-export function defineSprites(defs: Record<string, string[]>) {
+/**
+ * Adds more sprites (room furniture and bosses live in their own files). Rows are padded to the
+ * widest one. They stand still unless `walk` is set.
+ */
+export function defineSprites(defs: Record<string, string[]>, walk = false) {
   for (const [name, rows] of Object.entries(defs)) {
     const w = Math.max(...rows.map((r) => r.length));
     SPRITES[name] = rows.map((r) => r.padEnd(w, '.'));
-    STATIC.add(name);
+    if (!walk) STATIC.add(name);
   }
 }
 
 /** Sprites that never animate their legs. */
-const STATIC = new Set(['none', 'blaze', 'fairy', 'chest', 'essence', 'bat', 'witherkey', 'bloodkey', 'grave', 'wither', 'guardian', 'guardian_r', 'guardian_c', 'guardian_l', 'guardian_big', 'spiritbow']);
+const STATIC = new Set(['none', 'blaze', 'fairy', 'chest', 'essence', 'bat', 'witherkey', 'bloodkey', 'grave', 'spiritbow']);
 
 function hexRgb(hex: string): [number, number, number] {
   const n = parseInt(hex.slice(1), 16);
@@ -165,7 +143,7 @@ export function sprite(name: string, frame = 0): HTMLCanvasElement {
   const key = frame ? `${name}#${frame}` : name;
   const hit = cache.get(key);
   if (hit) return hit;
-  // 'template:#rrggbb' recolours the X pixels of a template (Livids, Giants, Wither Lords).
+  // 'template:#rrggbb' recolours the X pixels of a template (Lady Facet's copies, Basalt's titans).
   const [base, tint] = name.includes(':') ? name.split(':') : [name, null];
   let rows = SPRITES[base] ?? SPRITES.zombie;
   const w = rows[0].length, hgt = rows.length;

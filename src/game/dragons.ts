@@ -212,14 +212,14 @@ export class DragonController implements Controller {
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
-      // Pedestal and a stone dragon on it.
+      // Pedestal and a stone phoenix on it.
       ctx.fillStyle = '#3a3a42';
       ctx.fillRect(cx - ts * 0.75, cy + ts * 0.15, ts * 1.5, ts * 0.45);
       ctx.fillStyle = '#55555f';
       ctx.fillRect(cx - ts * 0.6, cy - ts * 0.05, ts * 1.2, ts * 0.25);
       ctx.fillStyle = color;
       ctx.fillRect(cx - ts * 0.6, cy + ts * 0.32, ts * 1.2, ts * 0.08);
-      drawDragon(ctx, cx, cy - ts * 0.35, ts * 0.45, done ? '#3c3c44' : '#8a8a94', 1, 0.4, false);
+      drawPhoenix(ctx, cx, cy - ts * 0.35, ts * 0.45, done ? '#3c3c44' : '#8a8a94', 1, 0.4, false);
     }
     for (const d of this.active) {
       const m = d.mob;
@@ -231,7 +231,7 @@ export class DragonController implements Controller {
       ctx.beginPath();
       ctx.ellipse(X(m.x), Y(m.y + 1.2), ts * 1.3, ts * 0.35, 0, 0, Math.PI * 2);
       ctx.fill();
-      drawDragon(ctx, X(m.x), Y(m.y - 0.3), ts, DRAGONS[d.kind].color, face, Math.sin(time * (d.charging > 0 ? 16 : 9) + m.id), m.flash > 0, near ? time : undefined);
+      drawPhoenix(ctx, X(m.x), Y(m.y - 0.3), ts, DRAGONS[d.kind].color, face, Math.sin(time * (d.charging > 0 ? 16 : 9) + m.id), m.flash > 0, near ? time : undefined);
       if (d.charging > 0) {
         // A swelling fire ring while it charges its breath.
         const k = 1 - d.charging / 2.6;
@@ -271,13 +271,14 @@ function shade(hex: string, k: number): string {
 }
 
 /**
- * A blocky side-on dragon: body, long neck, horned head, swaying tail and two flapping wings.
+ * A blocky side-on phoenix: round body, hooked beak, a crest of flame plumes, feathered wings and
+ * three long tail streamers that burn white at the tips.
  * `s` is roughly one tile; `face` is 1 (right) or -1 (left); `flap` runs -1..1.
  */
-export function drawDragon(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, baseColor: string, face: number, flap: number, hurt: boolean, glowTime?: number) {
+export function drawPhoenix(ctx: CanvasRenderingContext2D, x: number, y: number, s: number, baseColor: string, face: number, flap: number, hurt: boolean, glowTime?: number) {
   const u = s / 6;
   const color = hurt ? shade(baseColor, 1.7) : baseColor;
-  const dark = shade(color, 0.6), light = shade(color, 1.3);
+  const dark = shade(color, 0.6), light = shade(color, 1.35), flame = '#fff2a0';
   ctx.save();
   ctx.translate(Math.round(x), Math.round(y));
   ctx.scale(face, 1);
@@ -294,52 +295,71 @@ export function drawDragon(ctx: CanvasRenderingContext2D, x: number, y: number, 
     ctx.fillStyle = c;
     ctx.fillRect(Math.round(bx * u), Math.round(by * u), Math.ceil(w * u), Math.ceil(h * u));
   };
+  // A wing rises (or sweeps down) from the back; its trailing edge is notched into feathers.
   const wing = (back: boolean) => {
     const tipY = -9 * flap - (back ? 1 : 0);
+    const root: [number, number] = [2.5, -2], rootBack: [number, number] = [-4, -1.5];
+    const tip: [number, number] = [back ? -3 : -4.5, tipY - 2];
     ctx.fillStyle = back ? shade(color, 0.45) : dark;
     ctx.beginPath();
-    ctx.moveTo(-3 * u, -2 * u);
-    ctx.lineTo((back ? -5 : -7) * u, tipY * u - 2 * u);
-    ctx.lineTo((back ? 4 : 6) * u, (tipY - 3) * u);
-    ctx.lineTo(3 * u, -2 * u);
+    ctx.moveTo(root[0] * u, root[1] * u);
+    ctx.lineTo((back ? 1.5 : 2) * u, (tipY * 0.55 - 2) * u);
+    ctx.lineTo(tip[0] * u, tip[1] * u);
+    for (let i = 1; i <= 4; i++) {
+      const k = i / 5, nx = tip[0] + (rootBack[0] - tip[0]) * k, ny = tip[1] + (rootBack[1] - tip[1]) * k;
+      ctx.lineTo((nx - 1.4) * u, (ny + (i % 2 ? 0.6 : -0.2)) * u);
+      ctx.lineTo(nx * u, ny * u);
+    }
+    ctx.lineTo(rootBack[0] * u, rootBack[1] * u);
     ctx.closePath();
     ctx.fill();
-    // Wing bones.
-    ctx.strokeStyle = back ? shade(color, 0.3) : light;
-    ctx.lineWidth = Math.max(1, u * 0.6);
+    // A bright band along the leading edge.
+    ctx.strokeStyle = back ? shade(color, 0.7) : light;
+    ctx.lineWidth = Math.max(1, u * 0.7);
     ctx.beginPath();
-    ctx.moveTo(0, -2 * u);
-    ctx.lineTo((back ? 4 : 6) * u, (tipY - 3) * u);
-    ctx.moveTo(0, -2 * u);
-    ctx.lineTo((back ? -5 : -7) * u, tipY * u - 2 * u);
+    ctx.moveTo(root[0] * u, root[1] * u);
+    ctx.lineTo((back ? 1.5 : 2) * u, (tipY * 0.55 - 2) * u);
+    ctx.lineTo(tip[0] * u, tip[1] * u);
     ctx.stroke();
   };
   wing(true);
-  // Tail: segments that thin out and sway.
-  for (let i = 0; i < 6; i++) {
-    const sway = Math.sin(flap * 1.5 + i * 0.7) * i * 0.35;
-    block(-6 - i * 2, -0.5 + sway, 2.2, Math.max(0.8, 2.2 - i * 0.3), i % 2 ? dark : color);
+  // Tail: three streamers that wave out behind and flare into white-hot feather tips.
+  for (const t of [0, 2, 1]) {
+    const spread = (t - 1) * 2.4;
+    for (let i = 0; i < 9; i++) {
+      const sway = Math.sin(flap * 1.5 + i * 0.55 + t * 1.3) * i * 0.18;
+      const c = i >= 7 ? flame : i >= 4 ? light : t === 1 ? color : dark;
+      block(-4.5 - i * 1.5, -0.8 + spread * (i / 8) + sway, 1.8, Math.max(1, 2 - i * 0.15), c);
+    }
+    const end = Math.sin(flap * 1.5 + 9 * 0.55 + t * 1.3) * 9 * 0.18;
+    block(-18.5, -1.6 + spread + end, 2, 2.4, flame);
+    block(-18, -1 + spread + end, 1, 1.2, color);
   }
-  block(-10.5 - 2, -1.4 + Math.sin(flap * 1.5 + 4.2) * 1.8, 1.4, 2.8, dark);
-  // Body and belly.
-  block(-6, -2.5, 10, 4.5, color);
-  block(-5, 1, 8, 1.2, light);
-  // Legs.
-  block(-4, 2, 1.4, 2, dark);
-  block(1.5, 2, 1.4, 2, dark);
-  // Neck rising to the head.
-  block(3.5, -3.5, 2.5, 3, color);
-  block(5, -5, 2.5, 2.5, color);
-  // Head with jaw, eye and horns.
-  block(6.5, -6.5, 5, 3, color);
-  block(10.5, -5.5, 2, 1.6, color);
-  block(7, -3.6, 5, 1, dark);
-  block(8, -6, 1.2, 1.1, '#fff2a0');
-  block(8.4, -5.7, 0.6, 0.6, '#000');
-  block(6.6, -8, 1, 1.6, '#e8e2cf');
-  block(8.2, -8.4, 1, 1.9, '#e8e2cf');
-  // Back spikes.
-  for (let i = 0; i < 4; i++) block(-5 + i * 2.4, -3.3, 1, 1, light);
+  // Body and lighter breast.
+  block(-5, -2.5, 8, 4.5, color);
+  block(-4, -3.2, 6, 1, color);
+  block(-4, 2, 6, 0.8, dark);
+  block(0, -1.2, 3.4, 3, light);
+  // Talons tucked under.
+  block(-2, 2.6, 0.8, 1.2, '#ffcc33');
+  block(0, 2.6, 0.8, 1.2, '#ffcc33');
+  // Neck, round head, hooked beak and eye.
+  block(2, -4, 2.5, 3, color);
+  block(3, -6.5, 4, 3.5, color);
+  block(3.6, -7, 2.8, 0.6, color);
+  block(7, -5.6, 2, 1.2, '#ffcc33');
+  block(8.6, -4.6, 0.6, 0.8, '#d48a10');
+  block(7, -4.4, 1.2, 0.6, '#d48a10');
+  block(5, -5.8, 1.2, 1.1, '#ffffff');
+  block(5.5, -5.5, 0.6, 0.7, '#000');
+  // Crest: three flame plumes swept back from the crown.
+  const lick = Math.sin(flap * 3) * 0.3;
+  block(3.2, -8.6 + lick, 1, 1.8, light);
+  block(2.2, -9.6 - lick, 1, 2.8, light);
+  block(1.2, -8.4 + lick, 1, 1.8, light);
+  block(2.2, -10.2 - lick, 1, 0.8, flame);
+  block(3.2, -9.2 + lick, 1, 0.8, flame);
+  block(1.2, -9 + lick, 1, 0.8, flame);
   wing(false);
   ctx.restore();
 }
