@@ -210,6 +210,12 @@ table.score td:last-child { text-align: right; }
 .mc-gui .terminal .pane:not(.green):not(.red) { background: #6f6f7a; }
 .mc-gui .terminal .pane.red { background: #b02e26; border-color: #5a1512; }
 .mc-gui .terminal .pane.green { background: #5e7c16; border-color: #2e3d0b; }
+.terminal.faders { grid-template-columns: repeat(5, 1fr); width: 236px; }
+.terminal .pane.fader { height: 132px; display: flex; flex-direction: column-reverse; gap: 3px; padding: 5px; }
+.terminal .fader .seg { flex: 1; background: #2a2a30; }
+.terminal .fader .seg.on { background: #55aaff; }
+.terminal .fader.green .seg.on { background: #8cff8c; }
+.terminal .fader .seg.target { outline: 3px solid #ffd34a; outline-offset: -3px; }
 .rng-locked { margin: 8px 0 10px; padding: 10px; text-align: center; font-weight: bold; color: #ffaa00; background: #0006; border: 1px dashed #ffaa0088; border-radius: 2px; }
 .card.locked .rng-item { opacity: 0.55; }
 

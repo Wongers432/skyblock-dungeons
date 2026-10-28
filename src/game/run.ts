@@ -459,12 +459,12 @@ export class Run {
   }
 
   /** Fires a hostile projectile at the player. Fireballs and skulls can be tapped to destroy them. */
-  shoot(f: Field, x: number, y: number, kind: 'arrow' | 'fireball' | 'skull' | 'balloon' | 'boulder' | 'none', damage: number, angleOffset = 0) {
+  shoot(f: Field, x: number, y: number, kind: 'arrow' | 'fireball' | 'skull' | 'balloon' | 'boulder' | 'note' | 'none', damage: number, angleOffset = 0, color?: string) {
     if (kind === 'none') return;
     const p = f.player;
-    const speed = { arrow: 7, fireball: 4.2, skull: 3.6, balloon: 2.8, boulder: 3 }[kind];
+    const speed = { arrow: 7, fireball: 4.2, skull: 3.6, balloon: 2.8, boulder: 3, note: 2.4 }[kind];
     const ang = Math.atan2(p.y - y, p.x - x) + angleOffset;
-    f.projectiles.push({ x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, damage, kind, tappable: kind !== 'arrow', life: 8 });
+    f.projectiles.push({ x, y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, damage, kind, tappable: kind !== 'arrow', life: 8, color });
   }
 
   private updateProjectiles(f: Field, dt: number, present: boolean) {
@@ -696,7 +696,7 @@ export class Run {
       if (!pr.tappable) continue;
       consider(pr.x, pr.y, 1.0 * tapSize, () => {
         pr.life = 0;
-        if (pr.kind === 'balloon' || pr.kind === 'rocket') {
+        if (pr.kind === 'balloon' || pr.kind === 'rocket' || pr.kind === 'note') {
           this.fireworkFx(f, pr.x, pr.y, pr.color ?? '#ff8888', 0.7);
           f.text(pr.x, pr.y - 0.4, 'POP!', '#ffffff');
           this.events.sfx?.('pop');

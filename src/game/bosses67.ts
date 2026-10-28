@@ -274,13 +274,17 @@ export class SadanController implements Controller {
 // ---------------------------------------------------------------------------------------------
 // Floor VII: the Wither Lords
 
-export type TerminalKind = 'order' | 'panes';
+export type TerminalKind = 'order' | 'panes' | 'faders';
+/** Number of steps on a mixing-desk fader (levels 0 to FADER_STEPS - 1). */
+export const FADER_STEPS = 5;
 export interface Terminal {
   id: number;
   kind: TerminalKind;
-  /** order: the numbers on each pane; panes: true = already green. */
+  /** order: the numbers on each pane; panes: true = already green; faders: each fader's level. */
   cells: (number | boolean)[];
   next: number;
+  /** faders: the level each fader has to be set to. */
+  target?: number[];
 }
 
 const PADS = [{ x: 2.5, y: 4 }, { x: 11.5, y: 4 }, { x: 7, y: 8.5 }];
@@ -419,6 +423,17 @@ export class WitherLordsController implements Controller {
       if (this.transition <= 0) this.nextLord();
       return;
     }
+    if (this.finale > 0) {
+      // The Maestro's curtain call: fireworks all over the stage.
+      this.finale -= dt;
+      this.fireworkTimer -= dt;
+      if (this.fireworkTimer <= 0) {
+        this.fireworkTimer = 0.18;
+        const r = this.run.rng;
+        this.run.fireworkFx(f, 1.5 + r.next() * 11, 1.5 + r.next() * 8, r.pick(['#ff5555', '#ffd34a', '#55ff77', '#55aaff', '#ff77ff']), 1 + r.next());
+      }
+      return;
+    }
     if (L.dead) return;
     this.laser = updateLaser(this.run, f, this.laser, dt);
     this.charge = tickCharge(this.run, f, this.charge, dt);
@@ -519,7 +534,13 @@ export class WitherLordsController implements Controller {
     this.specialTimer -= dt;
     if (this.specialTimer <= 0 && !this.charge && !this.laser) {
       this.specialTimer = 7;
-      if (this.run.rng.chance(0.5)) this.laser = { from: L, charge: 1.6, fire: 0, damage: 60 * dm };
+      const roll = this.run.rng.next();
+      if (roll < 0.35) {
+        // Note Storm: a fan of slow notes; tap them before they land.
+        const colors = ['#ff5555', '#ffd34a', '#55ff77', '#55aaff', '#ff77ff', '#ffffff'];
+        colors.forEach((c, i) => this.run.shoot(f, L.x, L.y, 'note', 22 * dm, (i - 2.5) * 0.22, c));
+        f.text(L.x, L.y - 1.8, 'NOTE STORM!', '#ff77ff');
+      } else if (roll < 0.65) this.laser = { from: L, charge: 1.6, fire: 0, damage: 60 * dm };
       else this.charge = {
         from: L, t: 2.4, total: 2.4, hpAtStart: L.hp, cancelAt: 0.05, label: 'CRESCENDO', color: '#ff5522',
         hit: () => { this.run.damagePlayer(100 * dm); this.run.shake = 0.35; f.ring(f.player.x, f.player.y, 2, '#ff5522'); },
@@ -534,13 +555,16 @@ export class WitherLordsController implements Controller {
       this.laser = null;
       for (let i = 0; i < 4; i++) {
         const p = f.randomFloor(() => this.run.rng.next(), f.player, 3);
-        f.mobs.push(makeMob(MOBS.wither_guard, p.x, p.y, hpm * 1.3, dm));
+        f.mobs.push(makeMob(MOBS.wither_guard, p.x, p.y, hpm * 1.3, dm, { name: 'Chorus Ghost' }));
       }
-      this.run.events.toast('The Maestro: Guards! Protect me! (Kill the Stage Guards to break his shield)', '#ff3333');
+      this.run.events.toast('The Maestro: Chorus! Sing for me! (Kill the Chorus Ghosts to break his shield)', '#ff3333');
     }
   }
 
   private immuneStageDone = 0;
+  /** Seconds of curtain-call fireworks left after the Maestro falls. */
+  private finale = 0;
+  private fireworkTimer = 0;
 
   /** Strobe tries to kill the lights every so often; tap the blinking fuse box in time to stop him. */
   private updateBlackout(dt: number) {
@@ -575,7 +599,7 @@ export class WitherLordsController implements Controller {
       maxor: [],
       storm: ['Strobe: Boom, you were always too loud. Lights, please!', 'Strobe shrugs off most damage. Tap a glowing lighting rig when he stands under it!'],
       goldor: ['Riff: Time for my solo. Nobody leaves until it ends!', 'Riff is immune. Tap the 4 mixing desks and solve them before he reaches you!'],
-      necron: ['The Maestro: At last, the headliner arrives. Shall we begin the finale?', 'Kill the Maestro! At 66% and 33% he hides behind Stage Guards.'],
+      necron: ['The Maestro: At last, the headliner arrives. Shall we begin the finale?', 'Kill the Maestro! Tap his notes out of the air. At 66% and 33% his ghost chorus shields him.'],
     };
     for (const t of toasts[this.phase]) this.run.events.toast(t, '#ff55ff');
     this.run.events.changed();
@@ -592,9 +616,14 @@ export class WitherLordsController implements Controller {
     this.run.terminal = null;
     if (this.phase === 'necron') {
       this.run.events.toast('The Maestro: The show... is over...', '#ff3333');
-      // Master Mode VII carries on into the Wither King's dragons.
+      // Nightmare 7 carries on into the Neon Phoenixes.
       if (this.run.floor.master) this.run.startDragons();
-      else this.run.winSoon();
+      else {
+        this.finale = 1.6;
+        this.fireworkTimer = 0;
+        this.run.events.toast('BRAVO! ENCORE!', '#ffd34a');
+        this.run.winSoon();
+      }
       return;
     }
     const last: Record<Lord, string> = {
@@ -652,7 +681,7 @@ export class WitherLordsController implements Controller {
     if (this.phase === 'goldor' && !this.run.terminal) {
       for (const t of this.terminals) {
         if (t.done || !near(t.x, t.y, 1.5)) continue;
-        this.run.terminal = makeTerminal(t.id, this.run.rng.chance(0.5) ? 'order' : 'panes', () => this.run.rng.next());
+        this.run.terminal = makeTerminal(t.id, this.run.rng.pick(['order', 'panes', 'faders'] as TerminalKind[]), () => this.run.rng.next());
         this.run.events.changed();
         return true;
       }
@@ -664,7 +693,10 @@ export class WitherLordsController implements Controller {
   pressPane(i: number) {
     const t = this.run.terminal;
     if (!t) return;
-    if (t.kind === 'order') {
+    if (t.kind === 'faders') {
+      t.cells[i] = ((t.cells[i] as number) + 1) % FADER_STEPS;
+      if (t.cells.every((c, k) => c === t.target![k])) this.finishTerminal(t);
+    } else if (t.kind === 'order') {
       if (t.cells[i] === t.next) {
         t.next++;
       } else {
@@ -703,7 +735,7 @@ export class WitherLordsController implements Controller {
     const colors: Record<Lord, string> = { maxor: '#c070ff', storm: '#4f8fff', goldor: '#ffcc33', necron: '#e02020' };
     let name = this.lord.name;
     if (this.phase === 'maxor') name += this.vulnerable > 0 ? ` (STUNNED ${Math.ceil(this.vulnerable)}s)` : ' (immune)';
-    if (this.phase === 'goldor') name += ` (terminals ${this.terminals.filter((t) => t.done).length}/4)`;
+    if (this.phase === 'goldor') name += ` (desks ${this.terminals.filter((t) => t.done).length}/4)`;
     if (this.phase === 'necron' && this.lord.invuln === Infinity) name += ' (shielded)';
     return { name, hp: this.lord.hp, max: this.lord.maxHp, color: colors[this.phase] };
   }
@@ -866,7 +898,7 @@ export class WitherLordsController implements Controller {
         return done < 4 ? [`MIXING DESKS ${done}/4`, '#ffcc33'] : ['DAMAGE RIFF!', '#ffcc33'];
       }
       default:
-        return L.invuln === Infinity ? ['KILL THE STAGE GUARDS!', '#ff5555'] : ['DAMAGE THE MAESTRO!', '#ff3333'];
+        return L.invuln === Infinity ? ['KILL THE CHORUS!', '#ff5555'] : ['DAMAGE THE MAESTRO!', '#ff3333'];
     }
   }
 
@@ -925,7 +957,17 @@ export function arenaBanner(ctx: CanvasRenderingContext2D, X: ToScreen, Y: ToScr
   label(ctx, text, X(w / 2), Y(0.75), size, color);
 }
 
-function makeTerminal(id: number, kind: TerminalKind, rand: () => number): Terminal {
+export function makeTerminal(id: number, kind: TerminalKind, rand: () => number): Terminal {
+  if (kind === 'faders') {
+    // Five faders to slide to the marked levels; at least three start out of place.
+    const target: number[] = [];
+    const cells: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      target.push(Math.floor(rand() * FADER_STEPS));
+      cells.push(i < 3 || rand() < 0.5 ? (target[i] + 1 + Math.floor(rand() * (FADER_STEPS - 1))) % FADER_STEPS : target[i]);
+    }
+    return { id, kind, cells, next: 0, target };
+  }
   if (kind === 'order') {
     const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
     for (let i = nums.length - 1; i > 0; i--) {

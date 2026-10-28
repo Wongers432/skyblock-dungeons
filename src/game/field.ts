@@ -40,7 +40,7 @@ export interface Projectile {
   vx: number;
   vy: number;
   damage: number;
-  kind: 'arrow' | 'balloon' | 'fireball' | 'skull' | 'boulder' | 'lightning' | 'rocket';
+  kind: 'arrow' | 'balloon' | 'fireball' | 'skull' | 'boulder' | 'lightning' | 'rocket' | 'note';
   /** Goes straight through Wither Shield (dragon fire). */
   pierce?: boolean;
   tappable: boolean;

@@ -4,7 +4,7 @@ import { aiMove, bestPlayerMoves, winner } from '../game/puzzles';
 import type { Run, RunEnd } from '../game/run';
 import { h, fmtTime } from './dom';
 import { saveProfile } from '../game/save';
-import type { WitherLordsController } from '../game/bosses67';
+import { FADER_STEPS, type WitherLordsController } from '../game/bosses67';
 import { tutorialTip } from '../game/tutorial';
 
 export interface RunUiActions {
@@ -202,10 +202,16 @@ export class RunUi {
     const t = r.terminal!;
     const ctl = r.bossController as WitherLordsController;
     const key = `term:${t.id}:${t.kind}:${t.next}:${t.cells.join(',')}:${glow}`;
+    const fader = (level: number, target: number, i: number) => {
+      const segs = [];
+      for (let s = 0; s < FADER_STEPS; s++) segs.push(h('span', { class: 'seg' + (s <= level ? ' on' : '') + (s === target ? ' target' : '') }));
+      const ok = level === target;
+      return h('button', { class: 'pane fader' + (ok ? ' green' : '') + (glow && !ok ? ' glow' : ''), onclick: () => ctl.pressPane(i) }, ...segs);
+    };
     if (key === this.puzzleKey) return;
     this.puzzleKey = key;
     this.puzzleBox.replaceChildren();
-    const panes = t.cells.map((c, i) => {
+    const panes = t.kind === 'faders' ? t.cells.map((c, i) => fader(c as number, t.target![i], i)) : t.cells.map((c, i) => {
       let label = '';
       let cls = 'pane';
       if (t.kind === 'order') {
@@ -221,13 +227,15 @@ export class RunUi {
     });
     const done = ctl.terminals.filter((x) => x.done).length;
     this.puzzleBox.append(h('div', { class: 'panel puzzle mc-gui' },
-      h('div', { class: 'mc-title' }, `TERMINAL ${done + 1}/4`),
+      h('div', { class: 'mc-title' }, `MIXING DESK ${done + 1}/4`),
       h('div', { class: 'row spread' },
-        h('h2', {}, t.kind === 'order' ? 'Hit the channels in order!' : 'Fix every channel!'),
+        h('h2', {}, t.kind === 'order' ? 'Hit the channels in order!' : t.kind === 'faders' ? 'Set the levels!' : 'Fix every channel!'),
         h('button', { class: 'small', onclick: () => ctl.closeTerminal() }, 'Close'),
       ),
-      h('div', { class: 'muted' }, t.kind === 'order' ? 'Tap the channels from 1 to 9. A wrong one hurts and resets.' : 'Tap every red channel to turn it green.'),
-      h('div', { class: 'terminal' }, panes),
+      h('div', { class: 'muted' }, t.kind === 'order' ? 'Tap the channels from 1 to 9. A wrong one hurts and resets.'
+        : t.kind === 'faders' ? 'Tap a fader to push it up a step (it wraps back to the bottom). Match every fader to its yellow mark.'
+        : 'Tap every red channel to turn it green.'),
+      h('div', { class: 'terminal' + (t.kind === 'faders' ? ' faders' : '') }, panes),
     ));
   }
 
