@@ -2,12 +2,13 @@ import './style.css';
 import { registerSW } from 'virtual:pwa-register';
 import { loadProfile, saveProfile, type Profile } from './game/save';
 import { Run } from './game/run';
-import { TUTORIAL_FLOOR } from './data/floors';
+import { TUTORIAL_FLOOR, baseFloor } from './data/floors';
 import { drawField, screenToField, type Rect, type Xform } from './render/fieldView';
 import { drawMap, roomAt, type MapXform } from './render/mapView';
 import { Hub } from './ui/hub';
 import { RunUi } from './ui/runUi';
-import { holdMusic, setSoundEnabled, sfx, startMusic, stopMusic, unlockAudio } from './audio/sound';
+import { holdMusic, setMusic, setSoundEnabled, sfx, unlockAudio } from './audio/sound';
+import type { TrackKey } from './audio/tracks';
 
 registerSW({ immediate: true });
 
@@ -20,7 +21,6 @@ let run: Run | null = null;
 let runUi: RunUi | null = null;
 let paused = false;
 let lastFloor = 1;
-let musicOn = false;
 let musicHeld = false;
 
 let fieldXf: Xform | null = null;
@@ -50,16 +50,10 @@ function startRun(floorId: number) {
     playAgain: () => startRun(lastFloor),
     toHub: () => toHub(),
   });
-  // The dungeon theme plays from the start of the clear until the boss.
-  setSoundEnabled(profile.settings.sound);
-  musicOn = profile.settings.sound;
-  if (musicOn) startMusic();
   if (!run.floor.tutorial) runUi.toast(`Welcome to Hollowdeep, ${run.floor.name}! Tap a room to begin.`, '#55ff55');
 }
 
 function toHub() {
-  stopMusic();
-  musicOn = false;
   runUi?.destroy();
   runUi = null;
   run = null;
@@ -156,6 +150,10 @@ function tapPoint(e: PointerEvent) {
   return { x: e.clientX + o.x, y: e.clientY + o.y };
 }
 
+// Browsers only let audio start from a tap, and the hub's buttons sit above the canvas.
+window.addEventListener('pointerdown', () => unlockAudio(), true);
+window.addEventListener('keydown', () => unlockAudio(), true);
+
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
   unlockAudio();
@@ -205,8 +203,8 @@ function frame(now: number) {
   const dt = Math.min(0.05, (now - prev) / 1000);
   prev = now;
   if (run && !paused && !run.ended && !document.hidden) run.update(dt);
+  syncMusic();
   if (run) {
-    syncMusic(run);
     draw(now / 1000);
     runUi?.update();
   }
@@ -214,16 +212,18 @@ function frame(now: number) {
 }
 requestAnimationFrame(frame);
 
-/** Music runs during the clear and fades out when the boss starts, the run ends or sound is turned off. */
-function syncMusic(r: Run) {
+/**
+ * The hub has its own theme, and each Depth (and its Nightmare version) has its own track during the clear.
+ * Dungeon music fades out when the boss starts, the run ends or sound is turned off.
+ */
+function syncMusic() {
   setSoundEnabled(profile.settings.sound);
-  const want = profile.settings.sound && !r.ended && r.view !== 'boss';
-  if (want !== musicOn) {
-    musicOn = want;
-    if (want) startMusic();
-    else stopMusic();
-  }
-  const hold = paused || document.hidden;
+  let want: TrackKey | null = null;
+  if (!profile.settings.sound) want = null;
+  else if (!run) want = 'hub';
+  else if (!run.ended && run.view !== 'boss') want = run.floor.tutorial ? 'depth1' : (`depth${baseFloor(run.floor)}` as TrackKey);
+  setMusic(want);
+  const hold = !!run && (paused || document.hidden);
   if (hold !== musicHeld) {
     musicHeld = hold;
     holdMusic(hold);

@@ -429,7 +429,7 @@ export class Hub {
         h('div', { class: 'eyebrow' }, 'Gameplay'),
         this.toggleRow('Puzzle glow', 'Highlights the right answer in puzzles (Tic Tac Toe, Three Liars, Higher or Lower and more). You can also toggle it from the pause menu.',
           p.settings.puzzleGlow, () => { p.settings.puzzleGlow = !p.settings.puzzleGlow; this.commit(); }),
-        this.toggleRow('Sound', 'Music while you clear the dungeon (it fades out at the boss) and quiet sound effects for hits, deaths, secrets and doors.',
+        this.toggleRow('Sound', 'Music in the hub and a theme for each Depth while you clear it (it fades out at the boss), plus quiet sound effects for hits, deaths, secrets and doors.',
           p.settings.sound, () => { p.settings.sound = !p.settings.sound; this.commit(); }),
         this.actionRow('Tap calibration',
           `Tap some dots so mob, secret and map taps line up with your finger. Now: shift ${p.settings.tapOffset?.x ?? 0}, ${p.settings.tapOffset?.y ?? 0}px, tap areas ${Math.round((p.settings.tapSize ?? 1) * 100)}%.`,
