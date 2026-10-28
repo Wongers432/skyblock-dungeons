@@ -107,6 +107,8 @@ export class SadanController implements Controller {
   private laser: Laser | null = null;
   private summonTimer = 9;
   private boulderTimer = 5;
+  /** A water trough beside each Titan: tap it to quench that Titan (frozen for 3 seconds). */
+  troughs: { x: number; y: number; cd: number }[] = [];
 
   constructor(private run: Run, private field: Field) {
     this.sadan = makeMob(bossDef('sadan', 'Foreman Basalt', 9000, 'sadan', 2.1, { damage: 40, speed: 0.8, attackCooldown: 1.6 }), 7, 1.8, run.floor.mobHpMult, run.floor.mobDmgMult, { boss: true, invuln: Infinity });
@@ -130,6 +132,7 @@ export class SadanController implements Controller {
       return;
     }
     if (this.phase === 'giants') {
+      for (const t of this.troughs) t.cd = Math.max(0, t.cd - dt);
       this.laser = updateLaser(this.run, f, this.laser, dt);
       for (const g of this.giants) {
         if (g.dead) continue;
@@ -227,10 +230,12 @@ export class SadanController implements Controller {
           giant('jolly', 'Rose Titan', 'giant:#ff8fc8', 10.8, 8.5),
         ];
         this.giants.forEach((g, i) => this.specialTimers.set(g, 2 + i * 1.5));
+        // Troughs sit on the inner side of each Titan, toward the middle of the forge.
+        this.troughs = this.giants.map((g) => ({ x: g.x + (g.x < 7 ? 1.9 : -1.9), y: g.y + 0.6, cd: 0 }));
         f.mobs.push(...this.giants);
         this.phase = 'giants';
         this.run.events.toast('Basalt: Titans! To work!', '#ffaa00');
-        this.run.events.toast('Titans charge big attacks. Hit the one charging to interrupt it!', '#ffaa00');
+        this.run.events.toast('Titans charge big attacks. Hit the one charging, or tap its water trough to quench it!', '#ffaa00');
       }
       return;
     }
@@ -240,6 +245,26 @@ export class SadanController implements Controller {
       this.run.events.toast('Basalt: The forge... goes cold...', '#ffaa00');
       this.run.winSoon();
     }
+  }
+
+  onTap(x: number, y: number): boolean {
+    if (this.phase !== 'giants') return false;
+    const i = this.troughs.findIndex((t) => Math.hypot(t.x - x, t.y - y) < 0.9);
+    if (i < 0) return false;
+    const t = this.troughs[i], g = this.giants[i];
+    if (g.dead) return false;
+    if (t.cd > 0) {
+      this.field.text(t.x, t.y - 0.6, `Refilling ${Math.ceil(t.cd)}s`, '#88aacc');
+      return true;
+    }
+    t.cd = 12;
+    g.stun = 3;
+    g.flash = 0.3;
+    this.charges.delete(g);
+    if (this.laser?.from === g) this.laser = null;
+    this.field.ring(g.x, g.y, 1.8, '#5ab8ff');
+    this.field.text(g.x, g.y - 1.8, 'QUENCHED!', '#5ab8ff');
+    return true;
   }
 
   bar(): BossBar {
@@ -252,6 +277,18 @@ export class SadanController implements Controller {
   }
 
   draw(ctx: CanvasRenderingContext2D, X: ToScreen, Y: ToScreen, ts: number, time: number) {
+    if (this.phase === 'giants') {
+      for (const [i, t] of this.troughs.entries()) {
+        if (this.giants[i].dead) continue;
+        const cx = X(t.x), cy = Y(t.y), w = ts * 1.1, hh = ts * 0.5;
+        const ready = t.cd <= 0;
+        ctx.fillStyle = '#4a3a2a';
+        ctx.fillRect(cx - w / 2, cy - hh / 2, w, hh);
+        ctx.fillStyle = ready ? `rgba(90,184,255,${0.75 + 0.25 * Math.sin(time * 6 + i)})` : `rgba(90,184,255,${0.25 * (1 - t.cd / 12)})`;
+        ctx.fillRect(cx - w / 2 + 3, cy - hh / 2 + 3, w - 6, hh - 6);
+        label(ctx, ready ? 'QUENCH' : `${Math.ceil(t.cd)}s`, cx, cy + hh / 2 + ts * 0.32, Math.max(8, ts * 0.26), ready ? '#9fd8ff' : '#667788');
+      }
+    }
     if (this.phase === 'terracotta') {
       for (const p of POTS) {
         ctx.fillStyle = '#6b3a22';

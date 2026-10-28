@@ -232,6 +232,21 @@ export function drawField(ctx: CanvasRenderingContext2D, run: Run, f: Field, are
       ctx.fillRect(X(p.x) - r * 0.5, Y(p.y) - r * 0.6, r * 0.6, r * 0.4);
       ctx.fillStyle = '#4a433b';
       ctx.fillRect(X(p.x), Y(p.y) + r * 0.1, r * 0.5, r * 0.35);
+    } else if (p.kind === 'bomb') {
+      // Pip's juggling bombs: a black ball with a fizzing fuse.
+      const r = ts * 0.32, bx = X(p.x), by = Y(p.y);
+      ctx.fillStyle = '#1c1c22';
+      ctx.beginPath();
+      ctx.arc(bx, by, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#5a5a66';
+      ctx.fillRect(bx - r * 0.5, by - r * 0.55, r * 0.35, r * 0.25);
+      ctx.fillStyle = '#8a6a3a';
+      ctx.fillRect(bx - r * 0.1, by - r * 1.35, r * 0.2, r * 0.5);
+      ctx.fillStyle = Math.sin(p.life * 30) > 0 ? '#ffd34a' : '#ff5522';
+      ctx.beginPath();
+      ctx.arc(bx, by - r * 1.4, r * 0.25, 0, Math.PI * 2);
+      ctx.fill();
     } else if (p.kind === 'note') {
       // The Maestro's notes: a bobbing eighth note with a soft glow.
       const s = ts * 0.55, nx = X(p.x), ny = Y(p.y) + Math.sin(p.life * 9) * ts * 0.06;
